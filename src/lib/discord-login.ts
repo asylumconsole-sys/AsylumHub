@@ -34,6 +34,10 @@ export type AppSession = {
   };
 };
 
+export function discordCallbackUrl(origin: string) {
+  return `${origin.replace(/\/$/, "")}/api/discord/callback`;
+}
+
 export function buildDiscordAuthUrl(redirect = "/dashboard") {
   const clientId =
     (typeof import.meta !== "undefined" && import.meta.env?.VITE_DISCORD_CLIENT_ID) ||
@@ -42,9 +46,9 @@ export function buildDiscordAuthUrl(redirect = "/dashboard") {
     throw new Error("Discord client ID is not configured.");
   }
 
-  const redirectUri =
-    (typeof import.meta !== "undefined" && import.meta.env?.VITE_DISCORD_REDIRECT_URI) ||
-    `${window.location.origin}/api/discord/callback`;
+  // Always use the host the user is on. A baked-in VITE_DISCORD_REDIRECT_URI
+  // pointing at an old domain (asylumhub.online) breaks newer deploys.
+  const redirectUri = discordCallbackUrl(window.location.origin);
   const state = btoa(JSON.stringify({ redirect, nonce: crypto.randomUUID() }));
   const params = new URLSearchParams({
     client_id: clientId,

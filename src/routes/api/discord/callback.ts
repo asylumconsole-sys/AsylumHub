@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createDiscordSessionFromUser, DISCORD_SESSION_KEY } from "@/lib/discord-login";
+import { createDiscordSessionFromUser, DISCORD_SESSION_KEY, discordCallbackUrl } from "@/lib/discord-login";
 
 export const Route = createFileRoute("/api/discord/callback")({
   server: {
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/api/discord/callback")({
           return Response.redirect(new URL(`/login?error=discord_not_configured`, request.url), 302);
         }
 
-        const redirectUri = process.env.DISCORD_REDIRECT_URI || new URL("/api/discord/callback", request.url).toString();
+        const redirectUri = discordCallbackUrl(url.origin);
         const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
           method: "POST",
           headers: {
@@ -76,6 +76,7 @@ export const Route = createFileRoute("/api/discord/callback")({
         const session = createDiscordSessionFromUser(user, accessToken, tokenJson.refresh_token);
         const destination = new URL(redirect.startsWith("/") ? redirect : "/dashboard", request.url);
         destination.searchParams.set("discord_session", encodeURIComponent(JSON.stringify(session)));
+        void DISCORD_SESSION_KEY;
         return Response.redirect(destination, 302);
       },
     },
