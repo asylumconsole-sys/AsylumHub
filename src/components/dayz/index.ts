@@ -1,0 +1,1 @@
+export { DayZPageHeader } from "./DayZPageHeader";
