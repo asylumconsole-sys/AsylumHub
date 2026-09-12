@@ -2,4 +2,4 @@
 cmds = ["NITRO_PRESET=node-server npm run build"]
 
 [start]
-cmd = "node .output/server/index.mjs"
+cmd = "node railway-server.mjs"

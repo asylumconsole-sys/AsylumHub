@@ -1,1 +1,1 @@
-web: node .output/server/index.mjs
+web: node railway-server.mjs
