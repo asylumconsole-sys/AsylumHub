@@ -3,8 +3,8 @@ import { IconHome, IconWorkspace, IconCalendar, IconCommand } from "@/components
 
 const items = [
   { to: "/dashboard", label: "Home", Icon: IconHome },
-  { to: "/campaigns", label: "Operations", Icon: IconWorkspace },
-  { to: "/calendar", label: "Events", Icon: IconCalendar },
+  { to: "/operations", label: "Operations", Icon: IconWorkspace },
+  { to: "/tools/base-map-clicker", label: "Map", Icon: IconCalendar },
 ] as const;
 
 export function BottomNav() {
@@ -36,7 +36,7 @@ export function BottomNav() {
           className="flex flex-col items-center gap-1 py-2.5 text-[10px] uppercase tracking-wider text-muted-foreground"
         >
           <IconCommand size={20} />
-          <span>⌘K</span>
+          <span>Search</span>
         </button>
       </div>
     </nav>
