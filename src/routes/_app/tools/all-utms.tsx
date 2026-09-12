@@ -1,7 +1,8 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { UavBuyContent } from "@/routes/_app/tools/uav";
 
 export const Route = createFileRoute("/_app/tools/all-utms")({
-  beforeLoad: () => {
-    throw redirect({ to: "/tools/uav", replace: true });
+  component: function AllUtmsUav() {
+    return <UavBuyContent />;
   },
 });
