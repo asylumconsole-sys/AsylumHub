@@ -6,8 +6,8 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
-    "start": "HOST=0.0.0.0 PORT=${PORT:-8080} node .output/server/index.mjs",
+    "build": "NITRO_PRESET=node-server vite build",
+    "start": "node railway-server.mjs",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
