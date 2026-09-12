@@ -1,0 +1,5 @@
+[phases.build]
+cmds = ["NITRO_PRESET=node-server npm run build"]
+
+[start]
+cmd = "node .output/server/index.mjs"
