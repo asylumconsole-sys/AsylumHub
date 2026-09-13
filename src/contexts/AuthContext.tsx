@@ -197,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           [session, loading, signOut],
         );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>Ctx.Provider>;
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export const useAuth = () => useContext(Ctx);
