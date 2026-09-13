@@ -1,26 +1,86 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GlassPanel } from "@/components/ui-custom/GlassPanel";
 import { IconUtm } from "@/components/ui-custom/CustomIcon";
 import { ToolHeader } from "@/components/tools/ToolHeader";
+import { toast } from "sonner";
+import { getEconomyBalance, purchaseShopItem } from "@/lib/economy.functions";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const Route = createFileRoute("/_app/tools/uav")({
   component: UavRoute,
 });
+
+type UavPkg = {
+  id: string;
+  name: string;
+  note: string;
+  price: number;
+};
+
+const PACKAGES: UavPkg[] = [
+  { id: "uav", name: "UAV", note: "Fast scan", price: 12500 },
+  { id: "uav_advanced", name: "Advanced UAV", note: "Longer range", price: 18000 },
+  { id: "uav_counter", name: "Counter UAV", note: "Suppress hostile tracking", price: 16000 },
+];
 
 function UavRoute() {
   return <UavBuyContent />;
 }
 
 export function UavBuyContent({ hideHeader = false }: { hideHeader?: boolean } = {}) {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const playerId = user?.id || "demo-user";
+  const displayName =
+    (typeof user?.user_metadata?.name === "string" && user.user_metadata.name) ||
+    user?.email ||
+    playerId;
+
   const [packagesOpen, setPackagesOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string>(PACKAGES[0].id);
+  const selected = useMemo(
+    () => PACKAGES.find((p) => p.id === selectedId) ?? PACKAGES[0],
+    [selectedId],
+  );
+
+  const balanceQ = useQuery({
+    queryKey: ["economy-balance", playerId],
+    queryFn: () => getEconomyBalance({ data: { playerId } }),
+  });
+  const credits = balanceQ.data?.balance ?? 0;
+
+  const buyMut = useMutation({
+    mutationFn: (pkg: UavPkg) =>
+      purchaseShopItem({
+        data: {
+          playerId,
+          displayName,
+          itemId: pkg.id,
+          itemName: pkg.name,
+          price: pkg.price,
+          category: "uav",
+          allowRepeat: true,
+        },
+      }),
+    onSuccess: (_res, pkg) => {
+      toast.success(`${pkg.name} purchased`, {
+        description: `Debited ${pkg.price.toLocaleString()} credits.`,
+      });
+      qc.invalidateQueries({ queryKey: ["economy-balance", playerId] });
+      qc.invalidateQueries({ queryKey: ["economy-board"] });
+      qc.invalidateQueries({ queryKey: ["economy-tx"] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Purchase failed"),
+  });
 
   return (
     <div className="space-y-8">
       {hideHeader ? null : (
         <ToolHeader
-          eyebrow="Combat & Intel \u00b7 purchase"
+          eyebrow="Combat & Intel · purchase"
           title="UAV"
           hue={275}
           icon={<IconUtm size={24} />}
@@ -28,6 +88,13 @@ export function UavBuyContent({ hideHeader = false }: { hideHeader?: boolean } =
           description="Buy a reconnaissance UAV for the combat console."
         />
       )}
+
+      <div className="rounded-lg border border-glass-border bg-black/30 px-3 py-2 text-right w-fit ml-auto">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Credits</div>
+        <div className="font-mono text-sm text-amber-100">
+          {balanceQ.isLoading ? "…" : credits.toLocaleString()}
+        </div>
+      </div>
 
       <GlassPanel tier="strong" glow className="overflow-hidden border border-glass-border/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(0,0,0,0.18))] p-0">
         <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
@@ -86,25 +153,35 @@ export function UavBuyContent({ hideHeader = false }: { hideHeader?: boolean } =
                   className="space-y-5 pt-5"
                 >
                   <div className="grid gap-3 sm:grid-cols-3">
-                    {[
-                      { name: "UAV", note: "Fast scan", price: "12,500" },
-                      { name: "Advanced UAV", note: "Longer range", price: "18,000" },
-                      { name: "Counter UAV", note: "Suppress hostile tracking", price: "16,000" },
-                    ].map((item) => (
+                    {PACKAGES.map((item) => (
                       <motion.button
-                        key={item.name}
+                        key={item.id}
                         type="button"
+                        onClick={() => setSelectedId(item.id)}
                         whileHover={{ y: -3, scale: 1.02 }}
-                        className="rounded-2xl border border-amber-400/15 bg-black/20 p-4 text-left"
+                        className={`rounded-2xl border p-4 text-left ${
+                          selectedId === item.id
+                            ? "border-amber-300/50 bg-amber-400/10"
+                            : "border-amber-400/15 bg-black/20"
+                        }`}
                       >
                         <div className="font-display text-xl text-foreground">{item.name}</div>
                         <div className="mt-1 text-xs text-muted-foreground">{item.note}</div>
-                        <div className="mt-4 text-sm font-semibold text-amber-100">{item.price} cr</div>
+                        <div className="mt-4 text-sm font-semibold text-amber-100">
+                          {item.price.toLocaleString()} cr
+                        </div>
                       </motion.button>
                     ))}
                   </div>
-                  <button type="button" className="w-full rounded-2xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-50">
-                    Buy UAV
+                  <button
+                    type="button"
+                    disabled={buyMut.isPending}
+                    onClick={() => buyMut.mutate(selected)}
+                    className="w-full rounded-2xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-50 disabled:opacity-50"
+                  >
+                    {buyMut.isPending
+                      ? "Purchasing…"
+                      : `Buy ${selected.name} · ${selected.price.toLocaleString()}`}
                   </button>
                 </motion.div>
               ) : (
