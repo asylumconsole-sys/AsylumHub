@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"; import { useAuth } from "@/contexts/AuthContext";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { GradientMesh } from "@/components/ui-custom/GradientMesh";
