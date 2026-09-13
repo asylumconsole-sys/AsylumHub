@@ -175,3 +175,91 @@ export const purchaseNpc = createServerFn({ method: "POST" })
 
 			 		return { alreadyOwned: false as const, account, owned: inv.owned[playerId] };
 	});
+
+type ShopInventoryStore = {
+	owned: Record<string, string[]>;
+};
+
+const DEFAULT_SHOP_INV: ShopInventoryStore = { owned: {} };
+
+async function loadShopInv() {
+	return readJsonFile<ShopInventoryStore>("shop-inventory.json", DEFAULT_SHOP_INV);
+}
+
+export const getShopInventory = createServerFn({ method: "GET" })
+	.middleware([requireSupabaseAuth])
+	.inputValidator((data: { playerId?: string }) => data)
+	.handler(async ({ data, context }) => {
+		const playerId = data.playerId ?? context.userId ?? "demo-user";
+		const inv = await loadShopInv();
+		return { playerId, owned: inv.owned[playerId] ?? [] };
+	});
+
+export const purchaseShopItem = createServerFn({ method: "POST" })
+	.middleware([requireSupabaseAuth])
+	.inputValidator((data: {
+		playerId?: string;
+		displayName?: string;
+		itemId: string;
+		itemName?: string;
+		price: number;
+		category: "item" | "uav";
+		serverId?: "101" | "102" | null;
+		allowRepeat?: boolean;
+	}) => data)
+	.handler(async ({ data, context }) => {
+		const playerId = data.playerId ?? context.userId ?? "demo-user";
+		const displayName = data.displayName ?? playerId;
+		const itemId = data.itemId?.trim();
+		const category = data.category;
+		const price = Math.floor(Number(data.price));
+		const allowRepeat = Boolean(data.allowRepeat);
+		if (!itemId) throw new Error("Item id required");
+		if (category !== "item" && category !== "uav") throw new Error("Invalid category");
+		if (!Number.isFinite(price) || price < 0) throw new Error("Invalid price");
+
+		const inv = await loadShopInv();
+		const owned = new Set(inv.owned[playerId] ?? []);
+		const store = await loadStore();
+		const account = accountFor(store, playerId);
+		account.displayName = displayName;
+
+		if (!allowRepeat && owned.has(itemId)) {
+			return { alreadyOwned: true as const, account, owned: [...owned] };
+		}
+		if (account.balance < price) throw new Error("Insufficient credits");
+
+		account.balance -= price;
+		const transfer: EconomyTransfer = {
+			id: `tx_${Date.now().toString(36)}`,
+			fromPlayerId: playerId,
+			toPlayerId: "system",
+			amount: price,
+			note: `${category} purchase: ${itemId}`,
+			createdAt: new Date().toISOString(),
+		};
+		store.transfers.unshift(transfer);
+		if (!allowRepeat) {
+			owned.add(itemId);
+			inv.owned[playerId] = [...owned];
+			await writeJsonFile("shop-inventory.json", inv);
+		}
+		await writeJsonFile("economy.json", store);
+
+		emitHubEvent({
+			type: "shop.purchase",
+			playerId,
+			playerName: displayName,
+			serverId: data.serverId ?? null,
+			ts: Date.now(),
+			meta: {
+				category,
+				itemId,
+				itemName: data.itemName ?? itemId,
+				price,
+				currency: "credits",
+			},
+		});
+
+		return { alreadyOwned: false as const, account, owned: inv.owned[playerId] ?? [...owned] };
+	});
