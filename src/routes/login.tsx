@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { createDemoSession, DEMO_SESSION_KEY, useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { GradientMesh } from "@/components/ui-custom/GradientMesh";
 import { BRAND } from "@/lib/brand";
 import { BrandHexLogo } from "@/components/app/BrandHexLogo";
