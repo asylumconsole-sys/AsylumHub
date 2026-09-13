@@ -1,220 +1,265 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { GlassPanel } from "@/components/ui-custom/GlassPanel";
-import { PageHexBadge } from "@/components/app/PageHexBadge";
-import { IconCalendar } from "@/components/ui-custom/CustomIcon";
-import { toast } from "sonner";
-import { DAYZ_SERVERS, type DayZServerId } from "@/lib/dayz/servers";
-import { listHubEvents, startHubEvent, stopHubEvent } from "@/lib/events.functions";
-import { useAuth } from "@/contexts/AuthContext";
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { readJsonFile, writeJsonFile } from "@/lib/dayz/store";
+import { emitHubEvent } from "@/lib/hub-events";
 
-export const Route = createFileRoute("/_app/tools/events")({
-    component: EventsContent,
-    head: () => ({
-          meta: [
-            { title: "Nitrado Events — DayZ Pro" },
-            { name: "description", content: "Start and stop Asylum Nitrado events mirrored to Discord." },
-                ],
-    }),
-});
+export type EconomyAccount = {
+		playerId: string;
+		displayName: string;
+		balance: number;
+		xp: number;
+};
 
-export function EventsContent({ hideHeader = false }: { hideHeader?: boolean } = {}) {
-    const { user } = useAuth();
-    const qc = useQueryClient();
-    const playerId = user?.id || "demo-user";
-    const displayName =
-          (typeof user?.user_metadata?.name === "string" && user.user_metadata.name) ||
-          user?.email ||
-          playerId;
+export type EconomyTransfer = {
+		id: string;
+		fromPlayerId: string;
+		toPlayerId: string;
+		amount: number;
+		note?: string;
+		createdAt: string;
+};
 
-  const [serverId, setServerId] = useState<DayZServerId>("101x");
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [note, setNote] = useState("");
+type EconomyStore = {
+		accounts: Record<string, EconomyAccount>;
+		transfers: EconomyTransfer[];
+};
 
-  const eventsQ = useQuery({
-        queryKey: ["hub-events"],
-        queryFn: () => listHubEvents(),
-  });
+const DEFAULT_STORE: EconomyStore = { accounts: {}, transfers: [] };
 
-  const catalog = eventsQ.data?.catalog ?? [];
-    const active = eventsQ.data?.active ?? [];
-    const hubServer = serverId.startsWith("102") ? "102" : "101";
-    const selected = useMemo(
-          () => catalog.find((e) => e.id === selectedId) ?? null,
-          [catalog, selectedId],
-        );
-    const selectedActive = selected
-      ? active.find((a) => a.eventId === selected.id && a.serverId === hubServer)
-          : undefined;
-
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["hub-events"] });
-
-  const startMut = useMutation({
-        mutationFn: () => {
-                if (!selected) throw new Error("Select an event");
-                return startHubEvent({
-                          data: {
-                                      eventId: selected.id,
-                                      serverId,
-                                      playerId,
-                                      displayName,
-                                      note: note.trim() || undefined,
-                          },
-                });
-        },
-        onSuccess: () => {
-                toast.success(`${selected?.name} started on ${serverId}`);
-                setNote("");
-                invalidate();
-        },
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Start failed"),
-  });
-
-  const stopMut = useMutation({
-        mutationFn: () => {
-                if (!selected) throw new Error("Select an event");
-                return stopHubEvent({
-                          data: {
-                                      eventId: selected.id,
-                                      serverId,
-                                      playerId,
-                                      displayName,
-                                      note: note.trim() || undefined,
-                          },
-                });
-        },
-        onSuccess: () => {
-                toast.success(`${selected?.name} stopped on ${serverId}`);
-                setNote("");
-                invalidate();
-        },
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Stop failed"),
-  });
-
-  return (
-        <div className="space-y-6">
-          {!hideHeader && (
-                  <header className="flex items-start gap-4">
-                            <PageHexBadge hue={150} icon={<IconCalendar size={26} />} aria-label="Events" />
-                            <div>
-                                        <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Nitrado · Discord</div>div>
-                                        <h1 className="mt-1 font-display text-3xl md:text-4xl">Events</h1>h1>
-                                        <p className="mt-2 max-w-2xl text-muted-foreground">
-                                                      Start or stop server events. Emits `event.start` / `event.stop` to Discord #events.
-                                        </p>p>
-                            </div>div>
-                  </header>header>
-              )}
-        
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-glass-border bg-black/20 p-3">
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Server</span>span>
-                {DAYZ_SERVERS.map((s) => (
-                    <button
-                                  key={s.id}
-                                  type="button"
-                                  onClick={() => setServerId(s.id)}
-                                  className={`rounded-full border px-3 py-1 text-xs uppercase ${
-                                                  serverId === s.id
-                                                    ? "border-primary/50 bg-primary/15 text-primary"
-                                                    : "border-glass-border text-muted-foreground"
-                                  }`}
-                                >
-                      {s.id}
-                    </button>button>
-                  ))}
-              </div>div>
-        
-              <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {catalog.map((ev) => {
-                      const isActive = active.some((a) => a.eventId === ev.id && a.serverId === hubServer);
-                      return (
-                                      <button
-                                                        key={ev.id}
-                                                        type="button"
-                                                        onClick={() => setSelectedId(ev.id)}
-                                                        className={`rounded-lg border p-3 text-left transition hover:border-primary/60 ${
-                                                                            selectedId === ev.id ? "border-primary bg-primary/10" : "border-glass-border bg-black/25"
-                                                        }`}
-                                                      >
-                                                      <div className="flex items-start justify-between gap-2">
-                                                                        <span className="text-sm font-medium">{ev.name}</span>span>
-                                                        {isActive && (
-                                                                            <span className="text-[10px] uppercase tracking-wider text-emerald-300">Active</span>span>
-                                                                        )}
-                                                      </div>div>
-                                                      <div className="mt-1 text-[10px] text-muted-foreground">{ev.category}</div>div>
-                                                      <p className="mt-2 text-xs text-muted-foreground">{ev.description}</p>p>
-                                      </button>button>
-                                    );
-        })}
-                      </div>div>
-              
-                      <div className="lg:sticky lg:top-24 space-y-4">
-                        {selected ? (
-                      <GlassPanel className="border-primary/40 bg-black/95 p-5 shadow-xl">
-                                    <div className="text-xs uppercase tracking-[0.18em] text-primary">Selected event</div>div>
-                                    <h2 className="mt-1 font-display text-2xl">{selected.name}</h2>h2>
-                                    <p className="mt-2 text-sm text-muted-foreground">{selected.description}</p>p>
-                                    <div className="mt-3 text-xs text-muted-foreground">
-                                      {selectedActive
-                                                          ? `Active since ${new Date(selectedActive.startedAt).toLocaleString()}`
-                                                          : "Not active on this server"}
-                                    </div>div>
-                                    <label className="mt-4 block text-[10px] uppercase tracking-wider text-muted-foreground">
-                                                    Note (optional)
-                                                    <input
-                                                                        value={note}
-                                                                        onChange={(e) => setNote(e.target.value)}
-                                                                        className="mt-1 w-full rounded-lg border border-glass-border bg-black/40 px-3 py-2 text-sm outline-none"
-                                                                        placeholder="POI, duration, rules…"
-                                                                      />
-                                    </label>label>
-                                    <div className="mt-4 flex flex-col gap-2">
-                                                    <button
-                                                                        type="button"
-                                                                        disabled={!!selectedActive || startMut.isPending}
-                                                                        onClick={() => startMut.mutate()}
-                                                                        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-40"
-                                                                      >
-                                                      {startMut.isPending ? "Starting…" : `Start on ${serverId}`}
-                                                    </button>button>
-                                                    <button
-                                                                        type="button"
-                                                                        disabled={!selectedActive || stopMut.isPending}
-                                                                        onClick={() => stopMut.mutate()}
-                                                                        className="w-full rounded-lg border border-glass-border px-4 py-2.5 text-sm text-muted-foreground hover:bg-glass/40 disabled:opacity-40"
-                                                                      >
-                                                      {stopMut.isPending ? "Stopping…" : `Stop on ${serverId}`}
-                                                    </button>button>
-                                    </div>div>
-                      </GlassPanel>GlassPanel>
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-glass-border p-6 text-center text-sm text-muted-foreground">
-                                    Select an event to start or stop.
-                      </div>div>
-                                )}
-                      
-                                <GlassPanel className="p-4">
-                                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Active now</div>div>
-                                            <div className="mt-2 space-y-2">
-                                              {active.length === 0 && (
-                          <div className="text-sm text-muted-foreground">No active events.</div>div>
-                                                          )}
-                                              {active.map((a) => (
-                          <div key={`${a.serverId}-${a.eventId}-${a.startedAt}`} className="text-sm">
-                                            <div className="font-medium">{a.eventName} · {a.serverId}</div>div>
-                                            <div className="text-[11px] text-muted-foreground">
-                                                                by {a.startedByName}
-                                            </div>div>
-                          </div>div>
-                        ))}
-                                            </div>div>
-                                </GlassPanel>GlassPanel>
-                      </div>div>
-              </div>div>
-        </div>div>
-      );
+async function loadStore() {
+		return readJsonFile<EconomyStore>("economy.json", DEFAULT_STORE);
 }
-</div>
+
+function accountFor(store: EconomyStore, playerId: string): EconomyAccount {
+		const existing = store.accounts[playerId];
+		if (existing) return existing;
+		const account = { playerId, displayName: playerId === "demo-user" ? "Asylum Demo" : playerId, balance: 0, xp: 0 };
+		store.accounts[playerId] = account;
+		return account;
+}
+
+export const getEconomyBalance = createServerFn({ method: "GET" })
+	.middleware([requireSupabaseAuth])
+	.inputValidator((data: { playerId?: string }) => data)
+	.handler(async ({ data, context }) => {
+				const store = await loadStore();
+				return accountFor(store, data.playerId ?? context.userId ?? "demo-user");
+	});
+
+export const listEconomyLeaderboard = createServerFn({ method: "GET" })
+	.middleware([requireSupabaseAuth])
+	.handler(async () => {
+				const store = await loadStore();
+				return Object.values(store.accounts).sort((a, b) => b.balance - a.balance || b.xp - a.xp);
+	});
+
+export const listRecentTransfers = createServerFn({ method: "GET" })
+	.middleware([requireSupabaseAuth])
+	.handler(async () => (await loadStore()).transfers.slice(0, 50));
+
+export const creditPlayer = createServerFn({ method: "POST" })
+	.middleware([requireSupabaseAuth])
+	.inputValidator((data: { playerId: string; amount: number; note?: string }) => data)
+	.handler(async ({ data }) => {
+				const store = await loadStore();
+				const account = accountFor(store, data.playerId);
+				account.balance += Math.floor(data.amount);
+				account.xp += Math.max(0, Math.floor(data.amount / 10));
+				await writeJsonFile("economy.json", store);
+				return account;
+	});
+
+export const payPlayer = createServerFn({ method: "POST" })
+	.middleware([requireSupabaseAuth])
+	.inputValidator((data: { toPlayerId: string; amount: number; note?: string }) => data)
+	.handler(async ({ data, context }) => {
+				const store = await loadStore();
+				const fromPlayerId = context.userId ?? "demo-user";
+				const from = accountFor(store, fromPlayerId);
+				const amount = Math.floor(Number(data.amount));
+				if (!Number.isFinite(amount) || amount <= 0) throw new Error("Amount must be positive");
+				if (from.balance < amount) throw new Error("Insufficient credits");
+				from.balance -= amount;
+				const to = accountFor(store, data.toPlayerId.trim());
+				to.balance += amount;
+				const transfer: EconomyTransfer = {
+								id: `tx_${Date.now().toString(36)}`,
+								fromPlayerId,
+								toPlayerId: to.playerId,
+								amount,
+								note: data.note,
+								createdAt: new Date().toISOString(),
+				};
+				store.transfers.unshift(transfer);
+				await writeJsonFile("economy.json", store);
+				return { transfer, balance: from };
+	});
+
+type NpcInventoryStore = {
+		owned: Record<string, string[]>;
+};
+
+const DEFAULT_NPC_INV: NpcInventoryStore = { owned: {} };
+
+async function loadNpcInv() {
+		return readJsonFile<NpcInventoryStore>("npc-inventory.json", DEFAULT_NPC_INV);
+}
+
+export const getNpcInventory = createServerFn({ method: "GET" })
+	.middleware([requireSupabaseAuth])
+	.inputValidator((data: { playerId?: string }) => data)
+	.handler(async ({ data, context }) => {
+				const playerId = data.playerId ?? context.userId ?? "demo-user";
+				const inv = await loadNpcInv();
+				return { playerId, owned: inv.owned[playerId] ?? [] };
+	});
+
+export const purchaseNpc = createServerFn({ method: "POST" })
+	.middleware([requireSupabaseAuth])
+	.inputValidator((data: {
+				playerId?: string;
+				displayName?: string;
+				npcId: string;
+				npcName?: string;
+				price: number;
+				serverId?: "101" | "102" | null;
+	}) => data)
+	.handler(async ({ data, context }) => {
+				const playerId = data.playerId ?? context.userId ?? "demo-user";
+				const displayName = data.displayName ?? playerId;
+				const npcId = data.npcId?.trim();
+				const price = Math.floor(Number(data.price));
+				if (!npcId) throw new Error("NPC id required");
+				if (!Number.isFinite(price) || price < 0) throw new Error("Invalid price");
+
+			 		const inv = await loadNpcInv();
+				const owned = new Set(inv.owned[playerId] ?? []);
+				const store = await loadStore();
+				const account = accountFor(store, playerId);
+				account.displayName = displayName;
+
+			 		if (owned.has(npcId)) {
+									return { alreadyOwned: true as const, account, owned: [...owned] };
+					}
+				if (account.balance < price) throw new Error("Insufficient credits");
+
+			 		account.balance -= price;
+				const transfer: EconomyTransfer = {
+								id: `tx_${Date.now().toString(36)}`,
+								fromPlayerId: playerId,
+								toPlayerId: "system",
+								amount: price,
+								note: `NPC purchase: ${npcId}`,
+								createdAt: new Date().toISOString(),
+				};
+				store.transfers.unshift(transfer);
+				owned.add(npcId);
+				inv.owned[playerId] = [...owned];
+				await writeJsonFile("economy.json", store);
+				await writeJsonFile("npc-inventory.json", inv);
+
+			 		emitHubEvent({
+									type: "shop.purchase",
+									playerId,
+									playerName: displayName,
+									serverId: data.serverId ?? null,
+									ts: Date.now(),
+									meta: {
+														category: "npc",
+														itemId: npcId,
+														itemName: data.npcName ?? npcId,
+														price,
+														currency: "credits",
+									},
+					});
+
+			 		return { alreadyOwned: false as const, account, owned: inv.owned[playerId] };
+	});
+
+type ShopInventoryStore = {
+	owned: Record<string, string[]>;
+};
+
+const DEFAULT_SHOP_INV: ShopInventoryStore = { owned: {} };
+
+async function loadShopInv() {
+	return readJsonFile<ShopInventoryStore>("shop-inventory.json", DEFAULT_SHOP_INV);
+}
+
+export const getShopInventory = createServerFn({ method: "GET" })
+	.middleware([requireSupabaseAuth])
+	.inputValidator((data: { playerId?: string }) => data)
+	.handler(async ({ data, context }) => {
+		const playerId = data.playerId ?? context.userId ?? "demo-user";
+		const inv = await loadShopInv();
+		return { playerId, owned: inv.owned[playerId] ?? [] };
+	});
+
+export const purchaseShopItem = createServerFn({ method: "POST" })
+	.middleware([requireSupabaseAuth])
+	.inputValidator((data: {
+		playerId?: string;
+		displayName?: string;
+		itemId: string;
+		itemName?: string;
+		price: number;
+		category: "item" | "uav";
+		serverId?: "101" | "102" | null;
+		allowRepeat?: boolean;
+	}) => data)
+	.handler(async ({ data, context }) => {
+		const playerId = data.playerId ?? context.userId ?? "demo-user";
+		const displayName = data.displayName ?? playerId;
+		const itemId = data.itemId?.trim();
+		const category = data.category;
+		const price = Math.floor(Number(data.price));
+		const allowRepeat = Boolean(data.allowRepeat);
+		if (!itemId) throw new Error("Item id required");
+		if (category !== "item" && category !== "uav") throw new Error("Invalid category");
+		if (!Number.isFinite(price) || price < 0) throw new Error("Invalid price");
+
+		const inv = await loadShopInv();
+		const owned = new Set(inv.owned[playerId] ?? []);
+		const store = await loadStore();
+		const account = accountFor(store, playerId);
+		account.displayName = displayName;
+
+		if (!allowRepeat && owned.has(itemId)) {
+			return { alreadyOwned: true as const, account, owned: [...owned] };
+		}
+		if (account.balance < price) throw new Error("Insufficient credits");
+
+		account.balance -= price;
+		const transfer: EconomyTransfer = {
+			id: `tx_${Date.now().toString(36)}`,
+			fromPlayerId: playerId,
+			toPlayerId: "system",
+			amount: price,
+			note: `${category} purchase: ${itemId}`,
+			createdAt: new Date().toISOString(),
+		};
+		store.transfers.unshift(transfer);
+		if (!allowRepeat) {
+			owned.add(itemId);
+			inv.owned[playerId] = [...owned];
+			await writeJsonFile("shop-inventory.json", inv);
+		}
+		await writeJsonFile("economy.json", store);
+
+		emitHubEvent({
+			type: "shop.purchase",
+			playerId,
+			playerName: displayName,
+			serverId: data.serverId ?? null,
+			ts: Date.now(),
+			meta: {
+				category,
+				itemId,
+				itemName: data.itemName ?? itemId,
+				price,
+				currency: "credits",
+			},
+		});
+
+		return { alreadyOwned: false as const, account, owned: inv.owned[playerId] ?? [...owned] };
+	});
