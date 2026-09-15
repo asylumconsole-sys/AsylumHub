@@ -3,6 +3,10 @@ import { UavBuyContent } from "@/routes/_app/tools/uav";
 
 export const Route = createFileRoute("/_app/tools/all-utms")({
   component: function AllUtmsUav() {
-    return <UavBuyContent />;
+    return <AllUtmsContent />;
   },
 });
+
+export function AllUtmsContent({ hideHeader = false }: { hideHeader?: boolean } = {}) {
+  return <UavBuyContent hideHeader={hideHeader} />;
+}
