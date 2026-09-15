@@ -13,6 +13,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { SmoothScroll } from "@/components/ui-custom/SmoothScroll";
 import { EmberField } from "@/components/ui-custom/EmberField";
 import { BRAND } from "@/lib/brand";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 import appCss from "../styles.css?url";
 
@@ -120,25 +121,27 @@ function RootComponent() {
   const location = useLocation();
   return (
     <QueryClientProvider client={queryClient}>
-      <SmoothScroll />
-      <EmberField />
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <Outlet />
-        </motion.div>
-      </AnimatePresence>
-      <Toaster
+      <AuthProvider>
+        <SmoothScroll />
+        <EmberField />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
+        <Toaster
           position="bottom-right"
           toastOptions={{
             className: "glass-strong text-foreground border-glass-border",
           }}
         />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
