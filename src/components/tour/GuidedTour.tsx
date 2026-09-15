@@ -10,6 +10,7 @@ const TOOLTIP_W = 340;
 const TOOLTIP_GAP = 20;
 const SPOTLIGHT_PAD = 12;
 const CONTEXT_PAD = 6;
+const TOUR_LOCAL_PREFIX = "dayzpro:tour:";
 
 type Phase = "idle" | "loading" | "active" | "done";
 type Rect = { x: number; y: number; w: number; h: number };
@@ -109,22 +110,41 @@ function computeTooltipPos(
 }
 
 async function loadTourState(userId: string): Promise<string[]> {
-  const { data } = await supabase
-    .from("user_preferences")
-    .select("values")
-    .eq("user_id", userId)
-    .eq("key", TOUR_PREF_KEY)
-    .maybeSingle();
-  return ((data?.values as string[] | undefined) ?? []);
+  try {
+    const local = window.localStorage.getItem(`${TOUR_LOCAL_PREFIX}${userId}`);
+    if (local) return JSON.parse(local) as string[];
+  } catch {
+    // A blocked local-storage implementation should not prevent app access.
+  }
+  try {
+    const { data } = await supabase
+      .from("user_preferences")
+      .select("values")
+      .eq("user_id", userId)
+      .eq("key", TOUR_PREF_KEY)
+      .maybeSingle();
+    return ((data?.values as string[] | undefined) ?? []);
+  } catch {
+    return [];
+  }
 }
 
 async function saveTourState(userId: string, values: string[]) {
-  await supabase.from("user_preferences").upsert({
-    user_id: userId,
-    key: TOUR_PREF_KEY,
-    values,
-    updated_at: new Date().toISOString(),
-  });
+  try {
+    window.localStorage.setItem(`${TOUR_LOCAL_PREFIX}${userId}`, JSON.stringify(values));
+  } catch {
+    // Supabase remains the secondary persistence layer when browser storage is blocked.
+  }
+  try {
+    await supabase.from("user_preferences").upsert({
+      user_id: userId,
+      key: TOUR_PREF_KEY,
+      values,
+      updated_at: new Date().toISOString(),
+    });
+  } catch {
+    // Local storage is the reliable fallback while Supabase is unavailable.
+  }
 }
 
 export function GuidedTour() {
@@ -159,9 +179,10 @@ export function GuidedTour() {
     autoStartedRef.current = true;
     (async () => {
       const values = await loadTourState(userId);
-      if (values.includes("completed") || values.includes("skipped")) return;
+      if (values.includes("seen") || values.includes("completed") || values.includes("skipped")) return;
       // Only auto-start on dashboard (avoids surprising users mid-flow)
       if (!pathnameRef.current.startsWith("/dashboard")) return;
+      await saveTourState(userId, ["seen"]);
       // Small delay so hero animations settle
       setTimeout(() => {
         setStepIdx(0);

@@ -186,7 +186,7 @@ function Settings() {
         })}
       </div>
 
-      {loading && tab !== "server-chat" ? (
+      {loading && tab === "organization" ? (
         <GlassSkeleton rows={6} />
       ) : loadError && tab === "organization" ? (
         <PanelError message="Couldn't load settings" onRetry={() => setReloadKey((k) => k + 1)} />
@@ -607,12 +607,27 @@ function AccountTab({ email, fullName, orgName, signOut }: { email: string; full
       <GlassPanel className="flex flex-wrap items-center justify-between gap-4 p-6">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Appearance</div>
-          <div className="mt-2 font-display text-lg">Light or dark mode</div>
+          <div className="mt-2 font-display text-lg">Light, dark, or Halloween mode</div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Switch the look of {BRAND.name}. Your choice is remembered on this device.
+            Halloween mode adds an opt-in seasonal command overlay. Your choice is remembered on this device.
           </p>
         </div>
         <ThemeToggle />
+      </GlassPanel>
+
+      <GlassPanel className="flex flex-wrap items-center justify-between gap-4 p-6">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Guided tour</div>
+          <div className="mt-2 font-display text-lg">Replay the DayZ Pro tour</div>
+          <p className="mt-1 text-sm text-muted-foreground">The tour runs only once after sign-in unless you choose to replay it here.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("lovable:start-tour"))}
+          className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/20"
+        >
+          Replay tour
+        </button>
       </GlassPanel>
     </div>
   );

@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"; import { useAuth } from "@/contexts/AuthContext";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { GradientMesh } from "@/components/ui-custom/GradientMesh";
@@ -26,7 +27,6 @@ import {
   IconChart,
 
 } from "@/components/ui-custom/CustomIcon";
-import { CommanderAI } from "@/components/app/CommanderAI";
 import { CommandPalette } from "@/components/app/CommandPalette";
 import { CommanderOrb } from "@/components/app/CommanderOrb";
 
@@ -44,7 +44,6 @@ import { BRAND } from "@/lib/brand";
 
 import { AutosaveStatus } from "@/components/app/AutosaveStatus";
 import { purgeExpiredDrafts } from "@/hooks/use-draft";
-import { getCachedOnboardedAt } from "@/hooks/use-onboarding-status";
 
 export const Route = createFileRoute("/_app")({
   component: AppShell,
@@ -52,10 +51,11 @@ export const Route = createFileRoute("/_app")({
 
 const PRIMARY_NAV = [
   { to: "/dashboard", label: "Lobby", Icon: IconHome },
-  { to: "/campaigns", label: "Operations", Icon: IconWorkspace },
-  { to: "/leads", label: "Online", Icon: IconAudience },
+  { to: "/operations", label: "Operations", Icon: IconWorkspace },
+  { to: "/tools/base-map-clicker", label: "Map", Icon: IconWorkspace },
   { to: "/tools", label: "Server shop", Icon: IconCampaign },
   { to: "/war-room", label: "War Room", Icon: IconWorkspace },
+  { to: "/rewards", label: "Rewards", Icon: IconBolt },
   { to: "/battlepass", label: "Battlepass", Icon: IconCalendar },
   { to: "/requests", label: "Support tickets", Icon: IconClock },
   { to: "/templates", label: "Locker", Icon: IconTemplate },
@@ -72,10 +72,10 @@ const MARKETING_TOOLS: ToolItem[] = [
     label: "Combat & Intel",
     Icon: IconUtm,
     children: [
+      { to: "/tools", search: { focus: "utm" }, label: "Combat & Intel", Icon: IconUtm },
       { to: "/tools", search: { focus: "utm-all" }, label: "UAV Tracking", Icon: IconSpark },
       { to: "/tools", search: { focus: "utm" }, label: "PVP Killfeed", Icon: IconSpark },
       { to: "/tools", search: { focus: "utm-taxonomy" }, label: "Bounties", Icon: IconSpark },
-      { to: "/tools", search: { focus: "campaign-list-cleaner" }, label: "Counter-UAV", Icon: IconSpark },
       { to: "/tools", search: { focus: "funnel-performance" }, label: "Leaderboards", Icon: IconChart },
     ],
   },
@@ -179,18 +179,16 @@ function ActiveBloom() {
 
 
 function AppShell() {
-  // Demo/offline mode - no authentication
-  const session = { user: { id: "demo-user" } };
-  const loading = false;
-  const user = { id: "demo-user", email: "demo@example.com" };
+  const { session, loading, user } = useAuth();
   const loc = useLocation();
   const nav = useNavigate();
-  const focusParam = ((loc.search as Record<string, unknown> | undefined)?.focus as string) ?? "";
+  const rawFocus = (loc.search as Record<string, unknown> | undefined)?.focus;
+  const focusParam = typeof rawFocus === "string" ? rawFocus : "";
   const pathnameRef = useRef(loc.pathname);
 
   useEffect(() => {
-    pathnameRef.current = loc.pathname;
-  });
+    pathnameRef.current = `${loc.pathname}${typeof window === "undefined" ? "" : window.location.search}${loc.hash}`;
+  }, [loc.pathname, loc.hash]);
 
   const isToolsRoute = loc.pathname.startsWith("/tools") || loc.pathname.startsWith("/funnel");
   const [toolsOpenState, setToolsOpenState] = useState<{ manualOpen: boolean; routeCollapsedFor: string | null }>({
@@ -248,31 +246,11 @@ function AppShell() {
     return () => window.removeEventListener("lovable:tour-expand-tools", onExpand);
   }, []);
 
-
-  // First-run gate: send to /welcome until onboarded.
-  // Run once per signed-in user (not on every navigation) so sidebar clicks
-  // don't kick off duplicate profile fetches and re-render the shell.
-  useEffect(() => {
-    if (!user) return;
-    if (user.id === "demo-user") return;
-    let cancelled = false;
-    (async () => {
-      const onboardedAt = await getCachedOnboardedAt(user.id);
-      if (cancelled || onboardedAt) return;
-      if (window.location.pathname.startsWith("/welcome")) return;
-      nav({ to: "/welcome", replace: true });
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
   useEffect(() => {
     if (!loading && !session) {
       nav({
         to: "/login",
-        search: { redirect: pathnameRef.current, mode: "signin" },
+        search: { redirect: pathnameRef.current, mode: "signin", error: undefined },
         replace: true,
       });
     }
@@ -281,35 +259,12 @@ function AppShell() {
   }, [loading, session, nav]);
 
   if (loading || !session) {
-    // Keep this branch deterministic. A delayed blank→splash→app sequence was
-    // the visible auth flash; the auth provider now dedupes initialization, so
-    // a single stable loading tree is safer than a timed tree swap.
     return (
       <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[color:var(--color-ink)]">
         <GradientMesh />
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="relative z-10 flex flex-col items-center gap-5"
-        >
-          <motion.div
-            animate={{ scale: [1, 1.06, 1], opacity: [0.85, 1, 0.85] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-            className="flex h-14 w-14 items-center justify-center rounded-2xl bg-glass/60 backdrop-blur-xl ring-1 ring-glass-border"
-          >
-            <IconLogo size={28} className="text-primary" />
-          </motion.div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-            </span>
-            <span className="font-display tracking-wide">
-              {loading ? `Booting ${BRAND.name}` : "Redirecting to sign in"}
-            </span>
-          </div>
-        </motion.div>
+        <div className="relative z-10 text-sm text-muted-foreground">
+          {loading ? `Booting ${BRAND.name}` : "Redirecting to sign in"}
+        </div>
       </div>
     );
   }
@@ -400,7 +355,6 @@ function AppShell() {
                       </span>
                     )}
                   </Link>
-
                 </div>
               );
             })}
@@ -420,20 +374,6 @@ function AppShell() {
               >
                 <IconSettings size={18} />
                 {!collapsed && <span>Settings</span>}
-              </Link>
-              <Link
-                to="/integrations"
-                preload="render"
-                title={collapsed ? "Integrations" : undefined}
-                data-tour="nav-integrations"
-                className={`flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-xl py-2.5 text-sm transition-colors ${
-                  loc.pathname.startsWith("/integrations") || loc.pathname.startsWith("/connectors")
-                    ? "bg-glass text-foreground"
-                    : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"
-                }`}
-              >
-                <IconBolt size={18} />
-                {!collapsed && <span>Server Chat</span>}
               </Link>
             </div>
           </nav>
@@ -459,7 +399,6 @@ function AppShell() {
           )}
         </aside>
 
-        {COMMANDER_ENABLED && <CommanderAI />}
         {!COMMANDER_ENABLED && <CommandPalette />}
 
         <main className="flex-1 min-w-0 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+5rem)] md:pb-0">

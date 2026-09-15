@@ -22,16 +22,16 @@ import { Route as RSlugRouteImport } from './routes/r.$slug'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AppWelcomeRouteImport } from './routes/_app/welcome'
+import { Route as AppWarRoomRouteImport } from './routes/_app/war-room'
 import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
 import { Route as AppStatsRouteImport } from './routes/_app/stats'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppServersRouteImport } from './routes/_app/servers'
+import { Route as AppRewardsRouteImport } from './routes/_app/rewards'
 import { Route as AppRequestsRouteImport } from './routes/_app/requests'
 import { Route as AppOperationsRouteImport } from './routes/_app/operations'
 import { Route as AppLiveRouteImport } from './routes/_app/live'
-import { Route as AppLeadsRouteImport } from './routes/_app/leads'
 import { Route as AppKillfeedRouteImport } from './routes/_app/killfeed'
-import { Route as AppIntegrationsRouteImport } from './routes/_app/integrations'
 import { Route as AppFunnelRouteImport } from './routes/_app/funnel'
 import { Route as AppFactionsRouteImport } from './routes/_app/factions'
 import { Route as AppEconomyRouteImport } from './routes/_app/economy'
@@ -46,9 +46,13 @@ import { Route as AppCampaignsIndexRouteImport } from './routes/_app/campaigns/i
 import { Route as RequestStatusTokenRouteImport } from './routes/request.status.$token'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as IntakeOrgSlugHackathonRouteImport } from './routes/intake.$orgSlug.hackathon'
+import { Route as ApiDiscordInteractionsRouteImport } from './routes/api/discord/interactions'
 import { Route as ApiDiscordCallbackRouteImport } from './routes/api/discord/callback'
+import { Route as ApiAdminCreditRouteImport } from './routes/api/admin/credit'
 import { Route as AppWorkspacesIdRouteImport } from './routes/_app/workspaces/$id'
+import { Route as AppToolsVehicleShopRouteImport } from './routes/_app/tools/vehicle-shop'
 import { Route as AppToolsUtmRouteImport } from './routes/_app/tools/utm'
+import { Route as AppToolsUavRouteImport } from './routes/_app/tools/uav'
 import { Route as AppToolsTaxonomyRouteImport } from './routes/_app/tools/taxonomy'
 import { Route as AppToolsNpcShopRouteImport } from './routes/_app/tools/npc-shop'
 import { Route as AppToolsNpcMapClickerRouteImport } from './routes/_app/tools/npc-map-clicker'
@@ -60,6 +64,7 @@ import { Route as AppToolsEventIntakeRouteImport } from './routes/_app/tools/eve
 import { Route as AppToolsCampaignPerformanceRouteImport } from './routes/_app/tools/campaign-performance'
 import { Route as AppToolsCampaignInABoxRouteImport } from './routes/_app/tools/campaign-in-a-box'
 import { Route as AppToolsCampaignCreatorRouteImport } from './routes/_app/tools/campaign-creator'
+import { Route as AppToolsBoostsRouteImport } from './routes/_app/tools/boosts'
 import { Route as AppToolsBaseMapClickerRouteImport } from './routes/_app/tools/base-map-clicker'
 import { Route as AppToolsAllUtmsRouteImport } from './routes/_app/tools/all-utms'
 import { Route as AppToolsSplatRouteImport } from './routes/_app/tools/$'
@@ -136,6 +141,11 @@ const AppWelcomeRoute = AppWelcomeRouteImport.update({
   path: '/welcome',
   getParentRoute: () => AppRoute,
 } as any)
+const AppWarRoomRoute = AppWarRoomRouteImport.update({
+  id: '/war-room',
+  path: '/war-room',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTemplatesRoute = AppTemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
@@ -156,6 +166,11 @@ const AppServersRoute = AppServersRouteImport.update({
   path: '/servers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRewardsRoute = AppRewardsRouteImport.update({
+  id: '/rewards',
+  path: '/rewards',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRequestsRoute = AppRequestsRouteImport.update({
   id: '/requests',
   path: '/requests',
@@ -171,19 +186,9 @@ const AppLiveRoute = AppLiveRouteImport.update({
   path: '/live',
   getParentRoute: () => AppRoute,
 } as any)
-const AppLeadsRoute = AppLeadsRouteImport.update({
-  id: '/leads',
-  path: '/leads',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppKillfeedRoute = AppKillfeedRouteImport.update({
   id: '/killfeed',
   path: '/killfeed',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntegrationsRoute = AppIntegrationsRouteImport.update({
-  id: '/integrations',
-  path: '/integrations',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFunnelRoute = AppFunnelRouteImport.update({
@@ -256,9 +261,19 @@ const IntakeOrgSlugHackathonRoute = IntakeOrgSlugHackathonRouteImport.update({
   path: '/intake/$orgSlug/hackathon',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDiscordInteractionsRoute = ApiDiscordInteractionsRouteImport.update({
+  id: '/api/discord/interactions',
+  path: '/api/discord/interactions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDiscordCallbackRoute = ApiDiscordCallbackRouteImport.update({
   id: '/api/discord/callback',
   path: '/api/discord/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminCreditRoute = ApiAdminCreditRouteImport.update({
+  id: '/api/admin/credit',
+  path: '/api/admin/credit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppWorkspacesIdRoute = AppWorkspacesIdRouteImport.update({
@@ -266,9 +281,19 @@ const AppWorkspacesIdRoute = AppWorkspacesIdRouteImport.update({
   path: '/workspaces/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppToolsVehicleShopRoute = AppToolsVehicleShopRouteImport.update({
+  id: '/tools/vehicle-shop',
+  path: '/tools/vehicle-shop',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppToolsUtmRoute = AppToolsUtmRouteImport.update({
   id: '/tools/utm',
   path: '/tools/utm',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppToolsUavRoute = AppToolsUavRouteImport.update({
+  id: '/tools/uav',
+  path: '/tools/uav',
   getParentRoute: () => AppRoute,
 } as any)
 const AppToolsTaxonomyRoute = AppToolsTaxonomyRouteImport.update({
@@ -325,6 +350,11 @@ const AppToolsCampaignInABoxRoute = AppToolsCampaignInABoxRouteImport.update({
 const AppToolsCampaignCreatorRoute = AppToolsCampaignCreatorRouteImport.update({
   id: '/tools/campaign-creator',
   path: '/tools/campaign-creator',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppToolsBoostsRoute = AppToolsBoostsRouteImport.update({
+  id: '/tools/boosts',
+  path: '/tools/boosts',
   getParentRoute: () => AppRoute,
 } as any)
 const AppToolsBaseMapClickerRoute = AppToolsBaseMapClickerRouteImport.update({
@@ -403,16 +433,16 @@ export interface FileRoutesByFullPath {
   '/economy': typeof AppEconomyRoute
   '/factions': typeof AppFactionsRoute
   '/funnel': typeof AppFunnelRoute
-  '/integrations': typeof AppIntegrationsRoute
   '/killfeed': typeof AppKillfeedRoute
-  '/leads': typeof AppLeadsRoute
   '/live': typeof AppLiveRoute
   '/operations': typeof AppOperationsRoute
   '/requests': typeof AppRequestsRoute
+  '/rewards': typeof AppRewardsRoute
   '/servers': typeof AppServersRoute
   '/settings': typeof AppSettingsRoute
   '/stats': typeof AppStatsRoute
   '/templates': typeof AppTemplatesRoute
+  '/war-room': typeof AppWarRoomRoute
   '/welcome': typeof AppWelcomeRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -423,6 +453,7 @@ export interface FileRoutesByFullPath {
   '/tools/$': typeof AppToolsSplatRoute
   '/tools/all-utms': typeof AppToolsAllUtmsRoute
   '/tools/base-map-clicker': typeof AppToolsBaseMapClickerRoute
+  '/tools/boosts': typeof AppToolsBoostsRoute
   '/tools/campaign-creator': typeof AppToolsCampaignCreatorRoute
   '/tools/campaign-in-a-box': typeof AppToolsCampaignInABoxRoute
   '/tools/campaign-performance': typeof AppToolsCampaignPerformanceRoute
@@ -434,9 +465,13 @@ export interface FileRoutesByFullPath {
   '/tools/npc-map-clicker': typeof AppToolsNpcMapClickerRoute
   '/tools/npc-shop': typeof AppToolsNpcShopRoute
   '/tools/taxonomy': typeof AppToolsTaxonomyRoute
+  '/tools/uav': typeof AppToolsUavRoute
   '/tools/utm': typeof AppToolsUtmRoute
+  '/tools/vehicle-shop': typeof AppToolsVehicleShopRoute
   '/workspaces/$id': typeof AppWorkspacesIdRoute
+  '/api/admin/credit': typeof ApiAdminCreditRoute
   '/api/discord/callback': typeof ApiDiscordCallbackRoute
+  '/api/discord/interactions': typeof ApiDiscordInteractionsRoute
   '/intake/$orgSlug/hackathon': typeof IntakeOrgSlugHackathonRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/request/status/$token': typeof RequestStatusTokenRoute
@@ -466,16 +501,16 @@ export interface FileRoutesByTo {
   '/economy': typeof AppEconomyRoute
   '/factions': typeof AppFactionsRoute
   '/funnel': typeof AppFunnelRoute
-  '/integrations': typeof AppIntegrationsRoute
   '/killfeed': typeof AppKillfeedRoute
-  '/leads': typeof AppLeadsRoute
   '/live': typeof AppLiveRoute
   '/operations': typeof AppOperationsRoute
   '/requests': typeof AppRequestsRoute
+  '/rewards': typeof AppRewardsRoute
   '/servers': typeof AppServersRoute
   '/settings': typeof AppSettingsRoute
   '/stats': typeof AppStatsRoute
   '/templates': typeof AppTemplatesRoute
+  '/war-room': typeof AppWarRoomRoute
   '/welcome': typeof AppWelcomeRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -486,6 +521,7 @@ export interface FileRoutesByTo {
   '/tools/$': typeof AppToolsSplatRoute
   '/tools/all-utms': typeof AppToolsAllUtmsRoute
   '/tools/base-map-clicker': typeof AppToolsBaseMapClickerRoute
+  '/tools/boosts': typeof AppToolsBoostsRoute
   '/tools/campaign-creator': typeof AppToolsCampaignCreatorRoute
   '/tools/campaign-in-a-box': typeof AppToolsCampaignInABoxRoute
   '/tools/campaign-performance': typeof AppToolsCampaignPerformanceRoute
@@ -497,9 +533,13 @@ export interface FileRoutesByTo {
   '/tools/npc-map-clicker': typeof AppToolsNpcMapClickerRoute
   '/tools/npc-shop': typeof AppToolsNpcShopRoute
   '/tools/taxonomy': typeof AppToolsTaxonomyRoute
+  '/tools/uav': typeof AppToolsUavRoute
   '/tools/utm': typeof AppToolsUtmRoute
+  '/tools/vehicle-shop': typeof AppToolsVehicleShopRoute
   '/workspaces/$id': typeof AppWorkspacesIdRoute
+  '/api/admin/credit': typeof ApiAdminCreditRoute
   '/api/discord/callback': typeof ApiDiscordCallbackRoute
+  '/api/discord/interactions': typeof ApiDiscordInteractionsRoute
   '/intake/$orgSlug/hackathon': typeof IntakeOrgSlugHackathonRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/request/status/$token': typeof RequestStatusTokenRoute
@@ -531,16 +571,16 @@ export interface FileRoutesById {
   '/_app/economy': typeof AppEconomyRoute
   '/_app/factions': typeof AppFactionsRoute
   '/_app/funnel': typeof AppFunnelRoute
-  '/_app/integrations': typeof AppIntegrationsRoute
   '/_app/killfeed': typeof AppKillfeedRoute
-  '/_app/leads': typeof AppLeadsRoute
   '/_app/live': typeof AppLiveRoute
   '/_app/operations': typeof AppOperationsRoute
   '/_app/requests': typeof AppRequestsRoute
+  '/_app/rewards': typeof AppRewardsRoute
   '/_app/servers': typeof AppServersRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/stats': typeof AppStatsRoute
   '/_app/templates': typeof AppTemplatesRoute
+  '/_app/war-room': typeof AppWarRoomRoute
   '/_app/welcome': typeof AppWelcomeRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -551,6 +591,7 @@ export interface FileRoutesById {
   '/_app/tools/$': typeof AppToolsSplatRoute
   '/_app/tools/all-utms': typeof AppToolsAllUtmsRoute
   '/_app/tools/base-map-clicker': typeof AppToolsBaseMapClickerRoute
+  '/_app/tools/boosts': typeof AppToolsBoostsRoute
   '/_app/tools/campaign-creator': typeof AppToolsCampaignCreatorRoute
   '/_app/tools/campaign-in-a-box': typeof AppToolsCampaignInABoxRoute
   '/_app/tools/campaign-performance': typeof AppToolsCampaignPerformanceRoute
@@ -562,9 +603,13 @@ export interface FileRoutesById {
   '/_app/tools/npc-map-clicker': typeof AppToolsNpcMapClickerRoute
   '/_app/tools/npc-shop': typeof AppToolsNpcShopRoute
   '/_app/tools/taxonomy': typeof AppToolsTaxonomyRoute
+  '/_app/tools/uav': typeof AppToolsUavRoute
   '/_app/tools/utm': typeof AppToolsUtmRoute
+  '/_app/tools/vehicle-shop': typeof AppToolsVehicleShopRoute
   '/_app/workspaces/$id': typeof AppWorkspacesIdRoute
+  '/api/admin/credit': typeof ApiAdminCreditRoute
   '/api/discord/callback': typeof ApiDiscordCallbackRoute
+  '/api/discord/interactions': typeof ApiDiscordInteractionsRoute
   '/intake/$orgSlug/hackathon': typeof IntakeOrgSlugHackathonRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/request/status/$token': typeof RequestStatusTokenRoute
@@ -596,16 +641,16 @@ export interface FileRouteTypes {
     | '/economy'
     | '/factions'
     | '/funnel'
-    | '/integrations'
     | '/killfeed'
-    | '/leads'
     | '/live'
     | '/operations'
     | '/requests'
+    | '/rewards'
     | '/servers'
     | '/settings'
     | '/stats'
     | '/templates'
+    | '/war-room'
     | '/welcome'
     | '/email/unsubscribe'
     | '/invite/$token'
@@ -616,6 +661,7 @@ export interface FileRouteTypes {
     | '/tools/$'
     | '/tools/all-utms'
     | '/tools/base-map-clicker'
+    | '/tools/boosts'
     | '/tools/campaign-creator'
     | '/tools/campaign-in-a-box'
     | '/tools/campaign-performance'
@@ -627,9 +673,13 @@ export interface FileRouteTypes {
     | '/tools/npc-map-clicker'
     | '/tools/npc-shop'
     | '/tools/taxonomy'
+    | '/tools/uav'
     | '/tools/utm'
+    | '/tools/vehicle-shop'
     | '/workspaces/$id'
+    | '/api/admin/credit'
     | '/api/discord/callback'
+    | '/api/discord/interactions'
     | '/intake/$orgSlug/hackathon'
     | '/lovable/email/suppression'
     | '/request/status/$token'
@@ -659,16 +709,16 @@ export interface FileRouteTypes {
     | '/economy'
     | '/factions'
     | '/funnel'
-    | '/integrations'
     | '/killfeed'
-    | '/leads'
     | '/live'
     | '/operations'
     | '/requests'
+    | '/rewards'
     | '/servers'
     | '/settings'
     | '/stats'
     | '/templates'
+    | '/war-room'
     | '/welcome'
     | '/email/unsubscribe'
     | '/invite/$token'
@@ -679,6 +729,7 @@ export interface FileRouteTypes {
     | '/tools/$'
     | '/tools/all-utms'
     | '/tools/base-map-clicker'
+    | '/tools/boosts'
     | '/tools/campaign-creator'
     | '/tools/campaign-in-a-box'
     | '/tools/campaign-performance'
@@ -690,9 +741,13 @@ export interface FileRouteTypes {
     | '/tools/npc-map-clicker'
     | '/tools/npc-shop'
     | '/tools/taxonomy'
+    | '/tools/uav'
     | '/tools/utm'
+    | '/tools/vehicle-shop'
     | '/workspaces/$id'
+    | '/api/admin/credit'
     | '/api/discord/callback'
+    | '/api/discord/interactions'
     | '/intake/$orgSlug/hackathon'
     | '/lovable/email/suppression'
     | '/request/status/$token'
@@ -723,16 +778,16 @@ export interface FileRouteTypes {
     | '/_app/economy'
     | '/_app/factions'
     | '/_app/funnel'
-    | '/_app/integrations'
     | '/_app/killfeed'
-    | '/_app/leads'
     | '/_app/live'
     | '/_app/operations'
     | '/_app/requests'
+    | '/_app/rewards'
     | '/_app/servers'
     | '/_app/settings'
     | '/_app/stats'
     | '/_app/templates'
+    | '/_app/war-room'
     | '/_app/welcome'
     | '/email/unsubscribe'
     | '/invite/$token'
@@ -743,6 +798,7 @@ export interface FileRouteTypes {
     | '/_app/tools/$'
     | '/_app/tools/all-utms'
     | '/_app/tools/base-map-clicker'
+    | '/_app/tools/boosts'
     | '/_app/tools/campaign-creator'
     | '/_app/tools/campaign-in-a-box'
     | '/_app/tools/campaign-performance'
@@ -754,9 +810,13 @@ export interface FileRouteTypes {
     | '/_app/tools/npc-map-clicker'
     | '/_app/tools/npc-shop'
     | '/_app/tools/taxonomy'
+    | '/_app/tools/uav'
     | '/_app/tools/utm'
+    | '/_app/tools/vehicle-shop'
     | '/_app/workspaces/$id'
+    | '/api/admin/credit'
     | '/api/discord/callback'
+    | '/api/discord/interactions'
     | '/intake/$orgSlug/hackathon'
     | '/lovable/email/suppression'
     | '/request/status/$token'
@@ -785,7 +845,9 @@ export interface RootRouteChildren {
   RSlugRoute: typeof RSlugRoute
   RequestOrgSlugRoute: typeof RequestOrgSlugRoute
   WTokenRoute: typeof WTokenRoute
+  ApiAdminCreditRoute: typeof ApiAdminCreditRoute
   ApiDiscordCallbackRoute: typeof ApiDiscordCallbackRoute
+  ApiDiscordInteractionsRoute: typeof ApiDiscordInteractionsRoute
   IntakeOrgSlugHackathonRoute: typeof IntakeOrgSlugHackathonRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   RequestStatusTokenRoute: typeof RequestStatusTokenRoute
@@ -891,6 +953,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWelcomeRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/war-room': {
+      id: '/_app/war-room'
+      path: '/war-room'
+      fullPath: '/war-room'
+      preLoaderRoute: typeof AppWarRoomRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/templates': {
       id: '/_app/templates'
       path: '/templates'
@@ -919,6 +988,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppServersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/rewards': {
+      id: '/_app/rewards'
+      path: '/rewards'
+      fullPath: '/rewards'
+      preLoaderRoute: typeof AppRewardsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/requests': {
       id: '/_app/requests'
       path: '/requests'
@@ -940,25 +1016,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLiveRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/leads': {
-      id: '/_app/leads'
-      path: '/leads'
-      fullPath: '/leads'
-      preLoaderRoute: typeof AppLeadsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/killfeed': {
       id: '/_app/killfeed'
       path: '/killfeed'
       fullPath: '/killfeed'
       preLoaderRoute: typeof AppKillfeedRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/integrations': {
-      id: '/_app/integrations'
-      path: '/integrations'
-      fullPath: '/integrations'
-      preLoaderRoute: typeof AppIntegrationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/funnel': {
@@ -1059,11 +1121,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IntakeOrgSlugHackathonRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/discord/interactions': {
+      id: '/api/discord/interactions'
+      path: '/api/discord/interactions'
+      fullPath: '/api/discord/interactions'
+      preLoaderRoute: typeof ApiDiscordInteractionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/discord/callback': {
       id: '/api/discord/callback'
       path: '/api/discord/callback'
       fullPath: '/api/discord/callback'
       preLoaderRoute: typeof ApiDiscordCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/credit': {
+      id: '/api/admin/credit'
+      path: '/api/admin/credit'
+      fullPath: '/api/admin/credit'
+      preLoaderRoute: typeof ApiAdminCreditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/workspaces/$id': {
@@ -1073,11 +1149,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspacesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/tools/vehicle-shop': {
+      id: '/_app/tools/vehicle-shop'
+      path: '/tools/vehicle-shop'
+      fullPath: '/tools/vehicle-shop'
+      preLoaderRoute: typeof AppToolsVehicleShopRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/tools/utm': {
       id: '/_app/tools/utm'
       path: '/tools/utm'
       fullPath: '/tools/utm'
       preLoaderRoute: typeof AppToolsUtmRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tools/uav': {
+      id: '/_app/tools/uav'
+      path: '/tools/uav'
+      fullPath: '/tools/uav'
+      preLoaderRoute: typeof AppToolsUavRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tools/taxonomy': {
@@ -1155,6 +1245,13 @@ declare module '@tanstack/react-router' {
       path: '/tools/campaign-creator'
       fullPath: '/tools/campaign-creator'
       preLoaderRoute: typeof AppToolsCampaignCreatorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tools/boosts': {
+      id: '/_app/tools/boosts'
+      path: '/tools/boosts'
+      fullPath: '/tools/boosts'
+      preLoaderRoute: typeof AppToolsBoostsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tools/base-map-clicker': {
@@ -1246,21 +1343,22 @@ interface AppRouteChildren {
   AppEconomyRoute: typeof AppEconomyRoute
   AppFactionsRoute: typeof AppFactionsRoute
   AppFunnelRoute: typeof AppFunnelRoute
-  AppIntegrationsRoute: typeof AppIntegrationsRoute
   AppKillfeedRoute: typeof AppKillfeedRoute
-  AppLeadsRoute: typeof AppLeadsRoute
   AppLiveRoute: typeof AppLiveRoute
   AppOperationsRoute: typeof AppOperationsRoute
   AppRequestsRoute: typeof AppRequestsRoute
+  AppRewardsRoute: typeof AppRewardsRoute
   AppServersRoute: typeof AppServersRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppStatsRoute: typeof AppStatsRoute
   AppTemplatesRoute: typeof AppTemplatesRoute
+  AppWarRoomRoute: typeof AppWarRoomRoute
   AppWelcomeRoute: typeof AppWelcomeRoute
   AppCampaignsIdRoute: typeof AppCampaignsIdRoute
   AppToolsSplatRoute: typeof AppToolsSplatRoute
   AppToolsAllUtmsRoute: typeof AppToolsAllUtmsRoute
   AppToolsBaseMapClickerRoute: typeof AppToolsBaseMapClickerRoute
+  AppToolsBoostsRoute: typeof AppToolsBoostsRoute
   AppToolsCampaignCreatorRoute: typeof AppToolsCampaignCreatorRoute
   AppToolsCampaignInABoxRoute: typeof AppToolsCampaignInABoxRoute
   AppToolsCampaignPerformanceRoute: typeof AppToolsCampaignPerformanceRoute
@@ -1272,7 +1370,9 @@ interface AppRouteChildren {
   AppToolsNpcMapClickerRoute: typeof AppToolsNpcMapClickerRoute
   AppToolsNpcShopRoute: typeof AppToolsNpcShopRoute
   AppToolsTaxonomyRoute: typeof AppToolsTaxonomyRoute
+  AppToolsUavRoute: typeof AppToolsUavRoute
   AppToolsUtmRoute: typeof AppToolsUtmRoute
+  AppToolsVehicleShopRoute: typeof AppToolsVehicleShopRoute
   AppWorkspacesIdRoute: typeof AppWorkspacesIdRoute
   AppCampaignsIndexRoute: typeof AppCampaignsIndexRoute
   AppToolsIndexRoute: typeof AppToolsIndexRoute
@@ -1288,21 +1388,22 @@ const AppRouteChildren: AppRouteChildren = {
   AppEconomyRoute: AppEconomyRoute,
   AppFactionsRoute: AppFactionsRoute,
   AppFunnelRoute: AppFunnelRoute,
-  AppIntegrationsRoute: AppIntegrationsRoute,
   AppKillfeedRoute: AppKillfeedRoute,
-  AppLeadsRoute: AppLeadsRoute,
   AppLiveRoute: AppLiveRoute,
   AppOperationsRoute: AppOperationsRoute,
   AppRequestsRoute: AppRequestsRoute,
+  AppRewardsRoute: AppRewardsRoute,
   AppServersRoute: AppServersRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppStatsRoute: AppStatsRoute,
   AppTemplatesRoute: AppTemplatesRoute,
+  AppWarRoomRoute: AppWarRoomRoute,
   AppWelcomeRoute: AppWelcomeRoute,
   AppCampaignsIdRoute: AppCampaignsIdRoute,
   AppToolsSplatRoute: AppToolsSplatRoute,
   AppToolsAllUtmsRoute: AppToolsAllUtmsRoute,
   AppToolsBaseMapClickerRoute: AppToolsBaseMapClickerRoute,
+  AppToolsBoostsRoute: AppToolsBoostsRoute,
   AppToolsCampaignCreatorRoute: AppToolsCampaignCreatorRoute,
   AppToolsCampaignInABoxRoute: AppToolsCampaignInABoxRoute,
   AppToolsCampaignPerformanceRoute: AppToolsCampaignPerformanceRoute,
@@ -1314,7 +1415,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppToolsNpcMapClickerRoute: AppToolsNpcMapClickerRoute,
   AppToolsNpcShopRoute: AppToolsNpcShopRoute,
   AppToolsTaxonomyRoute: AppToolsTaxonomyRoute,
+  AppToolsUavRoute: AppToolsUavRoute,
   AppToolsUtmRoute: AppToolsUtmRoute,
+  AppToolsVehicleShopRoute: AppToolsVehicleShopRoute,
   AppWorkspacesIdRoute: AppWorkspacesIdRoute,
   AppCampaignsIndexRoute: AppCampaignsIndexRoute,
   AppToolsIndexRoute: AppToolsIndexRoute,
@@ -1336,7 +1439,9 @@ const rootRouteChildren: RootRouteChildren = {
   RSlugRoute: RSlugRoute,
   RequestOrgSlugRoute: RequestOrgSlugRoute,
   WTokenRoute: WTokenRoute,
+  ApiAdminCreditRoute: ApiAdminCreditRoute,
   ApiDiscordCallbackRoute: ApiDiscordCallbackRoute,
+  ApiDiscordInteractionsRoute: ApiDiscordInteractionsRoute,
   IntakeOrgSlugHackathonRoute: IntakeOrgSlugHackathonRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   RequestStatusTokenRoute: RequestStatusTokenRoute,

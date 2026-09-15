@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const DATA_DIR = path.join(process.cwd(), ".data", "dayz");
+const DATA_DIR = process.env.DAYZ_DATA_DIR?.trim() || path.join(process.cwd(), ".data", "dayz");
 
 async function ensureDir() {
   await mkdir(DATA_DIR, { recursive: true });
