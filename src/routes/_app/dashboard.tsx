@@ -59,7 +59,7 @@ function Dashboard() {
             <span className="h-px w-10 bg-primary" /> Asylum command hall
           </motion.div>
           <motion.h1
-            className="font-display flex flex-wrap text-5xl leading-none text-primary sm:text-7xl"
+            className="flex flex-wrap font-['Black_Ops_One'] text-5xl leading-none text-primary sm:text-7xl"
             initial="hidden"
             animate="visible"
             variants={{ visible: { transition: { staggerChildren: 0.035 } } }}
