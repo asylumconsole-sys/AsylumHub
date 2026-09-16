@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { createDemoSession, DEMO_SESSION_KEY, useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { GradientMesh } from "@/components/ui-custom/GradientMesh";
 import { BRAND } from "@/lib/brand";
 import { BrandHexLogo } from "@/components/app/BrandHexLogo";
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/login")({
   validateSearch: (s: Record<string, unknown>) => ({
     redirect: typeof s.redirect === "string" ? s.redirect : "/dashboard",
     mode: s.mode === "signup" ? ("signup" as const) : ("signin" as const),
+    error: typeof s.error === "string" ? s.error : undefined,
   }),
   component: LoginPage,
 });
@@ -24,31 +25,35 @@ function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (session?.access_token === "demo-access-token") {
-      localStorage.removeItem(DEMO_SESSION_KEY);
-      window.location.reload();
-      return;
-    }
+    if (!search.error) return;
+    const messages: Record<string, string> = {
+      missing_code: "Discord login was cancelled or missing a code.",
+      discord_not_configured: "Discord OAuth is not configured on the server.",
+      token_exchange_failed: "Discord token exchange failed. Check redirect URI.",
+      missing_access_token: "Discord did not return an access token.",
+      user_fetch_failed: "Could not fetch your Discord profile.",
+    };
+    toast.error(messages[search.error] || `Login error: ${search.error}`);
+  }, [search.error]);
+
+  const redirectTarget = typeof search.redirect === "string" && search.redirect ? search.redirect : "/dashboard";
+  const safeRedirect = redirectTarget.startsWith("/") ? redirectTarget : `/${redirectTarget}`;
+
+  useEffect(() => {
     if (!loading && session) {
-      nav({ to: search.redirect as "/dashboard", replace: true });
+      nav({ to: safeRedirect as string, replace: true });
     }
-  }, [session, loading, nav, search.redirect]);
+  }, [session, loading, nav, safeRedirect]);
 
   const discord = async () => {
     setBusy(true);
     try {
-      const authUrl = buildDiscordAuthUrl(search.redirect as string);
+      const authUrl = buildDiscordAuthUrl(safeRedirect);
       window.location.href = authUrl;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
       setBusy(false);
     }
-  };
-
-  const demoLogin = () => {
-    const session = createDemoSession();
-    localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(session));
-    nav({ to: search.redirect as "/dashboard", replace: true });
   };
 
   return (
@@ -138,14 +143,6 @@ function LoginPage() {
                   />
                   <DiscordMark />
                   <span className="relative">{busy ? "Connecting…" : "Continue with Discord"}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={demoLogin}
-                  className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-100 transition hover:bg-amber-500/15"
-                >
-                  Enter demo hub
                 </button>
 
                 <p className="text-center text-xs uppercase tracking-[0.2em] text-muted-foreground/70">
