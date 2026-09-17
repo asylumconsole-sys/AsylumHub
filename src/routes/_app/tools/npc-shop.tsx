@@ -6,9 +6,9 @@ import { GlassPanel } from "@/components/ui-custom/GlassPanel";
 import { IconBot, IconSearch } from "@/components/ui-custom/CustomIcon";
 import { toast } from "sonner";
 import { spawnNpc } from "@/lib/dayz-spawn.functions";
-import { DAYZ_SERVERS, resolveServiceId, type DayZServerId } from "@/lib/dayz/servers";
+import { DAYZ_SERVERS, type DayZServerId } from "@/lib/dayz/servers";
 import { listAsylumServiceIds } from "@/lib/dayz/server-status.functions";
-import { getEconomyBalance, getOwnedNpcs, purchaseNpc } from "@/lib/economy.functions";
+import { getEconomyBalance, getNpcInventory, purchaseNpc } from "@/lib/economy.functions";
 
 const FALLBACK_SPAWN_POS = { x: 7500, z: 7500, a: 0 };
 
@@ -153,14 +153,19 @@ export function NPCShopContent() {
   const [openMenu, setOpenMenu] = useState<"category" | "sort" | null>(null);
   const [serverId, setServerId] = useState<DayZServerId>("101x");
   const [spawning, setSpawning] = useState(false);
+  const playerId = user?.id || "demo-user";
+  const displayName =
+    (typeof user?.user_metadata?.name === "string" && user.user_metadata.name) ||
+    user?.email ||
+    playerId;
 
   const balanceQ = useQuery({
-    queryKey: ["economy-balance"],
-    queryFn: () => getEconomyBalance({ data: {} }),
+    queryKey: ["economy-balance", playerId],
+    queryFn: () => getEconomyBalance({ data: { playerId, displayName } }),
   });
   const ownedQ = useQuery({
-    queryKey: ["npc-owned"],
-    queryFn: () => getOwnedNpcs(),
+    queryKey: ["npc-inventory", playerId],
+    queryFn: () => getNpcInventory({ data: { playerId } }),
   });
   const catalogQ = useQuery({
     queryKey: ["asylum-services"],
@@ -168,10 +173,10 @@ export function NPCShopContent() {
   });
 
   const credits = balanceQ.data?.balance ?? 0;
-  const owned = ownedQ.data ?? [];
+  const owned = ownedQ.data?.owned ?? [];
   const server = useMemo(() => DAYZ_SERVERS.find((s) => s.id === serverId) ?? DAYZ_SERVERS[0], [serverId]);
   const serviceId =
-    catalogQ.data?.find((s) => s.id === serverId)?.serviceId ?? resolveServiceId(server);
+    catalogQ.data?.find((s) => s.id === serverId)?.serviceId ?? server.fallbackServiceId;
 
   const categories = ["All", ...Array.from(new Set(NPCS.map((npc) => npc.category)))];
   const filtered = useMemo(
@@ -185,13 +190,21 @@ export function NPCShopContent() {
   );
 
   const buyMut = useMutation({
-    mutationFn: (npc: NPC) => purchaseNpc({ data: { npcId: npc.id, price: npc.price, name: npc.name } }),
+    mutationFn: (npc: NPC) =>
+      purchaseNpc({
+        data: {
+          playerId,
+          displayName,
+          npcId: npc.id,
+          npcName: npc.name,
+          price: npc.price,
+          serverId: serverId.startsWith("102") ? "102" : "101",
+        },
+      }),
     onSuccess: (res, npc) => {
-      toast.success(`${npc.name} purchased`, { description: "The NPC is now ready to spawn." });
-      qc.setQueryData(["npc-owned"], res.owned);
-      qc.setQueryData(["economy-balance"], res.account);
-      qc.invalidateQueries({ queryKey: ["economy-balance"] });
-      qc.invalidateQueries({ queryKey: ["npc-owned"] });
+      toast.success(res.alreadyOwned ? `${npc.name} already owned` : `${npc.name} purchased`);
+      qc.invalidateQueries({ queryKey: ["economy-balance", playerId] });
+      qc.invalidateQueries({ queryKey: ["npc-inventory", playerId] });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Purchase failed"),
   });
@@ -201,7 +214,7 @@ export function NPCShopContent() {
     setSpawning(true);
     try {
       const result = await spawnNpc({
-        data: { serviceId, serverId, npcId: selected.id, ...FALLBACK_SPAWN_POS },
+        data: { serviceId, npcId: selected.id, ...FALLBACK_SPAWN_POS },
       });
       if (result.mode === "live") {
         toast.success(`${selected.name} spawned live on ${server.label}`, {
