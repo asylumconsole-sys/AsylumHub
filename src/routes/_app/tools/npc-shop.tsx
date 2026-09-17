@@ -9,6 +9,7 @@ import { spawnNpc } from "@/lib/dayz-spawn.functions";
 import { DAYZ_SERVERS, type DayZServerId } from "@/lib/dayz/servers";
 import { listAsylumServiceIds } from "@/lib/dayz/server-status.functions";
 import { getEconomyBalance, getNpcInventory, purchaseNpc } from "@/lib/economy.functions";
+import { useAuth } from "@/contexts/AuthContext";
 
 const FALLBACK_SPAWN_POS = { x: 7500, z: 7500, a: 0 };
 
