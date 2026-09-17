@@ -49,7 +49,7 @@ export function buildDiscordAuthUrl(redirect = "/dashboard") {
   // Always use the host the user is on. A baked-in VITE_DISCORD_REDIRECT_URI
   // pointing at an old domain (asylumhub.online) breaks newer deploys.
   const redirectUri = discordCallbackUrl(window.location.origin);
-  const state = btoa(JSON.stringify({ redirect, nonce: crypto.randomUUID() }));
+  const state = btoa(JSON.stringify({ redirect, redirectUri, nonce: crypto.randomUUID() }));
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
