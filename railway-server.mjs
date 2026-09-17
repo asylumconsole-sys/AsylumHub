@@ -38,40 +38,5 @@ if (!entry) {
   });
 } else {
   const mod = await import(pathToFileURL(resolve(entry)).href);
-  const app = mod.default ?? mod;
   console.log("loaded", entry, "keys", Object.keys(mod));
-
-  createServer(async (req, res) => {
-    try {
-      if (typeof app.fetch !== "function") {
-        throw new Error("Server module has no fetch() handler");
-      }
-      const url = `http://${req.headers.host || "localhost"}${req.url || "/"}`;
-      const headers = new Headers();
-      for (const [key, value] of Object.entries(req.headers)) {
-        if (value) headers.set(key, Array.isArray(value) ? value.join(", ") : String(value));
-      }
-      let body;
-      if (req.method && !['GET', 'HEAD'].includes(req.method)) {
-        body = await new Promise((resolveBody, reject) => {
-          const chunks = [];
-          req.on("data", (chunk) => chunks.push(chunk));
-          req.on("end", () => resolveBody(Buffer.concat(chunks)));
-          req.on("error", reject);
-        });
-      }
-      const request = new Request(url, { method: req.method, headers, body });
-      const response = await app.fetch(request, process.env, {});
-      res.statusCode = response.status;
-      response.headers.forEach((value, key) => res.setHeader(key, value));
-      res.end(Buffer.from(await response.arrayBuffer()));
-    } catch (error) {
-      console.error(error);
-      res.statusCode = 500;
-      res.setHeader("content-type", "text/plain; charset=utf-8");
-      res.end(error instanceof Error ? error.stack || error.message : String(error));
-    }
-  }).listen(port, host, () => {
-    console.log(`listening on ${host}:${port} via ${entry}`);
-  });
 }
