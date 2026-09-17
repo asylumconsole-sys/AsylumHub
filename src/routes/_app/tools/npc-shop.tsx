@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { GlassPanel } from "@/components/ui-custom/GlassPanel";
 import { IconArrowRight, IconBot, IconCampaign } from "@/components/ui-custom/CustomIcon";
 import { toast } from "sonner";
 import { spawnNpc } from "@/lib/dayz-spawn.functions";
@@ -252,25 +251,26 @@ export function NPCShopContent() {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-3rem)] space-y-6 overflow-hidden bg-black px-4 py-8">
-      <style>{`@keyframes npc-scan { 0% { transform: translateY(-120%); } 100% { transform: translateY(120%); } }`}</style>
-      <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:radial-gradient(circle_at_50%_0%,color-mix(in_oklab,var(--primary)_22%,transparent),transparent_55%)]" />
-      <div className="pointer-events-none absolute inset-6 border border-primary/15" />
-      <div className="pointer-events-none absolute inset-x-0 h-32 bg-primary/10 blur-xl" style={{ animation: "npc-scan 6s linear infinite" }} />
-      <header className="relative mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-5 border-b border-primary/25 pb-6">
+    <div className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-[#08090c] px-4 py-8 text-zinc-100">
+      <style>{`@keyframes npc-scan { 0% { transform: translateY(-120%); } 100% { transform: translateY(120%); } } @keyframes npc-pulse { 0%,100% { opacity:.25 } 50% { opacity:.75 } }`}</style>
+      <img src="/factions.jpg" alt="DayZ operators" className="pointer-events-none absolute inset-x-0 top-0 h-[31rem] w-full object-cover object-center opacity-35" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[31rem] bg-gradient-to-b from-black/10 via-[#08090c]/55 to-[#08090c]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-orange-400/80" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-orange-500/10 blur-2xl" style={{ animation: "npc-scan 7s linear infinite" }} />
+      <header className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-5 border-b border-orange-300/30 pb-6 pt-8">
         <div>
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-primary"><IconCampaign size={14} /> 101x deployment terminal</div>
-          <h1 className="font-display mt-3 text-5xl text-primary sm:text-6xl">NPC Command</h1>
-          <p className="mt-3 max-w-xl text-sm text-zinc-400">Deploy TheBeamer through the live adapter or the Central Economy restart queue.</p>
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-orange-300"><IconCampaign size={14} /> 101x live deployment</div>
+          <h1 className="font-display mt-3 text-5xl text-white sm:text-6xl">TheBeamer</h1>
+          <p className="mt-3 max-w-xl text-sm text-zinc-300">Lock a drop point, install the loadout on Nitrado, and deploy the operator.</p>
         </div>
-        <div className="border border-primary/30 bg-primary/10 px-4 py-3 text-right">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-primary/80">Available credits</div>
-          <div className="mt-1 font-mono text-xl text-primary">{balanceQ.isLoading ? "..." : credits.toLocaleString()}</div>
+        <div className="border-l border-orange-300/60 pl-4 text-right">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-orange-200/80">Available credits</div>
+          <div className="mt-1 font-mono text-2xl text-white">{balanceQ.isLoading ? "..." : credits.toLocaleString()}</div>
         </div>
       </header>
 
-      <div className="relative mx-auto grid max-w-5xl items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="grid gap-3">
+      <div className="relative mx-auto grid max-w-6xl items-start gap-5 pt-10 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="hidden">
           {NPCS.map((npc) => (
             <motion.button
               key={npc.id}
@@ -299,13 +299,15 @@ export function NPCShopContent() {
         </div>
         <div className="lg:sticky lg:top-24">
           {selected ? (
-            <GlassPanel className="border border-primary/40 bg-black/95 p-5 shadow-xl">
+            <section className="relative overflow-hidden border-y border-orange-300/40 bg-black/55 p-6 backdrop-blur-sm">
+              <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,.12)_1px,transparent_1px)] [background-size:100%_5px]" style={{ animation: "npc-pulse 2.5s ease-in-out infinite" }} />
+              <div className="relative">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-primary"><IconBot size={14} /> Selected asset</div>
-                  <h2 className="mt-1 font-display text-2xl">{selected.name}</h2>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{selected.description}</p>
-                  <div className="mt-3 font-mono text-sm text-primary">{selected.price.toLocaleString()} credits</div>
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-orange-300"><IconBot size={14} /> Operator manifest</div>
+                  <h2 className="mt-1 font-display text-3xl text-white">{selected.name}</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-300">{selected.description}</p>
+                  <div className="mt-3 font-mono text-sm text-orange-200">{selected.price.toLocaleString()} credits</div>
                 </div>
                 <button type="button" onClick={() => setSelected(null)} className="text-xs text-muted-foreground hover:text-foreground">
                   Close
@@ -316,7 +318,7 @@ export function NPCShopContent() {
                   type="button"
                   onClick={buySelected}
                   disabled={owned.includes(selected.id) || buyMut.isPending}
-                  className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:bg-emerald-500/20 disabled:text-emerald-300"
+                  className="w-full bg-orange-400 px-4 py-3 text-sm font-semibold text-black transition hover:bg-orange-300 disabled:bg-zinc-700 disabled:text-zinc-400"
                 >
                   {owned.includes(selected.id)
                     ? "Owned"
@@ -324,8 +326,8 @@ export function NPCShopContent() {
                       ? "Buying…"
                       : `Buy NPC · ${selected.price.toLocaleString()}`}
                 </button>
-                <div className="border-y border-primary/20 py-3">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Deployment location · 101x</div>
+                <div className="border-y border-orange-300/25 py-4">
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-400">Deployment location · 101x</div>
                   <div className="mt-3 grid grid-cols-3 gap-1">
                     {([
                       ["coordinates", "X / Z"],
@@ -336,7 +338,7 @@ export function NPCShopContent() {
                         key={mode}
                         type="button"
                         onClick={() => setPlacementMode(mode)}
-                        className={`border px-2 py-2 text-[10px] uppercase tracking-wide transition ${placementMode === mode ? "border-primary bg-primary/15 text-primary" : "border-white/10 text-muted-foreground hover:border-primary/35"}`}
+                        className={`border px-2 py-2 text-[10px] uppercase tracking-wide transition ${placementMode === mode ? "border-orange-300 bg-orange-300/15 text-orange-200" : "border-white/10 text-zinc-400 hover:border-orange-300/50"}`}
                       >
                         {label}
                       </button>
@@ -364,20 +366,13 @@ export function NPCShopContent() {
                   type="button"
                   disabled={!owned.includes(selected.id) || spawning || placementMode === "map"}
                   onClick={spawn}
-                  className="w-full rounded-lg border border-primary/40 px-4 py-2.5 text-sm text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="w-full border border-orange-300/60 px-4 py-3 text-sm font-medium text-orange-100 transition hover:bg-orange-300/15 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {spawning ? "Deploying…" : placementMode === "map" ? "Choose a map point first" : "Deploy TheBeamer on 101x"}
                 </button>
               </div>
-              {selected.cfgSpawnabletypes && (
-                <div className="mt-5 border-t border-glass-border pt-4">
-                  <div className="text-xs uppercase tracking-[0.18em] text-primary">Nitrado cfgspawnabletypes.xml</div>
-                  <pre className="mt-2 max-h-64 overflow-auto rounded-lg border border-glass-border bg-black/40 p-3 text-xs leading-relaxed text-muted-foreground">
-                    <code>{selected.cfgSpawnabletypes}</code>
-                  </pre>
-                </div>
-              )}
-            </GlassPanel>
+              </div>
+            </section>
           ) : (
             <div className="rounded-xl border border-dashed border-glass-border p-6 text-center text-sm text-muted-foreground">
               Select an NPC to view purchase and spawn options.
