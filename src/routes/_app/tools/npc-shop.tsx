@@ -3,21 +3,24 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { GlassPanel } from "@/components/ui-custom/GlassPanel";
-import { IconBot, IconSearch } from "@/components/ui-custom/CustomIcon";
+import { IconArrowRight, IconBot, IconCampaign } from "@/components/ui-custom/CustomIcon";
 import { toast } from "sonner";
 import { spawnNpc } from "@/lib/dayz-spawn.functions";
-import { DAYZ_SERVERS, type DayZServerId } from "@/lib/dayz/servers";
+import { DAYZ_SERVERS } from "@/lib/dayz/servers";
 import { listAsylumServiceIds } from "@/lib/dayz/server-status.functions";
 import { getEconomyBalance, getNpcInventory, purchaseNpc } from "@/lib/economy.functions";
 import { useAuth } from "@/contexts/AuthContext";
+import { getOnlinePlayers } from "@/lib/online-players.functions";
 
-const FALLBACK_SPAWN_POS = { x: 7500, z: 7500, a: 0 };
+const PRIMARY_SERVER_ID = "101x";
+const DEFAULT_SPAWN_POSITION = { x: 7500, z: 7500, a: 0 };
 
 export const Route = createFileRoute("/_app/tools/npc-shop")({
   component: NPCShopContent,
 });
 
 type NPC = { id: string; name: string; role: string; category: string; price: number; description: string; cfgSpawnabletypes?: string };
+type PlacementMode = "coordinates" | "gamertag" | "map";
 
 const THE_BEAMER_CFG_SPAWNABLETYPES = `<type name="TheBeamer">
   <attachments>
@@ -146,14 +149,13 @@ const NPCS: NPC[] = [
 ];
 
 export function NPCShopContent() {
-  const { user } = useAuth();
+  const { session, user } = useAuth();
   const qc = useQueryClient();
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
-  const [sort, setSort] = useState<"price" | "name">("price");
-  const [selected, setSelected] = useState<NPC | null>(null);
-  const [openMenu, setOpenMenu] = useState<"category" | "sort" | null>(null);
-  const [serverId, setServerId] = useState<DayZServerId>("101x");
+  const [selected, setSelected] = useState<NPC | null>(NPCS[0]);
+  const [placementMode, setPlacementMode] = useState<PlacementMode>("coordinates");
+  const [x, setX] = useState(String(DEFAULT_SPAWN_POSITION.x));
+  const [z, setZ] = useState(String(DEFAULT_SPAWN_POSITION.z));
+  const [gamertag, setGamertag] = useState("");
   const [spawning, setSpawning] = useState(false);
   const playerId = user?.id || "demo-user";
   const displayName =
@@ -173,23 +175,17 @@ export function NPCShopContent() {
     queryKey: ["asylum-services"],
     queryFn: () => listAsylumServiceIds(),
   });
+  const playersQ = useQuery({
+    queryKey: ["online-players", PRIMARY_SERVER_ID],
+    queryFn: () => getOnlinePlayers({ data: { accessToken: session?.access_token } }),
+    enabled: Boolean(session?.access_token),
+  });
 
   const credits = balanceQ.data?.balance ?? 0;
   const owned = ownedQ.data?.owned ?? [];
-  const server = useMemo(() => DAYZ_SERVERS.find((s) => s.id === serverId) ?? DAYZ_SERVERS[0], [serverId]);
+  const server = DAYZ_SERVERS.find((s) => s.id === PRIMARY_SERVER_ID) ?? DAYZ_SERVERS[0];
   const serviceId =
-    catalogQ.data?.find((s) => s.id === serverId)?.serviceId ?? server.fallbackServiceId;
-
-  const categories = ["All", ...Array.from(new Set(NPCS.map((npc) => npc.category)))];
-  const filtered = useMemo(
-    () =>
-      NPCS.filter(
-        (npc) =>
-          (category === "All" || npc.category === category) &&
-          `${npc.name} ${npc.role} ${npc.description}`.toLowerCase().includes(query.toLowerCase()),
-      ).sort((a, b) => (sort === "price" ? a.price - b.price : a.name.localeCompare(b.name))),
-    [category, query, sort],
-  );
+    catalogQ.data?.find((s) => s.id === PRIMARY_SERVER_ID)?.serviceId ?? server.fallbackServiceId;
 
   const buyMut = useMutation({
     mutationFn: (npc: NPC) =>
@@ -200,7 +196,7 @@ export function NPCShopContent() {
           npcId: npc.id,
           npcName: npc.name,
           price: npc.price,
-          serverId: serverId.startsWith("102") ? "102" : "101",
+          serverId: "101",
         },
       }),
     onSuccess: (res, npc) => {
@@ -213,10 +209,24 @@ export function NPCShopContent() {
 
   const spawn = async () => {
     if (!selected || !owned.includes(selected.id)) return toast.error("Buy this NPC first");
+    const manualX = Number(x);
+    const manualZ = Number(z);
+    let position = { x: manualX, z: manualZ };
+    if (placementMode === "gamertag") {
+      const target = gamertag.trim().toLocaleLowerCase();
+      const player = playersQ.data?.players.find((entry) => entry.name.toLocaleLowerCase() === target);
+      if (!player || !Number.isFinite(player.x) || !Number.isFinite(player.z)) {
+        return toast.error("Gamertag location unavailable", { description: "Enter the name exactly as it appears online, or choose a map position." });
+      }
+      position = { x: player.x, z: player.z };
+    }
+    if (!Number.isFinite(position.x) || !Number.isFinite(position.z) || position.x < 0 || position.z < 0) {
+      return toast.error("Enter valid X and Z coordinates");
+    }
     setSpawning(true);
     try {
       const result = await spawnNpc({
-        data: { serviceId, npcId: selected.id, ...FALLBACK_SPAWN_POS },
+        data: { serviceId, serverId: PRIMARY_SERVER_ID, npcId: selected.id, x: Math.round(position.x), z: Math.round(position.z), a: 0 },
       });
       if (result.mode === "live") {
         toast.success(`${selected.name} spawned live on ${server.label}`, {
@@ -228,8 +238,8 @@ export function NPCShopContent() {
           description: !result.restarted
             ? "Already loaded on the server — no restart needed, CE is managing it."
             : result.restockSeconds > 0
-              ? `Spawn request set to X ${FALLBACK_SPAWN_POS.x} / Z ${FALLBACK_SPAWN_POS.z}. Server is restarting to load it — after that it respawns every ${result.restockSeconds}s on its own.`
-              : `Spawn request set to X ${FALLBACK_SPAWN_POS.x} / Z ${FALLBACK_SPAWN_POS.z}. Server is restarting to load it.`,
+              ? `Spawn request set to X ${Math.round(position.x)} / Z ${Math.round(position.z)}. Server is restarting to load it — after that it respawns every ${result.restockSeconds}s on its own.`
+              : `Spawn request set to X ${Math.round(position.x)} / Z ${Math.round(position.z)}. Server is restarting to load it.`,
         });
       }
     } catch (err) {
@@ -245,158 +255,26 @@ export function NPCShopContent() {
   };
 
   return (
-    <div className="space-y-8">
-      <GlassPanel tier="strong" glow className="overflow-hidden border border-glass-border/80 p-0">
-        <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="relative overflow-hidden border-b border-glass-border/70 px-6 py-6 md:px-8 lg:border-b-0 lg:border-r">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(251,191,36,0.08),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
-            <div className="relative z-10 flex h-full flex-col justify-between gap-8">
-              <div className="space-y-5">
-                <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-amber-100/80">
-                  <IconBot size={12} />
-                  Server shop
-                  <span className="h-1 w-1 rounded-full bg-amber-200/80" />
-                  NPC roster
-                </div>
-                <div className="max-w-xl space-y-4">
-                  <div className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground">
-                    Recruitment / patrol / support / combat / survivors
-                  </div>
-                  <h1 className="font-display text-5xl leading-[0.92] tracking-tight text-foreground md:text-6xl">
-                    NPC Shop
-                  </h1>
-                  <p className="max-w-lg text-sm leading-relaxed text-muted-foreground md:text-base">
-                    Recruit characters for patrols, bases, factions, and battlepass progression. Survivors use
-                    confirmed SurvivorM_* CE kits.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  ["Search", "Filter by role"],
-                  ["Buy", "Spend credits"],
-                  ["Spawn", "Deploy to server"],
-                ].map(([label, detail]) => (
-                  <div key={label} className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3 backdrop-blur-sm">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/70">{label}</div>
-                    <div className="mt-1 text-sm text-muted-foreground">{detail}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-0 px-6 py-6 md:px-8">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-glass-border/70 pb-4">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Status</div>
-                <div className="mt-1 text-sm text-foreground/85">{selected ? selected.name : "Choose an NPC"}</div>
-              </div>
-              <div className="rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-50">
-                {balanceQ.isLoading ? "…" : `${credits.toLocaleString()} cr`}
-              </div>
-            </div>
-            <div className="pt-4">
-              <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Spawn server</div>
-              <div className="flex flex-wrap gap-2">
-                {DAYZ_SERVERS.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setServerId(s.id)}
-                    className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-wider ${
-                      serverId === s.id
-                        ? "border-primary/50 bg-primary/15 text-primary"
-                        : "border-glass-border text-muted-foreground hover:border-primary/30"
-                    }`}
-                  >
-                    {s.id}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-2 font-mono text-[10px] text-muted-foreground">service {serviceId}</div>
-            </div>
-          </div>
+    <div className="relative min-h-[calc(100vh-3rem)] space-y-6 overflow-hidden bg-black px-4 py-8">
+      <style>{`@keyframes npc-scan { 0% { transform: translateY(-120%); } 100% { transform: translateY(120%); } }`}</style>
+      <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:radial-gradient(circle_at_50%_0%,color-mix(in_oklab,var(--primary)_22%,transparent),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-6 border border-primary/15" />
+      <div className="pointer-events-none absolute inset-x-0 h-32 bg-primary/10 blur-xl" style={{ animation: "npc-scan 6s linear infinite" }} />
+      <header className="relative mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-5 border-b border-primary/25 pb-6">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-primary"><IconCampaign size={14} /> 101x deployment terminal</div>
+          <h1 className="font-display mt-3 text-5xl text-primary sm:text-6xl">NPC Command</h1>
+          <p className="mt-3 max-w-xl text-sm text-zinc-400">Deploy TheBeamer through the live adapter or the Central Economy restart queue.</p>
         </div>
-      </GlassPanel>
-
-      <GlassPanel className="p-3">
-        <div className="flex flex-wrap gap-2">
-          <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-glass-border bg-black/30 px-3">
-            <IconSearch size={14} className="text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search NPCs..."
-              className="w-full bg-transparent py-2 text-sm outline-none"
-            />
-          </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setOpenMenu((value) => (value === "category" ? null : "category"))}
-              className="rounded-lg border border-glass-border bg-black/50 px-3 py-2 text-sm text-foreground"
-            >
-              {category} ▾
-            </button>
-            {openMenu === "category" && (
-              <div className="absolute right-0 top-11 z-30 min-w-40 rounded-xl border border-white/10 bg-[#101010] p-1.5 shadow-2xl">
-                {categories.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => {
-                      setCategory(item);
-                      setOpenMenu(null);
-                    }}
-                    className={`block w-full rounded-lg px-3 py-2 text-left text-sm ${category === item ? "bg-white text-black" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setOpenMenu((value) => (value === "sort" ? null : "sort"))}
-              className="rounded-lg border border-glass-border bg-black/50 px-3 py-2 text-sm text-foreground"
-            >
-              Sort: {sort === "price" ? "Price" : "Name"} ▾
-            </button>
-            {openMenu === "sort" && (
-              <div className="absolute right-0 top-11 z-30 min-w-40 rounded-xl border border-white/10 bg-[#101010] p-1.5 shadow-2xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSort("price");
-                    setOpenMenu(null);
-                  }}
-                  className={`block w-full rounded-lg px-3 py-2 text-left text-sm ${sort === "price" ? "bg-white text-black" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                >
-                  Price
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSort("name");
-                    setOpenMenu(null);
-                  }}
-                  className={`block w-full rounded-lg px-3 py-2 text-left text-sm ${sort === "name" ? "bg-white text-black" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                >
-                  Name
-                </button>
-              </div>
-            )}
-          </div>
+        <div className="border border-primary/30 bg-primary/10 px-4 py-3 text-right">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-primary/80">Available credits</div>
+          <div className="mt-1 font-mono text-xl text-primary">{balanceQ.isLoading ? "..." : credits.toLocaleString()}</div>
         </div>
-      </GlassPanel>
+      </header>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {filtered.map((npc) => (
+      <div className="relative mx-auto grid max-w-5xl items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid gap-3">
+          {NPCS.map((npc) => (
             <motion.button
               key={npc.id}
               type="button"
@@ -424,10 +302,10 @@ export function NPCShopContent() {
         </div>
         <div className="lg:sticky lg:top-24">
           {selected ? (
-            <GlassPanel className="border-primary/40 bg-black/95 p-5 shadow-xl">
+            <GlassPanel className="border border-primary/40 bg-black/95 p-5 shadow-xl">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.18em] text-primary">Selected NPC</div>
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-primary"><IconBot size={14} /> Selected asset</div>
                   <h2 className="mt-1 font-display text-2xl">{selected.name}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{selected.description}</p>
                   <div className="mt-3 font-mono text-sm text-primary">{selected.price.toLocaleString()} credits</div>
@@ -449,13 +327,49 @@ export function NPCShopContent() {
                       ? "Buying…"
                       : `Buy NPC · ${selected.price.toLocaleString()}`}
                 </button>
+                <div className="border-y border-primary/20 py-3">
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Deployment location · 101x</div>
+                  <div className="mt-3 grid grid-cols-3 gap-1">
+                    {([
+                      ["coordinates", "X / Z"],
+                      ["gamertag", "Gamertag"],
+                      ["map", "Map"],
+                    ] as const).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setPlacementMode(mode)}
+                        className={`border px-2 py-2 text-[10px] uppercase tracking-wide transition ${placementMode === mode ? "border-primary bg-primary/15 text-primary" : "border-white/10 text-muted-foreground hover:border-primary/35"}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {placementMode === "coordinates" && (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <label className="text-[10px] uppercase tracking-wide text-muted-foreground">X<input value={x} onChange={(event) => setX(event.target.value)} inputMode="numeric" className="mt-1 w-full border border-glass-border bg-black/40 px-2 py-2 font-mono text-sm text-foreground outline-none focus:border-primary" /></label>
+                      <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Z<input value={z} onChange={(event) => setZ(event.target.value)} inputMode="numeric" className="mt-1 w-full border border-glass-border bg-black/40 px-2 py-2 font-mono text-sm text-foreground outline-none focus:border-primary" /></label>
+                    </div>
+                  )}
+                  {placementMode === "gamertag" && (
+                    <div className="mt-3">
+                      <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Online gamertag<input value={gamertag} onChange={(event) => setGamertag(event.target.value)} placeholder="Exact in-game name" className="mt-1 w-full border border-glass-border bg-black/40 px-2 py-2 text-sm text-foreground outline-none focus:border-primary" /></label>
+                      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">Uses the latest logged position on 101x. {playersQ.isFetching ? "Checking player logs..." : ""}</p>
+                    </div>
+                  )}
+                  {placementMode === "map" && (
+                    <button type="button" onClick={() => window.open(`/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}`, "_blank", "noopener,noreferrer")} className="mt-3 flex w-full items-center justify-center gap-2 border border-primary/40 px-3 py-2.5 text-xs uppercase tracking-wide text-primary transition hover:bg-primary/10">
+                      Choose on map <IconArrowRight size={14} />
+                    </button>
+                  )}
+                </div>
                 <button
                   type="button"
-                  disabled={!owned.includes(selected.id) || spawning}
+                  disabled={!owned.includes(selected.id) || spawning || placementMode === "map"}
                   onClick={spawn}
                   className="w-full rounded-lg border border-primary/40 px-4 py-2.5 text-sm text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {spawning ? "Deploying…" : `Spawn on ${serverId} · X ${FALLBACK_SPAWN_POS.x} / Z ${FALLBACK_SPAWN_POS.z}`}
+                  {spawning ? "Deploying…" : placementMode === "map" ? "Choose a map point first" : "Deploy TheBeamer on 101x"}
                 </button>
               </div>
               {selected.cfgSpawnabletypes && (
