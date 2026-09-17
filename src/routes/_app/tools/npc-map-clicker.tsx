@@ -17,7 +17,7 @@ const NpcSpawnMap = lazy(() => import("@/components/tools/NpcSpawnMap"));
 export const Route = createFileRoute("/_app/tools/npc-map-clicker")({
   component: NPCMapClickerPage,
   validateSearch: (s: Record<string, unknown>) => ({
-    npcId: typeof s.npcId === "string" ? s.npcId : "guard",
+    npcId: "the_beamer",
   }),
 });
 
