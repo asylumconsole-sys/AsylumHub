@@ -29,11 +29,11 @@ import {
 } from "@/components/ui-custom/CustomIcon";
 import { CommandPalette } from "@/components/app/CommandPalette";
 import { CommanderOrb } from "@/components/app/CommanderOrb";
+import { CommanderAI } from "@/components/app/CommanderAI";
 
-// Commander is an LLM copilot that can propose DB writes. Off by default in
-// the remix template — set VITE_COMMANDER_ENABLED=true in .env to turn it on
-// after reviewing the safety model in src/lib/commander.functions.ts.
-const COMMANDER_ENABLED = import.meta.env.VITE_COMMANDER_ENABLED === "true";
+// Keep an explicit deployment escape hatch while making the Hub command chat
+// available in normal builds.
+const COMMANDER_ENABLED = import.meta.env.VITE_COMMANDER_ENABLED !== "false";
 import { BottomNav } from "@/components/app/BottomNav";
 import { UserMenu } from "@/components/app/UserMenu";
 import { OnboardingChecklist } from "@/components/app/OnboardingChecklist";
@@ -51,6 +51,8 @@ export const Route = createFileRoute("/_app")({
 
 const PRIMARY_NAV = [
   { to: "/dashboard", label: "Lobby", Icon: IconHome },
+  { to: "/servers", label: "Servers", Icon: IconBolt },
+  { to: "/live", label: "Live Feed", Icon: IconChart },
   { to: "/operations", label: "Operations", Icon: IconWorkspace },
   { to: "/tools/base-map-clicker", label: "Map", Icon: IconWorkspace },
   { to: "/tools", label: "Server shop", Icon: IconCampaign },
@@ -74,9 +76,9 @@ const MARKETING_TOOLS: ToolItem[] = [
     children: [
       { to: "/tools", search: { focus: "utm" }, label: "Combat & Intel", Icon: IconUtm },
       { to: "/tools", search: { focus: "utm-all" }, label: "UAV Tracking", Icon: IconSpark },
-      { to: "/tools", search: { focus: "utm" }, label: "PVP Killfeed", Icon: IconSpark },
-      { to: "/tools", search: { focus: "utm-taxonomy" }, label: "Bounties", Icon: IconSpark },
-      { to: "/tools", search: { focus: "funnel-performance" }, label: "Leaderboards", Icon: IconChart },
+      { to: "/killfeed", label: "PVP Killfeed", Icon: IconSpark },
+      { to: "/rewards", label: "Bounties", Icon: IconSpark },
+      { to: "/stats", label: "Leaderboards", Icon: IconChart },
     ],
   },
   {
@@ -87,8 +89,8 @@ const MARKETING_TOOLS: ToolItem[] = [
     Icon: IconFunnel,
     children: [
       { to: "/tools", search: { focus: "funnel-targets" }, label: "Precision Strikes", Icon: IconSpark },
-      { to: "/tools", search: { focus: "funnel-performance" }, label: "Bomb Strafe Run", Icon: IconChart },
-      { to: "/tools", search: { focus: "funnel-performance" }, label: "Gas Strafe Run", Icon: IconChart },
+      { to: "/tools/base-map-clicker", label: "Bomb Strafe Run", Icon: IconChart },
+      { to: "/tools/base-map-clicker", label: "Gas Strafe Run", Icon: IconChart },
       { to: "/tools", search: { focus: "funnel" }, label: "Interactive Targeting", Icon: IconSpark },
     ],
   },
@@ -120,9 +122,9 @@ const MARKETING_TOOLS: ToolItem[] = [
     label: "Faction Hub",
     Icon: IconWorkspace,
     children: [
-      { to: "/workspaces", label: "Create or Join", Icon: IconWorkspace },
-      { to: "/campaigns", label: "Wars & Contracts", Icon: IconCampaign },
-      { to: "/leads", label: "Faction Leaderboard", Icon: IconChart },
+      { to: "/factions", label: "Create or Join", Icon: IconWorkspace },
+      { to: "/war-room", label: "Wars & Contracts", Icon: IconCampaign },
+      { to: "/factions", label: "Faction Leaderboard", Icon: IconChart },
     ],
   },
   {
@@ -131,7 +133,7 @@ const MARKETING_TOOLS: ToolItem[] = [
     label: "Perks & Identity",
     Icon: IconChart,
     children: [
-      { to: "/leads", label: "Credits Economy", Icon: IconChart },
+      { to: "/economy", label: "Credits Economy", Icon: IconChart },
       { to: "/battlepass", label: "Battlepass", Icon: IconCalendar },
       { to: "/requests", label: "Support Tickets", Icon: IconClock },
     ],
@@ -399,7 +401,7 @@ function AppShell() {
           )}
         </aside>
 
-        {!COMMANDER_ENABLED && <CommandPalette />}
+        {COMMANDER_ENABLED ? <CommanderAI /> : <CommandPalette />}
 
         <main className="flex-1 min-w-0 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+5rem)] md:pb-0">
           {/* Mobile top bar */}
