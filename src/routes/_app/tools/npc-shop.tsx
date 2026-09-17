@@ -132,38 +132,7 @@ const THE_BEAMER_CFG_SPAWNABLETYPES = `<type name="TheBeamer">
   </attachments>
 </type>`;
 
-const ROLE_NPCS: NPC[] = [
-  ["scavenger", "Wasteland Scavenger", "Trader", "Civilian", 2000, "A sharp-eyed scavenger who trades salvage and rumors."],
-  ["medic", "Field Medic", "Medic", "Support", 2500, "Keeps your crew alive when the fighting gets close."],
-  ["mechanic", "Roadside Mechanic", "Mechanic", "Support", 3000, "Repairs vehicles and keeps your convoy moving."],
-  ["hunter", "Silent Hunter", "Scout", "Combat", 3500, "Tracks movement and watches the tree line."],
-  ["guard", "Gate Guard", "Guard", "Combat", 4000, "Holds a position and challenges unknown players."],
-  ["farmer", "Greenhouse Keeper", "Farmer", "Civilian", 4200, "Maintains crops and protects your food supply."],
-  ["radio", "Radio Operator", "Intel", "Support", 4500, "Broadcasts faction messages and monitors channels."],
-  ["quartermaster", "Quartermaster", "Logistics", "Support", 4800, "Organizes supplies, ammunition, and storage."],
-  ["sniper", "Overwatch Sniper", "Overwatch", "Combat", 5200, "Provides long-range cover from elevated positions."],
-  ["engineer", "Combat Engineer", "Engineer", "Combat", 5500, "Builds defenses and reinforces your perimeter."],
-  ["smuggler", "Black Market Smuggler", "Dealer", "Civilian", 5800, "Moves restricted goods through dangerous routes."],
-  ["tracker", "Bloodhound Tracker", "Tracker", "Combat", 6100, "Follows trails and identifies recent movement."],
-  ["pilot", "Helicopter Pilot", "Pilot", "Support", 6500, "Coordinates transport and aerial resupply."],
-  ["commander", "Faction Commander", "Commander", "Faction", 7000, "Coordinates squads and issues faction orders."],
-  ["armorer", "Arms Dealer", "Armorer", "Civilian", 7200, "Maintains weapon stock and manages crate deliveries."],
-  ["recon", "Recon Specialist", "Recon", "Combat", 7500, "Maps hostile positions and marks points of interest."],
-  ["bunker", "Bunker Warden", "Warden", "Combat", 7800, "Guards high-value locations and secured storage."],
-  ["diplomat", "Faction Diplomat", "Diplomat", "Faction", 8200, "Handles negotiations, alliances, and ceasefires."],
-  ["commando", "Wasteland Commando", "Elite", "Combat", 8600, "A veteran operator for high-risk deployments."],
-  ["ai", "Tactical AI Core", "Coordinator", "Faction", 9000, "Plans patrols, alerts, and coordinated defenses."],
-].map(([id, name, role, category, price, description]) => ({
-  id: id as string,
-  name: name as string,
-  role: role as string,
-  category: category as string,
-  price: price as number,
-  description: description as string,
-}));
-
-/** Matches survivor_* ids in npc-presets.ts (confirmed SurvivorM_* kits). */
-const SURVIVOR_NPCS: NPC[] = [
+const NPCS: NPC[] = [
   {
     id: "the_beamer",
     name: "TheBeamer NPC",
@@ -173,73 +142,7 @@ const SURVIVOR_NPCS: NPC[] = [
     description: "Beam down the competition with an M14, M4A1 Green, armored kit, medical supplies, and field gear.",
     cfgSpawnabletypes: THE_BEAMER_CFG_SPAWNABLETYPES,
   },
-  {
-    id: "survivor_boris",
-    name: "Survivor Boris",
-    role: "SurvivorM_Boris",
-    category: "Survivors",
-    price: 1500,
-    description: "Confirmed CE kit — SurvivorM_Boris. Reliable male survivor spawn.",
-  },
-  {
-    id: "survivor_cyril",
-    name: "Survivor Cyril",
-    role: "SurvivorM_Cyril",
-    category: "Survivors",
-    price: 1500,
-    description: "Confirmed CE kit — SurvivorM_Cyril. Reliable male survivor spawn.",
-  },
-  {
-    id: "survivor_denis",
-    name: "Survivor Denis",
-    role: "SurvivorM_Denis",
-    category: "Survivors",
-    price: 1500,
-    description: "Confirmed CE kit — SurvivorM_Denis. Reliable male survivor spawn.",
-  },
-  {
-    id: "survivor_elias",
-    name: "Survivor Elias",
-    role: "SurvivorM_Elias",
-    category: "Survivors",
-    price: 1500,
-    description: "Confirmed CE kit — SurvivorM_Elias. Reliable male survivor spawn.",
-  },
-  {
-    id: "survivor_recruit_f",
-    name: "Recruit (F kit)",
-    role: "Recruit",
-    category: "Survivors",
-    price: 1800,
-    description: "Labeled recruit kit mapped to SurvivorM_Boris until female CE children are verified.",
-  },
-  {
-    id: "survivor_medic_f",
-    name: "Medic (F kit)",
-    role: "Medic",
-    category: "Survivors",
-    price: 2200,
-    description: "Labeled medic kit mapped to SurvivorM_Cyril until female CE children are verified.",
-  },
-  {
-    id: "survivor_scout_f",
-    name: "Scout (F kit)",
-    role: "Scout",
-    category: "Survivors",
-    price: 2200,
-    description: "Labeled scout kit mapped to SurvivorM_Denis until female CE children are verified.",
-  },
-  {
-    id: "survivor_guard_f",
-    name: "Guard (F kit)",
-    role: "Guard",
-    category: "Survivors",
-    price: 2500,
-    description: "Labeled guard kit mapped to SurvivorM_Elias with 300s restock.",
-  },
 ];
-
-const NPCS: NPC[] = [...ROLE_NPCS, ...SURVIVOR_NPCS];
 
 export function NPCShopContent() {
   const qc = useQueryClient();
