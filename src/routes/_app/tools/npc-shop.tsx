@@ -145,6 +145,7 @@ const NPCS: NPC[] = [
 ];
 
 export function NPCShopContent() {
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
