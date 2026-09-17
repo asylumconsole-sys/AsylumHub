@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { spawnNpc } from "@/lib/dayz-spawn.functions";
 import { DAYZ_SERVERS } from "@/lib/dayz/servers";
 import { listAsylumServiceIds } from "@/lib/dayz/server-status.functions";
-import { getEconomyBalance, getOwnedNpcs, purchaseNpc } from "@/lib/economy.functions";
+import { getEconomyBalance, getNpcInventory, purchaseNpc } from "@/lib/economy.functions";
 import { useAuth } from "@/contexts/AuthContext";
 import { getOnlinePlayers } from "@/lib/online-players.functions";
 
@@ -169,7 +169,7 @@ export function NPCShopContent() {
   });
   const ownedQ = useQuery({
     queryKey: ["npc-inventory", playerId],
-    queryFn: () => getOwnedNpcs(),
+    queryFn: () => getNpcInventory({ data: { playerId } }),
   });
   const catalogQ = useQuery({
     queryKey: ["asylum-services"],
@@ -182,7 +182,7 @@ export function NPCShopContent() {
   });
 
   const credits = balanceQ.data?.balance ?? 0;
-  const owned = ownedQ.data ?? [];
+  const owned = ownedQ.data?.owned ?? [];
   const server = DAYZ_SERVERS.find((s) => s.id === PRIMARY_SERVER_ID) ?? DAYZ_SERVERS[0];
   const serviceId =
     catalogQ.data?.find((s) => s.id === PRIMARY_SERVER_ID)?.serviceId ?? server.fallbackServiceId;
@@ -192,7 +192,7 @@ export function NPCShopContent() {
       purchaseNpc({
         data: {
           npcId: npc.id,
-          name: npc.name,
+          npcName: npc.name,
           price: npc.price,
         },
       }),
