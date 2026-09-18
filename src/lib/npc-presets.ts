@@ -18,7 +18,8 @@ export type NpcSpawnPreset = {
 };
 
 export const NPC_SPAWN_PRESETS: Record<string, NpcSpawnPreset> = {
-  the_beamer: { id: "the_beamer", classname: "TheBeamer", lifetime: 2500, restock: 300 },
+  // TheBeamer is a shop skin/kit name only — CE must use a real SurvivorM_* type.
+  the_beamer: { id: "the_beamer", classname: "SurvivorM_Boris", lifetime: 2500, restock: 300 },
 };
 
 export function getNpcSpawnPreset(id: string): NpcSpawnPreset {
