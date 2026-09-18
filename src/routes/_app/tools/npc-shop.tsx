@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import { IconArrowRight, IconBot, IconCampaign } from "@/components/ui-custom/CustomIcon";
 import { toast } from "sonner";
 import { spawnNpc } from "@/lib/dayz-spawn.functions";
@@ -27,6 +26,7 @@ type NPC = {
   description: string;
   cfgSpawnabletypes?: string;
 };
+
 type PlacementMode = "map" | "zy" | "gamertag";
 
 const THE_BEAMER_CFG_SPAWNABLETYPES = `<type name="TheBeamer">
@@ -144,6 +144,8 @@ const THE_BEAMER_CFG_SPAWNABLETYPES = `<type name="TheBeamer">
 </type>`;
 
 
+
+/** Add more NPCs to this list later — shop UI is catalog-driven. */
 const NPCS: NPC[] = [
   {
     id: "the_beamer",
@@ -151,8 +153,7 @@ const NPCS: NPC[] = [
     role: "Elite Operator",
     category: "Combat",
     price: 2500,
-    description:
-      "War-room deployable operator. M14 + M4A1 Green loadout, armor, medical, and field kit.",
+    description: "Deployable operator with M14, M4A1, armor, medical, and field kit.",
     cfgSpawnabletypes: THE_BEAMER_CFG_SPAWNABLETYPES,
   },
 ];
@@ -160,7 +161,8 @@ const NPCS: NPC[] = [
 export function NPCShopContent() {
   const { session, user } = useAuth();
   const qc = useQueryClient();
-  const selected = NPCS[0];
+  const [selectedId, setSelectedId] = useState(NPCS[0]?.id ?? "");
+  const selected = NPCS.find((npc) => npc.id === selectedId) ?? NPCS[0];
   const [placementMode, setPlacementMode] = useState<PlacementMode>("map");
   const [y, setY] = useState(String(DEFAULT_SPAWN_POSITION.x));
   const [z, setZ] = useState(String(DEFAULT_SPAWN_POSITION.z));
@@ -200,7 +202,7 @@ export function NPCShopContent() {
 
   const credits = balanceQ.data?.balance ?? 0;
   const owned = ownedQ.data?.owned ?? [];
-  const isOwned = owned.includes(selected.id);
+  const isOwned = selected ? owned.includes(selected.id) : false;
   const server = DAYZ_SERVERS.find((s) => s.id === PRIMARY_SERVER_ID) ?? DAYZ_SERVERS[0];
   const serviceId =
     catalogQ.data?.find((s) => s.id === PRIMARY_SERVER_ID)?.serviceId ?? server.fallbackServiceId;
@@ -229,7 +231,8 @@ export function NPCShopContent() {
   });
 
   const spawn = async () => {
-    if (!isOwned) return toast.error("Buy The Beamer first");
+    if (!selected) return;
+    if (!isOwned) return toast.error(`Buy ${selected.name} first`);
 
     let position = {
       x: Number(y),
@@ -239,12 +242,12 @@ export function NPCShopContent() {
     if (placementMode === "gamertag") {
       if (!matchedPlayer) {
         return toast.error("Gamertag not online on 101x", {
-          description: "Link/sign in with your exact in-game name, or use Z / Y / map.",
+          description: "Use the exact in-game name, or switch to Z / Y / map.",
         });
       }
       if (!Number.isFinite(matchedPlayer.x) || !Number.isFinite(matchedPlayer.z)) {
         return toast.error("Live position unavailable", {
-          description: "Your gamertag is online, but the latest log line has no coordinates yet. Use Z / Y or Choose on map.",
+          description: "Online, but no coordinates in the latest logs yet. Use Z / Y or Choose on map.",
         });
       }
       position = { x: matchedPlayer.x as number, z: matchedPlayer.z as number };
@@ -271,13 +274,13 @@ export function NPCShopContent() {
       });
       if (result.mode === "live") {
         toast.success(`${selected.name} spawned live on ${server.label}`, {
-          description: `Via ${result.adapter} Â· Y ${Math.round(position.x)} / Z ${Math.round(position.z)}`,
+          description: `Via ${result.adapter} · Y ${Math.round(position.x)} / Z ${Math.round(position.z)}`,
         });
       } else {
         toast.warning("Live spawn unavailable", { description: result.reason });
         toast.success(`${selected.name} queued on ${server.label}`, {
           description: !result.restarted
-            ? "Already loaded on the server â€” CE is managing it."
+            ? "Already loaded on the server — CE is managing it."
             : result.restockSeconds > 0
               ? `Set to Y ${Math.round(position.x)} / Z ${Math.round(position.z)}. Restarting, then respawns every ${result.restockSeconds}s.`
               : `Set to Y ${Math.round(position.x)} / Z ${Math.round(position.z)}. Server restarting to load it.`,
@@ -291,128 +294,125 @@ export function NPCShopContent() {
   };
 
   const modes: { id: PlacementMode; label: string; detail: string }[] = [
-    { id: "map", label: "1 Â· Choose on map", detail: "Drop a pin on Chernarus / Livonia" },
-    { id: "zy", label: "2 Â· Z or Y", detail: "Manual DayZ world Y / Z entry" },
-    { id: "gamertag", label: "3 Â· Spawn at my gamertag", detail: "Auto-resolve linked online position" },
+    { id: "map", label: "1. Choose on map", detail: "Open the map selector and drop a pin" },
+    { id: "zy", label: "2. Z or Y", detail: "Enter DayZ world Y / Z manually" },
+    { id: "gamertag", label: "3. Spawn at my gamertag", detail: "Use linked online player position" },
   ];
 
   return (
-    <div className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-black px-4 py-8 text-zinc-100">
-      <style>{`@keyframes warroom-scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
-@keyframes warroom-flicker { 0%,100% { opacity:.35 } 40% { opacity:.85 } 60% { opacity:.2 } }
-@keyframes npc-pulse { 0%,100% { opacity:.2 } 50% { opacity:.55 } }`}</style>
-
-      <img
-        src="/factions.jpg"
-        alt="The Beamer war room"
-        className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] w-full object-cover object-center opacity-40"
-      />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-gradient-to-b from-black/20 via-black/70 to-black" />
-      <motion.div
-        className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(circle_at_50%_18%,color-mix(in_oklab,var(--primary)_28%,transparent),transparent_58%)]"
-        animate={{ opacity: [0.25, 0.45, 0.25] }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(135deg,transparent_0%,transparent_48%,color-mix(in_oklab,var(--primary)_18%,transparent)_49%,transparent_50%)] [background-size:46px_46px]" />
-      <div
-        className="pointer-events-none absolute inset-x-0 h-40 opacity-[0.07]"
-        style={{
-          background:
-            "linear-gradient(180deg, transparent, color-mix(in oklab, var(--primary) 90%, white), transparent)",
-          animation: "warroom-scan 6s linear infinite",
-        }}
-      />
-      <div className="pointer-events-none absolute inset-6 sm:inset-10" style={{ animation: "warroom-flicker 7s ease-in-out infinite" }} aria-hidden>
-        {["top-0 left-0 border-t border-l", "top-0 right-0 border-t border-r", "bottom-0 left-0 border-b border-l", "bottom-0 right-0 border-b border-r"].map((pos) => (
-          <span key={pos} className={`absolute size-8 sm:size-12 border-primary/40 ${pos}`} />
-        ))}
-      </div>
-
-      <div className="relative mx-auto max-w-6xl space-y-8 pt-4">
-        <header className="flex flex-wrap items-end justify-between gap-5 border-b border-primary/30 pb-6">
+    <div className="min-h-[calc(100vh-3rem)] bg-[#0a0a0b] px-4 py-8 text-zinc-100">
+      <div className="mx-auto max-w-6xl space-y-8">
+        <header className="flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-6">
           <div>
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-primary">
-              <IconCampaign size={14} /> War Room Â· NPC Deploy
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-zinc-500">
+              <IconCampaign size={14} /> NPC Shop template
             </div>
-            <h1 className="font-display mt-3 text-5xl text-primary sm:text-6xl">The Beamer</h1>
-            <p className="mt-3 max-w-2xl text-sm text-zinc-400 sm:text-base">
-              Purchase once, then deploy with map pin, Z/Y coordinates, or your live gamertag position on 101x.
+            <h1 className="font-display mt-2 text-4xl text-white sm:text-5xl">Operators</h1>
+            <p className="mt-2 max-w-xl text-sm text-zinc-400">
+              Catalog is ready for more NPCs. Only The Beamer is listed for now.
             </p>
           </div>
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-right backdrop-blur-sm">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-primary/80">Credits</div>
-            <div className="mt-1 font-mono text-2xl text-white">{balanceQ.isLoading ? "â€¦" : credits.toLocaleString()}</div>
-            <div className="mt-1 max-w-[180px] truncate text-[10px] text-zinc-400">{displayName}</div>
+          <div className="border border-white/10 bg-white/[0.03] px-4 py-3 text-right">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Credits</div>
+            <div className="mt-1 font-mono text-2xl text-white">{balanceQ.isLoading ? "…" : credits.toLocaleString()}</div>
+            <div className="mt-1 max-w-[160px] truncate text-[10px] text-zinc-500">{displayName}</div>
           </div>
         </header>
 
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-3xl border border-primary/25 bg-black/55 shadow-[0_0_60px_rgba(245,158,11,0.08)] backdrop-blur-md"
-          >
-            <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,.12)_1px,transparent_1px)] [background-size:100%_5px]" style={{ animation: "npc-pulse 2.8s ease-in-out infinite" }} />
-            <div className="relative">
-              <div className="relative h-64 overflow-hidden sm:h-80">
-                <img src="/factions.jpg" alt="Beamer operator" className="h-full w-full object-cover object-[center_20%]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.28em] text-primary">
-                      <IconBot size={14} /> Operator manifest
+        <div className="grid items-start gap-6 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
+          <aside className="space-y-2">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Roster · {NPCS.length}</div>
+            <div className="space-y-2">
+              {NPCS.map((npc) => {
+                const npcOwned = owned.includes(npc.id);
+                const active = selected?.id === npc.id;
+                return (
+                  <button
+                    key={npc.id}
+                    type="button"
+                    onClick={() => setSelectedId(npc.id)}
+                    className={`w-full border px-3 py-3 text-left transition ${
+                      active ? "border-white/40 bg-white/10" : "border-white/10 bg-white/[0.02] hover:border-white/25"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-medium text-white">{npc.name}</span>
+                      <span className="font-mono text-[10px] text-zinc-400">{npc.price.toLocaleString()}</span>
                     </div>
-                    <div className="mt-1 font-display text-3xl text-white">{selected.name}</div>
-                    <div className="mt-1 text-xs text-zinc-300">{selected.role} Â· {selected.category}</div>
-                  </div>
-                  <div className="rounded-full border border-primary/40 bg-black/50 px-3 py-1 font-mono text-sm text-primary">
-                    {selected.price.toLocaleString()} cr
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-5 p-5 sm:p-6">
-                <p className="text-sm leading-relaxed text-zinc-300">{selected.description}</p>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {[["M14 + MK4", "Long range"], ["M4A1 Green", "CQB kit"], ["Plate + Med", "Survive"]].map(([title, detail]) => (
-                    <div key={title} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-primary/80">{title}</div>
-                      <div className="mt-1 text-sm text-zinc-300">{detail}</div>
+                    <div className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                      {npc.role} · {npc.category}
                     </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => !isOwned && buyMut.mutate(selected)}
-                  disabled={isOwned || buyMut.isPending}
-                  className="relative w-full overflow-hidden rounded-full bg-primary px-5 py-3.5 text-sm font-semibold uppercase tracking-[0.18em] text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
-                >
-                  {isOwned ? "Owned â€” ready to deploy" : buyMut.isPending ? "Purchasingâ€¦" : `Buy Beamer Â· ${selected.price.toLocaleString()} cr`}
-                </button>
-              </div>
+                    {npcOwned ? <div className="mt-1 text-[10px] uppercase tracking-wide text-zinc-300">Owned</div> : null}
+                  </button>
+                );
+              })}
             </div>
-          </motion.section>
+            <div className="border border-dashed border-white/10 px-3 py-4 text-center text-[11px] text-zinc-600">
+              More NPCs slot here
+            </div>
+          </aside>
 
-          <motion.section
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="rounded-3xl border border-primary/25 bg-black/70 p-5 backdrop-blur-md sm:p-6"
-          >
-            <div className="text-[10px] uppercase tracking-[0.28em] text-primary">Deployment options Â· 101x</div>
+          <section className="border border-white/10 bg-white/[0.03]">
+            {selected ? (
+              <>
+                <div className="flex h-48 items-center justify-center border-b border-white/10 bg-[#111113]">
+                  <div className="text-center">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center border border-white/20 text-zinc-400">
+                      <IconBot size={26} />
+                    </div>
+                    <div className="mt-3 text-[10px] uppercase tracking-[0.24em] text-zinc-600">Image placeholder</div>
+                  </div>
+                </div>
+                <div className="space-y-4 p-5">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Selected operator</div>
+                    <h2 className="mt-1 font-display text-3xl text-white">{selected.name}</h2>
+                    <p className="mt-2 text-sm leading-relaxed text-zinc-400">{selected.description}</p>
+                    <div className="mt-3 font-mono text-sm text-zinc-200">{selected.price.toLocaleString()} credits</div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[["Loadout", "M14 / M4"], ["Kit", "Armor + med"], ["Server", "101x"]].map(([label, value]) => (
+                      <div key={label} className="border border-white/10 bg-black/40 px-3 py-2">
+                        <div className="text-[10px] uppercase tracking-wide text-zinc-600">{label}</div>
+                        <div className="mt-1 text-xs text-zinc-300">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => !isOwned && buyMut.mutate(selected)}
+                    disabled={isOwned || buyMut.isPending}
+                    className="w-full border border-white/25 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-zinc-800 disabled:text-zinc-500"
+                  >
+                    {isOwned
+                      ? "Owned — ready to deploy"
+                      : buyMut.isPending
+                        ? "Purchasing…"
+                        : `Buy · ${selected.price.toLocaleString()} cr`}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="p-8 text-center text-sm text-zinc-500">Select an NPC from the roster.</div>
+            )}
+          </section>
+
+          <section className="border border-white/10 bg-white/[0.03] p-5">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Deploy · 101x</div>
             <div className="mt-4 space-y-2">
               {modes.map((mode) => (
                 <button
                   key={mode.id}
                   type="button"
                   onClick={() => setPlacementMode(mode.id)}
-                  className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                  className={`w-full border px-3 py-3 text-left transition ${
                     placementMode === mode.id
-                      ? "border-primary/60 bg-primary/15 shadow-[0_0_24px_rgba(245,158,11,0.12)]"
-                      : "border-white/10 bg-white/[0.03] hover:border-primary/35"
+                      ? "border-white/35 bg-white/10"
+                      : "border-white/10 hover:border-white/25"
                   }`}
                 >
-                  <div className="text-sm font-medium text-white">{mode.label}</div>
-                  <div className="mt-0.5 text-xs text-zinc-400">{mode.detail}</div>
+                  <div className="text-sm text-white">{mode.label}</div>
+                  <div className="mt-0.5 text-xs text-zinc-500">{mode.detail}</div>
                 </button>
               ))}
             </div>
@@ -420,49 +420,45 @@ export function NPCShopContent() {
             <div className="mt-5 border-t border-white/10 pt-5">
               {placementMode === "map" && (
                 <div className="space-y-3">
-                  <p className="text-sm text-zinc-400">
-                    Open the satellite map, drop a pin, then deploy from the map tool.
-                  </p>
+                  <p className="text-xs text-zinc-500">Opens the map tool so you can pick coordinates.</p>
                   <button
                     type="button"
-                    disabled={!isOwned}
+                    disabled={!isOwned || !selected}
                     onClick={() =>
+                      selected &&
                       window.open(
                         `/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}`,
                         "_blank",
                         "noopener,noreferrer",
                       )
                     }
-                    className="flex w-full items-center justify-center gap-2 rounded-full border border-primary/50 px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-primary transition hover:bg-primary/10 disabled:opacity-40"
+                    className="flex w-full items-center justify-center gap-2 border border-white/25 px-4 py-3 text-sm uppercase tracking-[0.12em] text-white transition hover:bg-white/5 disabled:opacity-40"
                   >
-                    Open map selector <IconArrowRight size={14} />
+                    Choose on map <IconArrowRight size={14} />
                   </button>
                 </div>
               )}
 
               {placementMode === "zy" && (
                 <div className="space-y-3">
-                  <p className="text-xs text-zinc-400">
-                    DayZ world plane: <span className="text-primary">Y</span> maps to east/west (X), 
-                    <span className="text-primary">Z</span> maps to north/south.
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="text-[10px] uppercase tracking-[0.18em] text-zinc-400">
+                  <p className="text-xs text-zinc-500">Y = east/west (X). Z = north/south.</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-[10px] uppercase tracking-wide text-zinc-500">
                       Y
                       <input
                         value={y}
-                        onChange={(event) => setY(event.target.value)}
+                        onChange={(e) => setY(e.target.value)}
                         inputMode="numeric"
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2.5 font-mono text-sm text-white outline-none focus:border-primary"
+                        className="mt-1 w-full border border-white/10 bg-black px-3 py-2 font-mono text-sm text-white outline-none focus:border-white/30"
                       />
                     </label>
-                    <label className="text-[10px] uppercase tracking-[0.18em] text-zinc-400">
+                    <label className="text-[10px] uppercase tracking-wide text-zinc-500">
                       Z
                       <input
                         value={z}
-                        onChange={(event) => setZ(event.target.value)}
+                        onChange={(e) => setZ(e.target.value)}
                         inputMode="numeric"
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2.5 font-mono text-sm text-white outline-none focus:border-primary"
+                        className="mt-1 w-full border border-white/10 bg-black px-3 py-2 font-mono text-sm text-white outline-none focus:border-white/30"
                       />
                     </label>
                   </div>
@@ -470,45 +466,48 @@ export function NPCShopContent() {
                     type="button"
                     disabled={!isOwned || spawning}
                     onClick={spawn}
-                    className="w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-primary-foreground disabled:opacity-40"
+                    className="w-full border border-white/25 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-black disabled:opacity-40"
                   >
-                    {spawning ? "Deployingâ€¦" : "Deploy at Z / Y"}
+                    {spawning ? "Deploying…" : "Deploy at Z / Y"}
                   </button>
                 </div>
               )}
 
               {placementMode === "gamertag" && (
                 <div className="space-y-3">
-                  <label className="text-[10px] uppercase tracking-[0.18em] text-zinc-400">
+                  <label className="text-[10px] uppercase tracking-wide text-zinc-500">
                     My gamertag
                     <input
                       value={gamertag}
-                      onChange={(event) => setGamertag(event.target.value)}
+                      onChange={(e) => setGamertag(e.target.value)}
                       placeholder="Exact in-game name"
-                      className="mt-1 w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2.5 text-sm text-white outline-none focus:border-primary"
+                      className="mt-1 w-full border border-white/10 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white/30"
                     />
                   </label>
-                  <p className="text-xs leading-relaxed text-zinc-400">
-                    Auto-filled from your hub account when available. Spawns at the latest logged live position for that name on 101x.
-                    {" "}
+                  <p className="text-xs leading-relaxed text-zinc-500">
+                    Prefills from your hub account. Spawns at the latest logged position on 101x.{" "}
                     {playersQ.isFetching
-                      ? "Refreshing online rosterâ€¦"
+                      ? "Refreshing roster…"
                       : matchedPlayer
-                        ? `Online on ${matchedPlayer.server}${Number.isFinite(matchedPlayer.x) ? ` Â· pos Y ${Math.round(matchedPlayer.x!)} / Z ${Math.round(matchedPlayer.z!)}` : " Â· waiting for coordinates"}`
+                        ? `Online on ${matchedPlayer.server}${
+                            Number.isFinite(matchedPlayer.x)
+                              ? ` · Y ${Math.round(matchedPlayer.x!)} / Z ${Math.round(matchedPlayer.z!)}`
+                              : " · waiting for coordinates"
+                          }`
                         : "Not seen online yet."}
                   </p>
                   <button
                     type="button"
                     disabled={!isOwned || spawning}
                     onClick={spawn}
-                    className="w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-primary-foreground disabled:opacity-40"
+                    className="w-full border border-white/25 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-black disabled:opacity-40"
                   >
-                    {spawning ? "Deployingâ€¦" : "Spawn at my gamertag"}
+                    {spawning ? "Deploying…" : "Spawn at my gamertag"}
                   </button>
                 </div>
               )}
             </div>
-          </motion.section>
+          </section>
         </div>
       </div>
     </div>
