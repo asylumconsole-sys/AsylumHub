@@ -16,6 +16,9 @@ export type OnlinePlayer = {
   name: string;
   server: ServerId;
   lastSeen: string;
+  x?: number;
+  y?: number;
+  z?: number;
 };
 
 export type OnlinePlayersResult = {
@@ -33,7 +36,7 @@ function readNames(line: string) {
     const match = line.match(pattern);
     const name = match?.[1]
       ?.replace(/\s+(?:CREATED|CONNECTED|DISCONNECTED|DESTROYED)\b.*$/i, "")
-      .replace(/\s*(?:->|→)\s*.*$/u, "")
+      .replace(/\s*(?:->|â†’)\s*.*$/u, "")
       .trim()
       .replace(/\s+/g, " ");
     if (
@@ -42,9 +45,22 @@ function readNames(line: string) {
       !/^__server__$/i.test(name) &&
       !/^(identity|unknown|server|player|created|connected|disconnected)$/i.test(name) &&
       !/^(?:steam|psn|xbox)?[_ -]?server$/i.test(name)
-    ) return name;
+    )
+      return name;
   }
   return null;
+}
+
+function readPosition(line: string): { x: number; y: number; z: number } | null {
+  const match =
+    line.match(/pos(?:ition)?\s*[=:<>]\s*<?\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*>?/i) ||
+    line.match(/<\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*>/);
+  if (!match) return null;
+  const x = Number(match[1]);
+  const y = Number(match[2]);
+  const z = Number(match[3]);
+  if (![x, y, z].every(Number.isFinite)) return null;
+  return { x, y, z };
 }
 
 function isDisconnect(line: string) {
@@ -66,24 +82,52 @@ async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
   const client = new Client();
   client.ftp.timeout = 20_000;
   try {
-    await client.access({ host, user, password, port: Number(process.env[keys.port] ?? process.env.FTP_PORT ?? 21) });
+    await client.access({
+      host,
+      user,
+      password,
+      port: Number(process.env[keys.port] ?? process.env.FTP_PORT ?? 21),
+    });
     const files = (await client.list(directory))
       .filter((file) => /\.(RPT|ADM)$/i.test(file.name))
       .sort((left, right) => right.modifiedAt - left.modifiedAt)
       .slice(0, 2)
       .sort((left, right) => left.name.localeCompare(right.name));
-    const state = new Map<string, { name: string; lastSeen: string }>();
+    const state = new Map<
+      string,
+      { name: string; lastSeen: string; x?: number; y?: number; z?: number }
+    >();
     for (const file of files) {
       let text = "";
-      const sink = new Writable({ write(chunk, _encoding, callback) { text += chunk.toString(); callback(); } });
+      const sink = new Writable({
+        write(chunk, _encoding, callback) {
+          text += chunk.toString();
+          callback();
+        },
+      });
       await client.downloadTo(sink, `${directory.replace(/\/$/, "")}/${file.name}`);
       for (const line of text.split(/\r?\n/)) {
         const name = readNames(line);
         if (!name || name.length < 2 || name.length > 64) continue;
         const key = name.toLocaleLowerCase();
-        const timestamp = line.match(/(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})/)?.[1] ?? new Date(file.modifiedAt || Date.now()).toISOString();
-        if (isDisconnect(line)) state.delete(key);
-        else if (isConnect(line)) state.set(key, { name, lastSeen: timestamp });
+        const timestamp =
+          line.match(/(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})/)?.[1] ??
+          new Date(file.modifiedAt || Date.now()).toISOString();
+        const pos = readPosition(line);
+        if (isDisconnect(line)) {
+          state.delete(key);
+          continue;
+        }
+        const existing = state.get(key);
+        if (isConnect(line) || existing || pos) {
+          state.set(key, {
+            name,
+            lastSeen: timestamp,
+            x: pos?.x ?? existing?.x,
+            y: pos?.y ?? existing?.y,
+            z: pos?.z ?? existing?.z,
+          });
+        }
       }
     }
     return Array.from(state.values()).map((player) => ({
@@ -91,6 +135,9 @@ async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
       name: player.name,
       server,
       lastSeen: player.lastSeen,
+      x: player.x,
+      y: player.y,
+      z: player.z,
     }));
   } finally {
     client.close();
@@ -100,7 +147,8 @@ async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
 export const getOnlinePlayers = createServerFn({ method: "POST" })
   .inputValidator((data: { accessToken?: string }) => data)
   .handler(async ({ data }) => {
-    const isDemo = data.accessToken === "demo-access-token" || data.accessToken === "discord-access-token";
+    const isDemo =
+      data.accessToken === "demo-access-token" || data.accessToken === "discord-access-token";
     if (!isDemo && !data.accessToken) {
       throw new Error("Unauthorized: Sign in again.");
     }
