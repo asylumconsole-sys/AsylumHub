@@ -6,6 +6,14 @@ import { ITEM_CATALOG_COMPACT_4 } from "./item-catalog-data-4";
 import { ITEM_CATALOG_COMPACT_5 } from "./item-catalog-data-5";
 import { ITEM_CATALOG_COMPACT_6 } from "./item-catalog-data-6";
 import { ITEM_CATALOG_COMPACT_7 } from "./item-catalog-data-7";
+import { ITEM_CATALOG_COMPACT_8 } from "./item-catalog-data-8";
+import { ITEM_CATALOG_COMPACT_9 } from "./item-catalog-data-9";
+import { ITEM_CATALOG_COMPACT_10 } from "./item-catalog-data-10";
+import { ITEM_CATALOG_COMPACT_11 } from "./item-catalog-data-11";
+import { ITEM_CATALOG_COMPACT_12 } from "./item-catalog-data-12";
+import { ITEM_CATALOG_COMPACT_13 } from "./item-catalog-data-13";
+import { ITEM_CATALOG_COMPACT_14 } from "./item-catalog-data-14";
+import { ITEM_CATALOG_COMPACT_15 } from "./item-catalog-data-15";
 
 const CATEGORY_BY_INDEX = [
   "Weapons",
@@ -57,6 +65,14 @@ export const ITEM_CATALOG: ShopCatalogItem[] = [
   ...parseCompact(ITEM_CATALOG_COMPACT_5),
   ...parseCompact(ITEM_CATALOG_COMPACT_6),
   ...parseCompact(ITEM_CATALOG_COMPACT_7),
+  ...parseCompact(ITEM_CATALOG_COMPACT_8),
+  ...parseCompact(ITEM_CATALOG_COMPACT_9),
+  ...parseCompact(ITEM_CATALOG_COMPACT_10),
+  ...parseCompact(ITEM_CATALOG_COMPACT_11),
+  ...parseCompact(ITEM_CATALOG_COMPACT_12),
+  ...parseCompact(ITEM_CATALOG_COMPACT_13),
+  ...parseCompact(ITEM_CATALOG_COMPACT_14),
+  ...parseCompact(ITEM_CATALOG_COMPACT_15),
 ];
 
 export const ITEM_CATEGORIES: string[] = [...CATEGORY_BY_INDEX];
