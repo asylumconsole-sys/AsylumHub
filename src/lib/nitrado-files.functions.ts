@@ -22,14 +22,13 @@ async function nitradoJson(path: string, init?: RequestInit) {
 
 function missionFile(relativePath: string, baseOverride?: string) {
   const base = baseOverride || process.env.NITRADO_MISSION_PATH;
-  if (!base) throw new Error("NITRADO_MISSION_PATH not configured");
+  if (!base) throw new Error("NITRADO_MISSION_PATH not configured (pass missionPath from resolveMissionPath)");
   return `${base.replace(/\/$/, "")}/${relativePath.replace(/^\//, "")}`;
 }
 
 /**
  * Downloads a text file from the Nitrado file manager.
  * Uses the two-step file_server flow: request a signed download URL, then fetch it.
- * NOTE: unverified against a live server — response shape may need adjustment.
  */
 export async function downloadNitradoFile(serviceId: string, relativePath: string, baseOverride?: string): Promise<string> {
   const path = missionFile(relativePath, baseOverride);
@@ -45,10 +44,15 @@ export async function downloadNitradoFile(serviceId: string, relativePath: strin
 
 /**
  * Uploads text content to a file on the Nitrado server.
- * NOTE: unverified against a live server — response shape may need adjustment.
+ * `baseOverride` must match the mission path used for download (per-server).
  */
-export async function uploadNitradoFile(serviceId: string, relativePath: string, content: string): Promise<void> {
-  const path = missionFile(relativePath);
+export async function uploadNitradoFile(
+  serviceId: string,
+  relativePath: string,
+  content: string,
+  baseOverride?: string,
+): Promise<void> {
+  const path = missionFile(relativePath, baseOverride);
   const json = (await nitradoJson(`/services/${serviceId}/gameservers/file_server/upload`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -72,8 +76,12 @@ export const restartNitradoServer = createServerFn({ method: "POST" })
   });
 
 /** Returns the file's last-modified unix timestamp (seconds), or null if it doesn't exist. */
-export async function statNitradoFileModifiedAt(serviceId: string, relativePath: string): Promise<number | null> {
-  const path = missionFile(relativePath);
+export async function statNitradoFileModifiedAt(
+  serviceId: string,
+  relativePath: string,
+  baseOverride?: string,
+): Promise<number | null> {
+  const path = missionFile(relativePath, baseOverride);
   try {
     const json = (await nitradoJson(
       `/services/${serviceId}/gameservers/file_server/stat?files[]=${encodeURIComponent(path)}`,
