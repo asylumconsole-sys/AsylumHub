@@ -14,6 +14,8 @@ import { BRAND } from "@/lib/brand";
 
 const PRIMARY_SERVER_ID = "101x";
 const DEFAULT_SPAWN_POSITION = { x: 7500, z: 7500, a: 0 };
+/** Catalog capacity for the gold deploy bay. */
+const ROSTER_SLOTS = 20;
 
 export const Route = createFileRoute("/_app/tools/npc-shop")({
   component: NPCShopContent,
@@ -148,6 +150,9 @@ const THE_BEAMER_CFG_SPAWNABLETYPES = `<type name="TheBeamer">
 
 
 /** Add more NPCs to this list later — shop UI is catalog-driven. */
+
+
+/** Add more NPCs here — UI is built for up to ROSTER_SLOTS. */
 const NPCS: NPC[] = [
   {
     id: "the_beamer",
@@ -160,57 +165,7 @@ const NPCS: NPC[] = [
   },
 ];
 
-function WarRoomBackdrop() {
-  return (
-    <>
-      <style>{`
-        @keyframes warroom-scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
-        @keyframes warroom-flicker { 0%, 100% { opacity: 1; } 42% { opacity: 1; } 43% { opacity: 0.72; } 44% { opacity: 1; } 71% { opacity: 1; } 72% { opacity: 0.8; } 73% { opacity: 1; } }
-        @keyframes warroom-shine { 0% { transform: translateX(-140%) skewX(-20deg); } 100% { transform: translateX(240%) skewX(-20deg); } }
-      `}</style>
-      <motion.div
-        className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(circle_at_50%_20%,color-mix(in_oklab,var(--primary)_25%,transparent),transparent_60%)]"
-        animate={{ opacity: [0.28, 0.5, 0.28] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="pointer-events-none absolute inset-0 opacity-0 [background-image:radial-gradient(circle_at_80%_80%,color-mix(in_oklab,var(--primary)_20%,transparent),transparent_55%)]"
-        animate={{ opacity: [0, 0.35, 0] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
-      />
-      <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(135deg,transparent_0%,transparent_48%,color-mix(in_oklab,var(--primary)_18%,transparent)_49%,transparent_50%)] [background-size:46px_46px]" />
-      <div
-        className="pointer-events-none absolute inset-x-0 h-40 opacity-[0.06]"
-        style={{
-          background: "linear-gradient(180deg, transparent, color-mix(in oklab, var(--primary) 90%, white), transparent)",
-          animation: "warroom-scan 6s linear infinite",
-        }}
-        aria-hidden
-      />
-      <div className="pointer-events-none absolute inset-6 sm:inset-10" style={{ animation: "warroom-flicker 7s ease-in-out infinite" }} aria-hidden>
-        {(["top-4 left-4 border-l border-t", "top-4 right-4 border-r border-t", "bottom-4 left-4 border-l border-b", "bottom-4 right-4 border-r border-b"] as const).map((pos) => (
-          <span key={pos} className={`absolute size-8 sm:size-12 border-primary/40 ${pos}`} />
-        ))}
-      </div>
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        {Array.from({ length: 34 }, (_, index) => (
-          <motion.span
-            key={index}
-            className="absolute bottom-0 rounded-full bg-primary/70"
-            style={{
-              left: `${(index * 12.1) % 100}%`,
-              width: 1.5 + (index % 4),
-              height: 1.5 + (index % 4),
-              boxShadow: "0 0 10px color-mix(in oklab, var(--primary) 80%, transparent)",
-            }}
-            animate={{ y: [0, -420 - (index % 5) * 60], x: [0, ((index % 3) - 1) * 30], opacity: [0, 1, 0] }}
-            transition={{ duration: 5 + (index % 7), repeat: Infinity, delay: (index % 11) * 0.35, ease: "easeOut" }}
-          />
-        ))}
-      </div>
-    </>
-  );
-}
+const emptySlots = Math.max(0, ROSTER_SLOTS - NPCS.length);
 
 export function NPCShopContent() {
   const { session, user } = useAuth();
@@ -345,44 +300,75 @@ export function NPCShopContent() {
   };
 
   const modes: { id: PlacementMode; label: string; detail: string }[] = [
-    { id: "map", label: "1. Choose on map", detail: "Open the map selector and drop a pin" },
-    { id: "zy", label: "2. Z or Y", detail: "Enter DayZ world Y / Z manually" },
-    { id: "gamertag", label: "3. Spawn at my gamertag", detail: "Use linked online player position" },
+    { id: "map", label: "1. Choose on map", detail: "Drop a pin on the map tool" },
+    { id: "zy", label: "2. Z or Y", detail: "Enter DayZ world Y / Z" },
+    { id: "gamertag", label: "3. Spawn at my gamertag", detail: "Use live player position" },
   ];
 
   return (
-    <div className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-black px-4 py-8 text-zinc-100">
-      <WarRoomBackdrop />
+    <div className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-[#050505] px-3 py-6 text-zinc-100 sm:px-5">
+      <style>{`
+        @keyframes gold-scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(120%); } }
+        @keyframes gold-shine { 0% { transform: translateX(-140%) skewX(-18deg); } 100% { transform: translateX(240%) skewX(-18deg); } }
+        @keyframes gold-pulse { 0%,100% { opacity: .35 } 50% { opacity: .7 } }
+      `}</style>
 
-      <div className="relative mx-auto max-w-6xl space-y-8">
-        <header className="flex flex-wrap items-end justify-between gap-5 border-b border-primary/25 pb-6">
+      {/* Gold ambient only */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-50"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 50% 0%, rgba(212,168,75,0.22), transparent 55%), radial-gradient(circle at 90% 80%, rgba(180,130,40,0.12), transparent 45%)",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.12]"
+        style={{
+          backgroundImage:
+            "linear-gradient(135deg, transparent 0%, transparent 48%, rgba(212,168,75,0.35) 49%, transparent 50%)",
+          backgroundSize: "42px 42px",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-x-0 h-36 opacity-[0.07]"
+        style={{
+          background: "linear-gradient(180deg, transparent, rgba(255,214,120,0.9), transparent)",
+          animation: "gold-scan 7s linear infinite",
+        }}
+        aria-hidden
+      />
+
+      <div className="relative mx-auto max-w-7xl space-y-5">
+        <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[#d4a84b]/30 pb-4">
           <div>
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-primary">
-              <IconCampaign size={14} /> {BRAND.name} · NPC deploy
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[#d4a84b]">
+              <IconCampaign size={14} /> {BRAND.name} · Gold bay
             </div>
-            <motion.h1
-              className="font-display mt-2 text-5xl text-primary sm:text-6xl"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            >
-              Operators
-            </motion.h1>
-            <p className="mt-3 max-w-xl text-sm text-zinc-400 sm:text-base">
-              War Room deploy console. Only The Beamer is live — more operators slot into the roster later.
+            <h1 className="font-display mt-1 text-4xl text-[#e8c56a] sm:text-5xl">Operators</h1>
+            <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+              Deploy bay for up to {ROSTER_SLOTS} operators. Only The Beamer is live — empty slots stay locked until you add more.
             </p>
           </div>
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-right backdrop-blur-sm">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-primary/80">Credits</div>
-            <div className="mt-1 font-mono text-2xl text-white">{balanceQ.isLoading ? "…" : credits.toLocaleString()}</div>
-            <div className="mt-1 max-w-[160px] truncate text-[10px] text-zinc-400">{displayName}</div>
+          <div className="rounded-xl border border-[#d4a84b]/40 bg-[#d4a84b]/10 px-4 py-3 text-right">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-[#d4a84b]/80">Credits</div>
+            <div className="mt-1 font-mono text-2xl text-[#f5e6c0]">
+              {balanceQ.isLoading ? "…" : credits.toLocaleString()}
+            </div>
+            <div className="mt-1 max-w-[160px] truncate text-[10px] text-zinc-500">{displayName}</div>
           </div>
         </header>
 
-        <div className="grid items-start gap-5 lg:grid-cols-[240px_minmax(0,1fr)_340px]">
-          <aside className="space-y-2">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-primary/80">Roster · {NPCS.length}</div>
-            <div className="space-y-2">
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          {/* Dense roster — sized for 20 */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[#d4a84b]/80">
+                Roster · {NPCS.length}/{ROSTER_SLOTS}
+              </div>
+              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Tap a card to select</div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {NPCS.map((npc) => {
                 const npcOwned = owned.includes(npc.id);
                 const active = selected?.id === npc.id;
@@ -391,232 +377,220 @@ export function NPCShopContent() {
                     key={npc.id}
                     type="button"
                     onClick={() => setSelectedId(npc.id)}
-                    className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
+                    className={`group relative flex min-h-[132px] flex-col rounded-xl border p-3 text-left transition ${
                       active
-                        ? "border-primary/50 bg-primary/15 shadow-[0_0_24px_color-mix(in_oklab,var(--primary)_25%,transparent)]"
-                        : "border-primary/15 bg-white/[0.02] hover:border-primary/35"
+                        ? "border-[#e8c56a] bg-[#d4a84b]/15 shadow-[0_0_28px_rgba(212,168,75,0.25)]"
+                        : "border-[#d4a84b]/20 bg-black/40 hover:border-[#d4a84b]/45"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm font-medium text-white">{npc.name}</span>
-                      <span className="font-mono text-[10px] text-primary">{npc.price.toLocaleString()}</span>
+                    <div className="mb-2 flex h-12 items-center justify-center rounded-lg border border-[#d4a84b]/20 bg-[#0c0c0c]">
+                      <span className="text-[#d4a84b]"><IconBot size={22} /></span>
                     </div>
-                    <div className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
-                      {npc.role} · {npc.category}
+                    <div className="line-clamp-1 text-sm font-medium text-[#f5e6c0]">{npc.name}</div>
+                    <div className="mt-0.5 line-clamp-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                      {npc.role}
                     </div>
-                    {npcOwned ? <div className="mt-1 text-[10px] uppercase tracking-wide text-primary/90">Owned</div> : null}
+                    <div className="mt-auto flex items-center justify-between pt-2">
+                      <span className="font-mono text-[11px] text-[#e8c56a]">{npc.price.toLocaleString()} cr</span>
+                      {npcOwned ? (
+                        <span className="text-[9px] uppercase tracking-wide text-[#d4a84b]">Owned</span>
+                      ) : null}
+                    </div>
                   </button>
                 );
               })}
-            </div>
-            <div className="rounded-2xl border border-dashed border-primary/20 px-3 py-4 text-center text-[11px] text-zinc-600">
-              More NPCs slot here
-            </div>
-          </aside>
 
-          <motion.section
-            className="overflow-hidden rounded-2xl border border-primary/25 bg-white/[0.02]"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {selected ? (
-              <>
-                <div className="relative flex h-52 items-center justify-center border-b border-primary/20 bg-black/40">
-                  <div className="relative flex size-20 items-center justify-center">
-                    <motion.span
-                      className="absolute inset-0 rounded-full border border-primary/30 border-t-primary"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-                    />
-                    <motion.span
-                      className="absolute inset-1.5 rounded-full border border-dashed border-primary/20"
-                      animate={{ rotate: -360 }}
-                      transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
-                    />
-                    <div className="relative flex size-14 items-center justify-center rounded-2xl border border-primary/40 bg-primary/10 text-primary">
-                      <IconBot size={28} />
-                    </div>
-                  </div>
-                  <div className="absolute bottom-3 left-0 right-0 text-center text-[10px] uppercase tracking-[0.24em] text-zinc-600">
-                    Image placeholder
-                  </div>
+              {Array.from({ length: emptySlots }, (_, i) => (
+                <div
+                  key={`slot-${i}`}
+                  className="flex min-h-[132px] flex-col items-center justify-center rounded-xl border border-dashed border-[#d4a84b]/15 bg-black/20 px-2 text-center"
+                >
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">Slot {NPCS.length + i + 1}</div>
+                  <div className="mt-1 text-[11px] text-zinc-700">Locked</div>
                 </div>
-                <div className="space-y-4 p-5 sm:p-6">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-primary">Selected operator</div>
-                    <h2 className="mt-1 font-display text-3xl text-primary">{selected.name}</h2>
-                    <p className="mt-2 text-sm leading-relaxed text-zinc-400">{selected.description}</p>
-                    <div className="mt-3 font-mono text-sm text-primary">{selected.price.toLocaleString()} credits</div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[["Loadout", "M14 / M4"], ["Kit", "Armor + med"], ["Server", "101x"]].map(([label, value]) => (
-                      <div key={label} className="rounded-xl border border-primary/15 bg-black/30 px-3 py-2">
-                        <div className="text-[10px] uppercase tracking-wide text-primary/70">{label}</div>
-                        <div className="mt-1 text-xs text-zinc-300">{value}</div>
-                      </div>
-                    ))}
+              ))}
+            </div>
+
+            {/* Selected detail strip */}
+            {selected ? (
+              <motion.div
+                className="rounded-2xl border border-[#d4a84b]/30 bg-black/50 p-4 sm:p-5"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35 }}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-[#d4a84b]">Selected</div>
+                    <h2 className="font-display mt-1 text-3xl text-[#e8c56a]">{selected.name}</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">{selected.description}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {[
+                        ["Loadout", "M14 / M4"],
+                        ["Kit", "Armor + med"],
+                        ["Server", "101x"],
+                        ["Price", `${selected.price.toLocaleString()} cr`],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-lg border border-[#d4a84b]/20 bg-[#0a0a0a] px-3 py-1.5">
+                          <div className="text-[9px] uppercase tracking-wide text-[#d4a84b]/70">{label}</div>
+                          <div className="text-xs text-zinc-300">{value}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <motion.button
                     type="button"
                     onClick={() => !isOwned && buyMut.mutate(selected)}
                     disabled={isOwned || buyMut.isPending}
-                    className="relative w-full overflow-hidden rounded-full bg-primary px-5 py-3.5 text-sm font-semibold uppercase tracking-[0.18em] text-primary-foreground disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
-                    whileHover={isOwned || buyMut.isPending ? undefined : { scale: 1.02, boxShadow: "0 0 40px color-mix(in oklab, var(--primary) 60%, transparent)" }}
+                    className="relative min-w-[180px] overflow-hidden rounded-full bg-[#d4a84b] px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#1a1205] disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+                    whileHover={isOwned || buyMut.isPending ? undefined : { scale: 1.03, boxShadow: "0 0 36px rgba(212,168,75,0.45)" }}
                     whileTap={isOwned || buyMut.isPending ? undefined : { scale: 0.97 }}
                   >
                     <span
-                      className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-white/40 blur-sm"
-                      style={{ animation: "warroom-shine 2.6s ease-in-out infinite" }}
+                      className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-white/35 blur-sm"
+                      style={{ animation: "gold-shine 2.8s ease-in-out infinite" }}
                       aria-hidden
                     />
                     <span className="relative">
                       {isOwned
-                        ? "Owned — ready to deploy"
+                        ? "Owned"
                         : buyMut.isPending
                           ? "Purchasing…"
                           : `Buy · ${selected.price.toLocaleString()} cr`}
                     </span>
                   </motion.button>
                 </div>
-              </>
-            ) : (
-              <div className="p-8 text-center text-sm text-zinc-500">Select an NPC from the roster.</div>
-            )}
-          </motion.section>
+              </motion.div>
+            ) : null}
+          </section>
 
-          <motion.section
-            className="rounded-2xl border border-primary/25 bg-white/[0.02] p-5"
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="text-[10px] uppercase tracking-[0.22em] text-primary">Deploy · 101x</div>
-            <div className="mt-4 space-y-2">
-              {modes.map((mode) => (
-                <button
-                  key={mode.id}
-                  type="button"
-                  onClick={() => setPlacementMode(mode.id)}
-                  className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
-                    placementMode === mode.id
-                      ? "border-primary/50 bg-primary/15"
-                      : "border-primary/15 hover:border-primary/35"
-                  }`}
-                >
-                  <div className="text-sm text-white">{mode.label}</div>
-                  <div className="mt-0.5 text-xs text-zinc-500">{mode.detail}</div>
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-5 border-t border-primary/20 pt-5">
-              {placementMode === "map" && (
-                <div className="space-y-3">
-                  <p className="text-xs text-zinc-500">Opens the map tool so you can pick coordinates.</p>
+          {/* Deploy column */}
+          <aside className="xl:sticky xl:top-4">
+            <div className="rounded-2xl border border-[#d4a84b]/30 bg-black/50 p-4">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[#d4a84b]">Deploy · 101x</div>
+              <div className="mt-3 space-y-2">
+                {modes.map((mode) => (
                   <button
+                    key={mode.id}
                     type="button"
-                    disabled={!isOwned || !selected}
-                    onClick={() =>
-                      selected &&
-                      window.open(
-                        `/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}`,
-                        "_blank",
-                        "noopener,noreferrer",
-                      )
-                    }
-                    className="flex w-full items-center justify-center gap-2 rounded-full border border-primary/40 px-4 py-3 text-sm uppercase tracking-[0.14em] text-primary transition hover:bg-primary/10 disabled:opacity-40"
+                    onClick={() => setPlacementMode(mode.id)}
+                    className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${
+                      placementMode === mode.id
+                        ? "border-[#e8c56a] bg-[#d4a84b]/15"
+                        : "border-[#d4a84b]/20 hover:border-[#d4a84b]/40"
+                    }`}
                   >
-                    Choose on map <IconArrowRight size={14} />
+                    <div className="text-sm text-[#f5e6c0]">{mode.label}</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">{mode.detail}</div>
                   </button>
-                </div>
-              )}
+                ))}
+              </div>
 
-              {placementMode === "zy" && (
-                <div className="space-y-3">
-                  <p className="text-xs text-zinc-500">
-                    <span className="text-primary">Y</span> = east/west (X). <span className="text-primary">Z</span> = north/south.
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="text-[10px] uppercase tracking-wide text-zinc-500">
-                      Y
-                      <input
-                        value={y}
-                        onChange={(e) => setY(e.target.value)}
-                        inputMode="numeric"
-                        className="mt-1 w-full rounded-xl border border-primary/20 bg-black/50 px-3 py-2 font-mono text-sm text-white outline-none focus:border-primary"
-                      />
-                    </label>
-                    <label className="text-[10px] uppercase tracking-wide text-zinc-500">
-                      Z
-                      <input
-                        value={z}
-                        onChange={(e) => setZ(e.target.value)}
-                        inputMode="numeric"
-                        className="mt-1 w-full rounded-xl border border-primary/20 bg-black/50 px-3 py-2 font-mono text-sm text-white outline-none focus:border-primary"
-                      />
-                    </label>
+              <div className="mt-4 border-t border-[#d4a84b]/20 pt-4">
+                {placementMode === "map" && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-zinc-500">Opens the map tool so you can pick coordinates.</p>
+                    <button
+                      type="button"
+                      disabled={!isOwned || !selected}
+                      onClick={() =>
+                        selected &&
+                        window.open(
+                          `/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}`,
+                          "_blank",
+                          "noopener,noreferrer",
+                        )
+                      }
+                      className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d4a84b]/50 px-4 py-2.5 text-sm uppercase tracking-[0.14em] text-[#e8c56a] transition hover:bg-[#d4a84b]/10 disabled:opacity-40"
+                    >
+                      Choose on map <IconArrowRight size={14} />
+                    </button>
                   </div>
-                  <motion.button
-                    type="button"
-                    disabled={!isOwned || spawning}
-                    onClick={spawn}
-                    className="relative w-full overflow-hidden rounded-full bg-primary px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-primary-foreground disabled:opacity-40"
-                    whileHover={!isOwned || spawning ? undefined : { scale: 1.02 }}
-                    whileTap={!isOwned || spawning ? undefined : { scale: 0.97 }}
-                  >
-                    <span
-                      className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-white/40 blur-sm"
-                      style={{ animation: "warroom-shine 2.6s ease-in-out infinite" }}
-                      aria-hidden
-                    />
-                    <span className="relative">{spawning ? "Deploying…" : "Deploy at Z / Y"}</span>
-                  </motion.button>
-                </div>
-              )}
+                )}
 
-              {placementMode === "gamertag" && (
-                <div className="space-y-3">
-                  <label className="text-[10px] uppercase tracking-wide text-zinc-500">
-                    My gamertag
-                    <input
-                      value={gamertag}
-                      onChange={(e) => setGamertag(e.target.value)}
-                      placeholder="Exact in-game name"
-                      className="mt-1 w-full rounded-xl border border-primary/20 bg-black/50 px-3 py-2 text-sm text-white outline-none focus:border-primary"
-                    />
-                  </label>
-                  <p className="text-xs leading-relaxed text-zinc-500">
-                    Prefills from your hub account. Spawns at the latest logged position on 101x.{" "}
-                    {playersQ.isFetching
-                      ? "Refreshing roster…"
-                      : matchedPlayer
-                        ? `Online on ${matchedPlayer.server}${
-                            Number.isFinite(matchedPlayer.x)
-                              ? ` · Y ${Math.round(matchedPlayer.x!)} / Z ${Math.round(matchedPlayer.z!)}`
-                              : " · waiting for coordinates"
-                          }`
-                        : "Not seen online yet."}
-                  </p>
-                  <motion.button
-                    type="button"
-                    disabled={!isOwned || spawning}
-                    onClick={spawn}
-                    className="relative w-full overflow-hidden rounded-full bg-primary px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-primary-foreground disabled:opacity-40"
-                    whileHover={!isOwned || spawning ? undefined : { scale: 1.02 }}
-                    whileTap={!isOwned || spawning ? undefined : { scale: 0.97 }}
-                  >
-                    <span
-                      className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-white/40 blur-sm"
-                      style={{ animation: "warroom-shine 2.6s ease-in-out infinite" }}
-                      aria-hidden
-                    />
-                    <span className="relative">{spawning ? "Deploying…" : "Spawn at my gamertag"}</span>
-                  </motion.button>
-                </div>
-              )}
+                {placementMode === "zy" && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-zinc-500">
+                      <span className="text-[#d4a84b]">Y</span> = east/west (X).{" "}
+                      <span className="text-[#d4a84b]">Z</span> = north/south.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="text-[10px] uppercase tracking-wide text-zinc-500">
+                        Y
+                        <input
+                          value={y}
+                          onChange={(e) => setY(e.target.value)}
+                          inputMode="numeric"
+                          className="mt-1 w-full rounded-lg border border-[#d4a84b]/25 bg-black px-3 py-2 font-mono text-sm text-[#f5e6c0] outline-none focus:border-[#d4a84b]"
+                        />
+                      </label>
+                      <label className="text-[10px] uppercase tracking-wide text-zinc-500">
+                        Z
+                        <input
+                          value={z}
+                          onChange={(e) => setZ(e.target.value)}
+                          inputMode="numeric"
+                          className="mt-1 w-full rounded-lg border border-[#d4a84b]/25 bg-black px-3 py-2 font-mono text-sm text-[#f5e6c0] outline-none focus:border-[#d4a84b]"
+                        />
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!isOwned || spawning}
+                      onClick={spawn}
+                      className="relative w-full overflow-hidden rounded-full bg-[#d4a84b] px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.14em] text-[#1a1205] disabled:opacity-40"
+                    >
+                      <span
+                        className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-white/35 blur-sm"
+                        style={{ animation: "gold-shine 2.8s ease-in-out infinite" }}
+                        aria-hidden
+                      />
+                      <span className="relative">{spawning ? "Deploying…" : "Deploy at Z / Y"}</span>
+                    </button>
+                  </div>
+                )}
+
+                {placementMode === "gamertag" && (
+                  <div className="space-y-3">
+                    <label className="text-[10px] uppercase tracking-wide text-zinc-500">
+                      My gamertag
+                      <input
+                        value={gamertag}
+                        onChange={(e) => setGamertag(e.target.value)}
+                        placeholder="Exact in-game name"
+                        className="mt-1 w-full rounded-lg border border-[#d4a84b]/25 bg-black px-3 py-2 text-sm text-[#f5e6c0] outline-none focus:border-[#d4a84b]"
+                      />
+                    </label>
+                    <p className="text-xs leading-relaxed text-zinc-500">
+                      Prefills from your hub account. Spawns at the latest logged position on 101x.{" "}
+                      {playersQ.isFetching
+                        ? "Refreshing roster…"
+                        : matchedPlayer
+                          ? `Online on ${matchedPlayer.server}${
+                              Number.isFinite(matchedPlayer.x)
+                                ? ` · Y ${Math.round(matchedPlayer.x!)} / Z ${Math.round(matchedPlayer.z!)}`
+                                : " · waiting for coordinates"
+                            }`
+                          : "Not seen online yet."}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={!isOwned || spawning}
+                      onClick={spawn}
+                      className="relative w-full overflow-hidden rounded-full bg-[#d4a84b] px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.14em] text-[#1a1205] disabled:opacity-40"
+                    >
+                      <span
+                        className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-white/35 blur-sm"
+                        style={{ animation: "gold-shine 2.8s ease-in-out infinite" }}
+                        aria-hidden
+                      />
+                      <span className="relative">{spawning ? "Deploying…" : "Spawn at my gamertag"}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </motion.section>
+          </aside>
         </div>
       </div>
     </div>
