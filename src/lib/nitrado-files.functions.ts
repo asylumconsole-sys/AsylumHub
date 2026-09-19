@@ -45,6 +45,11 @@ export async function downloadNitradoFile(serviceId: string, relativePath: strin
 /**
  * Uploads text content to a file on the Nitrado server.
  * `baseOverride` must match the mission path used for download (per-server).
+ *
+ * Nitrado requires:
+ * 1) Token request with `path` = directory (trailing slash) + `file` = basename
+ * 2) Raw body POST to the token URL with headers `token` + `content-type: application/binary`
+ *    (FormData/multipart returns 400 from the fileserver.)
  */
 export async function uploadNitradoFile(
   serviceId: string,
@@ -53,17 +58,29 @@ export async function uploadNitradoFile(
   baseOverride?: string,
 ): Promise<void> {
   const path = missionFile(relativePath, baseOverride);
+  const slash = path.lastIndexOf("/");
+  const dirPath = `${path.slice(0, slash + 1)}`;
+  const fileName = path.slice(slash + 1);
+  if (!fileName) throw new Error(`Invalid Nitrado upload path: ${path}`);
+
   const json = (await nitradoJson(`/services/${serviceId}/gameservers/file_server/upload`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ path }).toString(),
+    body: new URLSearchParams({ path: dirPath, file: fileName }).toString(),
   })) as { data?: { token?: { url?: string; token?: string } } };
   const url = json.data?.token?.url;
-  if (!url) throw new Error(`Nitrado did not return an upload URL for ${path}`);
-  const form = new FormData();
-  form.append("file", new Blob([content], { type: "text/xml" }), path.split("/").pop());
-  const res = await fetch(url, { method: "POST", body: form });
-  if (!res.ok) throw new Error(`Failed uploading ${path} (${res.status})`);
+  const uploadToken = json.data?.token?.token;
+  if (!url || !uploadToken) throw new Error(`Nitrado did not return an upload URL for ${path}`);
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      token: uploadToken,
+      "content-type": "application/binary",
+    },
+    body: content,
+  });
+  if (!res.ok) throw new Error(`Failed uploading ${path} (${res.status}): ${await res.text().catch(() => res.statusText)}`);
 }
 
 /** Restarts the gameserver so console/Xbox builds reload CE config from disk. */
