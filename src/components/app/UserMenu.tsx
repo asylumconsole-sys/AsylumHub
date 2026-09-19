@@ -23,10 +23,6 @@ function initialsFor(name: string | null | undefined, email: string | null | und
   return e[0]?.toUpperCase() ?? "?";
 }
 
-/**
- * Top-right user avatar with a dropdown for Profile / Settings / Sign out.
- * Mounted in the desktop app shell so sign-out is always reachable in one click.
- */
 export function UserMenu() {
   const { user, signOut } = useAuth();
   const nav = useNavigate();
@@ -63,7 +59,6 @@ export function UserMenu() {
 
   if (!user) return null;
 
-  // Derive a stable initial display from the email so we never flash "?".
   const emailFallbackName = user.email?.split("@")[0] ?? "Account";
   const initials = initialsFor(fullName, user.email);
   const displayName = fullName || emailFallbackName;
@@ -96,6 +91,12 @@ export function UserMenu() {
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link to="/account" className="flex items-center gap-2">
+            <IconSettings size={14} />
+            <span>Account / PSN</span>
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer">
           <Link to="/settings" className="flex items-center gap-2">
             <IconSettings size={14} />
