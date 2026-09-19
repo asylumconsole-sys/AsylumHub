@@ -28,9 +28,9 @@ const DEFAULT_STORE: Store = { byDiscordId: {} };
 
 export const getMyLinkedPlayernames = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { discordId?: string } = {}) => data)
+  .inputValidator((data?: { discordId?: string }) => data ?? {})
   .handler(async ({ data, context }) => {
-    const discordId = String(data.discordId || context.userId || "").trim();
+    const discordId = String(data?.discordId || context.userId || "").trim();
     if (!discordId) return { discordId: null, psn: null as string | null, links: [] as AccountLink[] };
     const store = await readJsonFile<Store>(STORE_FILE, DEFAULT_STORE);
     const record =
