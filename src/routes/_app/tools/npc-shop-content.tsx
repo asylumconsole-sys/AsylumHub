@@ -12,6 +12,7 @@ import { getOnlinePlayers } from "@/lib/online-players.functions";
 import { BRAND } from "@/lib/brand";
 import { SPAWN_PACKS, type SpawnPack } from "@/lib/npc/spawn-packs";
 import { THE_BEAMER_CFG_SPAWNABLETYPES } from "@/lib/npc/the-beamer-cfg";
+import { BeamerInventoryModal } from "@/lib/npc/beamer-inventory-modal";
 
 const PRIMARY_SERVER_ID = "101x";
 const DEFAULT_SPAWN_POSITION = { x: 7500, z: 7500, a: 0 };
@@ -123,9 +124,7 @@ export function NPCShopContent() {
   const spawn = async () => {
     if (!selected) return;
     if (!canDeploy) return toast.error(`No charges left \u2014 buy a pack for ${selected.name}`);
-
     let position = { x: Number(y), z: Number(z) };
-
     if (placementMode === "gamertag") {
       if (!matchedPlayer) {
         return toast.error("Gamertag not online on 101x", {
@@ -139,13 +138,11 @@ export function NPCShopContent() {
       }
       position = { x: matchedPlayer.x as number, z: matchedPlayer.z as number };
     }
-
     if (placementMode === "zy") {
       if (!Number.isFinite(position.x) || !Number.isFinite(position.z) || position.x < 0 || position.z < 0) {
         return toast.error("Enter valid Y and Z coordinates");
       }
     }
-
     setSpawning(true);
     try {
       const result = await spawnNpc({
@@ -208,42 +205,21 @@ export function NPCShopContent() {
             <div className="mt-1 max-w-[160px] truncate text-[10px] text-zinc-500">{displayName}</div>
           </div>
         </header>
-
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
           <section className="space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[#d4a84b]/80">
-                Roster \u00b7 {NPCS.length}/{ROSTER_SLOTS}
-              </div>
-            </div>
-
+            <div className="text-[10px] uppercase tracking-[0.22em] text-[#d4a84b]/80">Roster \u00b7 {NPCS.length}/{ROSTER_SLOTS}</div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {NPCS.map((npc) => {
                 const left = chargesMap[npc.id] ?? 0;
                 const active = selected?.id === npc.id;
                 return (
-                  <button
-                    key={npc.id}
-                    type="button"
-                    onClick={() => setSelectedId(npc.id)}
-                    className={`group relative flex min-h-[132px] flex-col rounded-xl border p-3 text-left transition ${
-                      active
-                        ? "border-[#e8c56a] bg-[#d4a84b]/15"
-                        : "border-[#d4a84b]/20 bg-black/40 hover:border-[#d4a84b]/45"
-                    }`}
-                  >
-                    <div className="mb-2 flex h-12 items-center justify-center rounded-lg border border-[#d4a84b]/20 bg-[#0c0c0c]">
-                      <span className="text-[#d4a84b]"><IconBot size={22} /></span>
-                    </div>
+                  <button key={npc.id} type="button" onClick={() => setSelectedId(npc.id)} className={`group relative flex min-h-[132px] flex-col rounded-xl border p-3 text-left transition ${active ? "border-[#e8c56a] bg-[#d4a84b]/15" : "border-[#d4a84b]/20 bg-black/40 hover:border-[#d4a84b]/45"}`}>
+                    <div className="mb-2 flex h-12 items-center justify-center rounded-lg border border-[#d4a84b]/20 bg-[#0c0c0c]"><span className="text-[#d4a84b]"><IconBot size={22} /></span></div>
                     <div className="line-clamp-1 text-sm font-medium text-[#f5e6c0]">{npc.name}</div>
                     <div className="mt-0.5 line-clamp-1 text-[10px] uppercase tracking-wide text-zinc-500">{npc.role}</div>
                     <div className="mt-auto flex items-center justify-between pt-2">
                       <span className="font-mono text-[11px] text-[#e8c56a]">{left} left</span>
-                      {left > 0 ? (
-                        <span className="text-[9px] uppercase tracking-wide text-[#d4a84b]">{left} charges</span>
-                      ) : (
-                        <span className="text-[9px] uppercase tracking-wide text-zinc-600">No pack</span>
-                      )}
+                      {left > 0 ? <span className="text-[9px] uppercase tracking-wide text-[#d4a84b]">{left} charges</span> : <span className="text-[9px] uppercase tracking-wide text-zinc-600">No pack</span>}
                     </div>
                   </button>
                 );
@@ -255,7 +231,6 @@ export function NPCShopContent() {
                 </div>
               ))}
             </div>
-
             {selected ? (
               <motion.div className="rounded-2xl border border-[#d4a84b]/30 bg-black/50 p-4 sm:p-5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -267,35 +242,17 @@ export function NPCShopContent() {
                   <div className="flex min-w-[220px] flex-col gap-2">
                     <div className="grid grid-cols-2 gap-1.5">
                       {SPAWN_PACKS.map((pack) => (
-                        <button
-                          key={pack.id}
-                          type="button"
-                          onClick={() => setPackId(pack.id)}
-                          className={`rounded-lg border px-2 py-1.5 text-left ${
-                            selectedPack.id === pack.id
-                              ? "border-[#e8c56a] bg-[#d4a84b]/20"
-                              : "border-[#d4a84b]/20 hover:border-[#d4a84b]/40"
-                          }`}
-                        >
+                        <button key={pack.id} type="button" onClick={() => setPackId(pack.id)} className={`rounded-lg border px-2 py-1.5 text-left ${selectedPack.id === pack.id ? "border-[#e8c56a] bg-[#d4a84b]/20" : "border-[#d4a84b]/20 hover:border-[#d4a84b]/40"}`}>
                           <div className="text-[10px] uppercase tracking-wide text-[#e8c56a]">{pack.label}</div>
                           <div className="font-mono text-[11px] text-zinc-300">{pack.price.toLocaleString()} \u00b7 {pack.spawns}</div>
                         </button>
                       ))}
                     </div>
-                    <motion.button
-                      type="button"
-                      onClick={() => buyMut.mutate(selected)}
-                      disabled={buyMut.isPending || credits < selectedPack.price}
-                      className="relative min-w-[180px] overflow-hidden rounded-full bg-[#d4a84b] px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#1a1205] disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
-                    >
-                      <span className="relative">
-                        {buyMut.isPending ? "Purchasing\u2026" : `Buy ${selectedPack.label} \u00b7 ${selectedPack.price.toLocaleString()} cr`}
-                      </span>
+                    <motion.button type="button" onClick={() => buyMut.mutate(selected)} disabled={buyMut.isPending || credits < selectedPack.price} className="relative min-w-[180px] overflow-hidden rounded-full bg-[#d4a84b] px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#1a1205] disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400">
+                      <span className="relative">{buyMut.isPending ? "Purchasing\u2026" : `Buy ${selectedPack.label} \u00b7 ${selectedPack.price.toLocaleString()} cr`}</span>
                     </motion.button>
                     {selected.id === "the_beamer" ? (
-                      <button type="button" onClick={() => setInvOpen(true)} className="rounded-full border border-[#d4a84b]/40 px-4 py-2 text-xs uppercase tracking-[0.14em] text-[#e8c56a] hover:bg-[#d4a84b]/10">
-                        View inventory
-                      </button>
+                      <button type="button" onClick={() => setInvOpen(true)} className="rounded-full border border-[#d4a84b]/40 px-4 py-2 text-xs uppercase tracking-[0.14em] text-[#e8c56a] hover:bg-[#d4a84b]/10">View inventory</button>
                     ) : null}
                     <div className="text-center text-[11px] text-zinc-500">{chargesLeft} charges left</div>
                   </div>
@@ -303,20 +260,12 @@ export function NPCShopContent() {
               </motion.div>
             ) : null}
           </section>
-
           <aside className="xl:sticky xl:top-4">
             <div className="rounded-2xl border border-[#d4a84b]/30 bg-black/50 p-4">
               <div className="text-[10px] uppercase tracking-[0.22em] text-[#d4a84b]">Deploy \u00b7 101x</div>
               <div className="mt-3 space-y-2">
                 {modes.map((mode) => (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => setPlacementMode(mode.id)}
-                    className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${
-                      placementMode === mode.id ? "border-[#e8c56a] bg-[#d4a84b]/15" : "border-[#d4a84b]/20 hover:border-[#d4a84b]/40"
-                    }`}
-                  >
+                  <button key={mode.id} type="button" onClick={() => setPlacementMode(mode.id)} className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${placementMode === mode.id ? "border-[#e8c56a] bg-[#d4a84b]/15" : "border-[#d4a84b]/20 hover:border-[#d4a84b]/40"}`}>
                     <div className="text-sm text-[#f5e6c0]">{mode.label}</div>
                     <div className="mt-0.5 text-xs text-zinc-500">{mode.detail}</div>
                   </button>
@@ -326,14 +275,7 @@ export function NPCShopContent() {
                 {placementMode === "map" && (
                   <div className="space-y-3">
                     <p className="text-xs text-zinc-500">Opens the map tool so you can pick coordinates.</p>
-                    <button
-                      type="button"
-                      disabled={!canDeploy || !selected}
-                      onClick={() => selected && window.open(`/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}`, "_blank", "noopener,noreferrer")}
-                      className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d4a84b]/50 px-4 py-2.5 text-sm uppercase tracking-[0.14em] text-[#e8c56a] transition hover:bg-[#d4a84b]/10 disabled:opacity-40"
-                    >
-                      Choose on map <IconArrowRight size={14} />
-                    </button>
+                    <button type="button" disabled={!canDeploy || !selected} onClick={() => selected && window.open(`/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}`, "_blank", "noopener,noreferrer")} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d4a84b]/50 px-4 py-2.5 text-sm uppercase tracking-[0.14em] text-[#e8c56a] transition hover:bg-[#d4a84b]/10 disabled:opacity-40">Choose on map <IconArrowRight size={14} /></button>
                   </div>
                 )}
                 {placementMode === "zy" && (
@@ -343,21 +285,14 @@ export function NPCShopContent() {
                       <label className="text-[10px] uppercase tracking-wide text-zinc-500">Y<input value={y} onChange={(e) => setY(e.target.value)} inputMode="numeric" className="mt-1 w-full rounded-lg border border-[#d4a84b]/25 bg-black px-3 py-2 font-mono text-sm text-[#f5e6c0] outline-none focus:border-[#d4a84b]" /></label>
                       <label className="text-[10px] uppercase tracking-wide text-zinc-500">Z<input value={z} onChange={(e) => setZ(e.target.value)} inputMode="numeric" className="mt-1 w-full rounded-lg border border-[#d4a84b]/25 bg-black px-3 py-2 font-mono text-sm text-[#f5e6c0] outline-none focus:border-[#d4a84b]" /></label>
                     </div>
-                    <button type="button" disabled={!canDeploy || spawning} onClick={spawn} className="relative w-full overflow-hidden rounded-full bg-[#d4a84b] px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.14em] text-[#1a1205] disabled:opacity-40">
-                      <span className="relative">{spawning ? "Deploying\u2026" : "Deploy at Z / Y"}</span>
-                    </button>
+                    <button type="button" disabled={!canDeploy || spawning} onClick={spawn} className="relative w-full overflow-hidden rounded-full bg-[#d4a84b] px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.14em] text-[#1a1205] disabled:opacity-40"><span className="relative">{spawning ? "Deploying\u2026" : "Deploy at Z / Y"}</span></button>
                   </div>
                 )}
                 {placementMode === "gamertag" && (
                   <div className="space-y-3">
                     <label className="text-[10px] uppercase tracking-wide text-zinc-500">My gamertag<input value={gamertag} onChange={(e) => setGamertag(e.target.value)} placeholder="Exact in-game name" className="mt-1 w-full rounded-lg border border-[#d4a84b]/25 bg-black px-3 py-2 text-sm text-[#f5e6c0] outline-none focus:border-[#d4a84b]" /></label>
-                    <p className="text-xs leading-relaxed text-zinc-500">
-                      Prefills from your hub account. Spawns at the latest logged position on 101x.{" "}
-                      {playersQ.isFetching ? "Refreshing roster\u2026" : matchedPlayer ? `Online on ${matchedPlayer.server}${Number.isFinite(matchedPlayer.x) ? ` \u00b7 Y ${Math.round(matchedPlayer.x!)} / Z ${Math.round(matchedPlayer.z!)}` : " \u00b7 waiting for coordinates"}` : "Not seen online yet."}
-                    </p>
-                    <button type="button" disabled={!canDeploy || spawning} onClick={spawn} className="relative w-full overflow-hidden rounded-full bg-[#d4a84b] px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.14em] text-[#1a1205] disabled:opacity-40">
-                      <span className="relative">{spawning ? "Deploying\u2026" : "Spawn at my gamertag"}</span>
-                    </button>
+                    <p className="text-xs leading-relaxed text-zinc-500">Prefills from your hub account. Spawns at the latest logged position on 101x.</p>
+                    <button type="button" disabled={!canDeploy || spawning} onClick={spawn} className="relative w-full overflow-hidden rounded-full bg-[#d4a84b] px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.14em] text-[#1a1205] disabled:opacity-40"><span className="relative">{spawning ? "Deploying\u2026" : "Spawn at my gamertag"}</span></button>
                   </div>
                 )}
               </div>
@@ -365,23 +300,8 @@ export function NPCShopContent() {
           </aside>
         </div>
       </div>
-
       {invOpen && selected?.id === "the_beamer" ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setInvOpen(false)}>
-          <div className="max-h-[80vh] w-full max-w-lg overflow-auto rounded-2xl border border-[#d4a84b]/40 bg-[#0a0a0a] p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.22em] text-[#d4a84b]">View inventory</div>
-                <h3 className="font-display mt-1 text-2xl text-[#e8c56a]">The Beamer loadout</h3>
-              </div>
-              <button type="button" onClick={() => setInvOpen(false)} className="text-xs uppercase tracking-wide text-zinc-500">Close</button>
-            </div>
-            <p className="mt-3 text-sm text-zinc-400">
-              M14 DMR + M4A1, plate carrier, NVG helmet, medical hip pack, mines, flashbangs, and field kit. Charges are consumable \u2014 each successful deploy burns one.
-            </p>
-            <pre className="mt-4 max-h-[48vh] overflow-auto rounded-lg border border-[#d4a84b]/15 bg-black p-3 text-[10px] leading-relaxed text-zinc-400">{THE_BEAMER_CFG_SPAWNABLETYPES}</pre>
-          </div>
-        </div>
+        <BeamerInventoryModal onClose={() => setInvOpen(false)} />
       ) : null}
     </div>
   );
