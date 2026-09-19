@@ -3,9 +3,9 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { GlassPanel } from "@/components/ui-custom/GlassPanel";
 import { Button } from "@/components/ui/button";
-import { spawnNpc } from "@/lib/dayz-spawn.functions";
 import { DAYZ_SERVERS, resolveServiceId } from "@/lib/dayz/servers";
 import { DAYZ_MAPS, mapIdForServer, mapPositionToGame } from "@/lib/dayz/map-tiles";
+import { postNpcSpawn } from "@/lib/npc/spawn-client";
 import { toast } from "sonner";
 
 const NpcSpawnMap = lazy(() => import("@/components/tools/NpcSpawnMap"));
@@ -36,37 +36,22 @@ function NPCMapClickerPage() {
   const queue = async () => {
     if (!pos) return toast.error("Tap the map to choose a spawn point");
     setBusy(true);
-    const payload = {
-      serviceId,
-      serverId,
-      npcId,
-      x: pos.x,
-      z: pos.z,
-      a: 0,
-      playerId: user?.id,
-      playerName: typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : user?.id,
-    };
     try {
-      let result: { mode?: string; adapter?: string; entity?: string; eventName?: string; reason?: string } | null = null;
-      try {
-        result = await spawnNpc({ data: payload });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (!/server function info not found/i.test(msg)) throw err;
-        const res = await fetch("/api/npc/spawn", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const json = (await res.json()) as typeof result & { error?: string };
-        if (!res.ok) throw new Error(json.error || "Spawn failed");
-        result = json;
-      }
-      if (result?.mode === "live") {
+      const result = await postNpcSpawn({
+        serviceId,
+        serverId,
+        npcId,
+        x: pos.x,
+        z: pos.z,
+        a: 0,
+        playerId: user?.id,
+        playerName: typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : user?.id,
+      });
+      if (result.mode === "live") {
         toast.success(`Live spawn via ${result.adapter}`, { description: result.entity });
       } else {
         toast.message("Queued — server restart required", {
-          description: `${result?.eventName ?? "event"} · ${result?.reason ?? ""}`,
+          description: `${result.eventName} · ${result.reason}`,
         });
       }
     } catch (e) {
@@ -78,10 +63,10 @@ function NPCMapClickerPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-3 pb-8 pt-2 sm:px-4 sm:py-8">
-      <div className="mb-3 pr-12 sm:pr-0">
+      <div className="mb-3 pr-14 sm:pr-0">
         <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">NPC map</div>
         <h1 className="font-display text-2xl leading-tight sm:text-3xl">Place {npcId.replaceAll("_", " ")}</h1>
-        <p className="mt-1 text-xs text-muted-foreground">Tap the map, then queue the spawn. Console CE may need a restart.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Tap the map, then queue the spawn.</p>
         <button
           type="button"
           onClick={() => nav({ to: "/tools/npc-shop" })}
