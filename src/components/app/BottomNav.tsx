@@ -1,25 +1,29 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { IconHome, IconWorkspace, IconCalendar, IconCommand } from "@/components/ui-custom/CustomIcon";
+import { IconHome, IconCampaign, IconWorkspace, IconSettings } from "@/components/ui-custom/CustomIcon";
 
 const items = [
   { to: "/dashboard", label: "Home", Icon: IconHome },
-  { to: "/operations", label: "Operations", Icon: IconWorkspace },
-  { to: "/tools/base-map-clicker", label: "Map", Icon: IconCalendar },
+  { to: "/tools/npc-shop", label: "Shop", Icon: IconCampaign },
+  { to: "/tools/base-map-clicker", label: "Map", Icon: IconWorkspace },
+  { to: "/account", label: "Account", Icon: IconSettings },
 ] as const;
 
 export function BottomNav() {
   const loc = useLocation();
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-glass-border bg-black/60 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-glass-border bg-black/80 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
       <div className="grid grid-cols-4">
         {items.map((it) => {
-          const active = loc.pathname.startsWith(it.to);
+          const active =
+            it.to === "/dashboard"
+              ? loc.pathname === "/dashboard"
+              : loc.pathname === it.to || loc.pathname.startsWith(`${it.to}/`);
           return (
             <Link
               key={it.to}
               to={it.to}
               preload="intent"
-              className={`flex flex-col items-center gap-1 py-2.5 text-[10px] uppercase tracking-wider ${
+              className={`flex min-h-12 flex-col items-center justify-center gap-0.5 py-2 text-[10px] uppercase tracking-wider ${
                 active ? "text-primary" : "text-muted-foreground"
               }`}
             >
@@ -28,16 +32,6 @@ export function BottomNav() {
             </Link>
           );
         })}
-        <button
-          onClick={() => {
-            const ev = new KeyboardEvent("keydown", { key: "k", metaKey: true });
-            window.dispatchEvent(ev);
-          }}
-          className="flex flex-col items-center gap-1 py-2.5 text-[10px] uppercase tracking-wider text-muted-foreground"
-        >
-          <IconCommand size={20} />
-          <span>Search</span>
-        </button>
       </div>
     </nav>
   );
