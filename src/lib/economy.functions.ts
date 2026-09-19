@@ -96,84 +96,130 @@ export const payPlayer = createServerFn({ method: "POST" })
 	});
 
 type NpcInventoryStore = {
-		owned: Record<string, string[]>;
+	/** @deprecated permanent unlocks — migrated into charges on read */
+	owned?: Record<string, string[]>;
+	/** playerId -> npcId -> remaining spawn charges */
+	charges: Record<string, Record<string, number>>;
 };
 
-const DEFAULT_NPC_INV: NpcInventoryStore = { owned: {} };
+const DEFAULT_NPC_INV: NpcInventoryStore = { charges: {} };
 
 async function loadNpcInv() {
-		return readJsonFile<NpcInventoryStore>("npc-inventory.json", DEFAULT_NPC_INV);
+	const inv = await readJsonFile<NpcInventoryStore>("npc-inventory.json", DEFAULT_NPC_INV);
+	if (!inv.charges) inv.charges = {};
+	return inv;
+}
+
+function playerCharges(inv: NpcInventoryStore, playerId: string): Record<string, number> {
+	const charges = { ...(inv.charges[playerId] ?? {}) };
+	for (const npcId of inv.owned?.[playerId] ?? []) {
+		if ((charges[npcId] ?? 0) <= 0) charges[npcId] = 25;
+	}
+	return charges;
 }
 
 export const getNpcInventory = createServerFn({ method: "GET" })
 	.middleware([requireSupabaseAuth])
 	.inputValidator((data: { playerId?: string }) => data)
 	.handler(async ({ data, context }) => {
-				const playerId = data.playerId ?? context.userId ?? "demo-user";
-				const inv = await loadNpcInv();
-				return { playerId, owned: inv.owned[playerId] ?? [] };
+		const playerId = data.playerId ?? context.userId ?? "demo-user";
+		const inv = await loadNpcInv();
+		const charges = playerCharges(inv, playerId);
+		const owned = Object.entries(charges)
+			.filter(([, n]) => n > 0)
+			.map(([id]) => id);
+		return { playerId, charges, owned };
 	});
 
 export const purchaseNpc = createServerFn({ method: "POST" })
 	.middleware([requireSupabaseAuth])
 	.inputValidator((data: {
-				playerId?: string;
-				displayName?: string;
-				npcId: string;
-				npcName?: string;
-				price: number;
-				serverId?: "101" | "102" | null;
+		playerId?: string;
+		displayName?: string;
+		npcId: string;
+		npcName?: string;
+		price: number;
+		/** Spawn charges granted by this pack (consumable). */
+		spawns: number;
+		serverId?: "101" | "102" | null;
 	}) => data)
 	.handler(async ({ data, context }) => {
-				const playerId = data.playerId ?? context.userId ?? "demo-user";
-				const displayName = data.displayName ?? playerId;
-				const npcId = data.npcId?.trim();
-				const price = Math.floor(Number(data.price));
-				if (!npcId) throw new Error("NPC id required");
-				if (!Number.isFinite(price) || price < 0) throw new Error("Invalid price");
+		const playerId = data.playerId ?? context.userId ?? "demo-user";
+		const displayName = data.displayName ?? playerId;
+		const npcId = data.npcId?.trim();
+		const price = Math.floor(Number(data.price));
+		const spawns = Math.floor(Number(data.spawns));
+		if (!npcId) throw new Error("NPC id required");
+		if (!Number.isFinite(price) || price < 0) throw new Error("Invalid price");
+		if (!Number.isFinite(spawns) || spawns <= 0) throw new Error("Invalid spawn pack size");
 
-			 		const inv = await loadNpcInv();
-				const owned = new Set(inv.owned[playerId] ?? []);
-				const store = await loadStore();
-				const account = accountFor(store, playerId);
-				account.displayName = displayName;
+		const inv = await loadNpcInv();
+		const charges = playerCharges(inv, playerId);
+		const store = await loadStore();
+		const account = accountFor(store, playerId);
+		account.displayName = displayName;
 
-			 		if (owned.has(npcId)) {
-									return { alreadyOwned: true as const, account, owned: [...owned] };
-					}
-				if (account.balance < price) throw new Error("Insufficient credits");
+		if (account.balance < price) throw new Error("Insufficient credits");
 
-			 		account.balance -= price;
-				const transfer: EconomyTransfer = {
-								id: `tx_${Date.now().toString(36)}`,
-								fromPlayerId: playerId,
-								toPlayerId: "system",
-								amount: price,
-								note: `NPC purchase: ${npcId}`,
-								createdAt: new Date().toISOString(),
-				};
-				store.transfers.unshift(transfer);
-				owned.add(npcId);
-				inv.owned[playerId] = [...owned];
-				await writeJsonFile("economy.json", store);
-				await writeJsonFile("npc-inventory.json", inv);
+		account.balance -= price;
+		const transfer: EconomyTransfer = {
+			id: `tx_${Date.now().toString(36)}`,
+			fromPlayerId: playerId,
+			toPlayerId: "system",
+			amount: price,
+			note: `NPC pack: ${npcId} x${spawns}`,
+			createdAt: new Date().toISOString(),
+		};
+		store.transfers.unshift(transfer);
+		charges[npcId] = (charges[npcId] ?? 0) + spawns;
+		inv.charges[playerId] = charges;
+		if (inv.owned?.[playerId]) {
+			inv.owned[playerId] = (inv.owned[playerId] ?? []).filter((id) => id !== npcId);
+		}
+		await writeJsonFile("economy.json", store);
+		await writeJsonFile("npc-inventory.json", inv);
 
-			 		emitHubEvent({
-									type: "shop.purchase",
-									playerId,
-									playerName: displayName,
-									serverId: data.serverId ?? null,
-									ts: Date.now(),
-									meta: {
-														category: "npc",
-														itemId: npcId,
-														itemName: data.npcName ?? npcId,
-														price,
-														currency: "credits",
-									},
-					});
+		emitHubEvent({
+			type: "shop.purchase",
+			playerId,
+			playerName: displayName,
+			serverId: data.serverId ?? null,
+			ts: Date.now(),
+			meta: {
+				category: "npc",
+				itemId: npcId,
+				itemName: data.npcName ?? npcId,
+				price,
+				spawns,
+				currency: "credits",
+			},
+		});
 
-			 		return { alreadyOwned: false as const, account, owned: inv.owned[playerId] };
+		const owned = Object.entries(charges)
+			.filter(([, n]) => n > 0)
+			.map(([id]) => id);
+		return { alreadyOwned: false as const, account, owned, charges, spawnsAdded: spawns };
+	});
+
+/** Burn one spawn charge after a successful deploy. */
+export const consumeNpcSpawn = createServerFn({ method: "POST" })
+	.middleware([requireSupabaseAuth])
+	.inputValidator((data: { playerId?: string; npcId: string }) => data)
+	.handler(async ({ data, context }) => {
+		const playerId = data.playerId ?? context.userId ?? "demo-user";
+		const npcId = data.npcId?.trim();
+		if (!npcId) throw new Error("NPC id required");
+		const inv = await loadNpcInv();
+		const charges = playerCharges(inv, playerId);
+		const left = charges[npcId] ?? 0;
+		if (left <= 0) throw new Error("No spawn charges left — buy a pack first");
+		charges[npcId] = left - 1;
+		inv.charges[playerId] = charges;
+		if (inv.owned?.[playerId]) {
+			inv.owned[playerId] = (inv.owned[playerId] ?? []).filter((id) => id !== npcId);
+		}
+		await writeJsonFile("npc-inventory.json", inv);
+		return { playerId, npcId, remaining: charges[npcId] };
 	});
 
 type ShopInventoryStore = {
