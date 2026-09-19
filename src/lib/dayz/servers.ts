@@ -16,16 +16,16 @@ export const DAYZ_SERVERS: DayZServer[] = [
     label: "101x | ASYLUM",
     serviceEnv: "NITRADO_SERVICE_101X",
     fallbackServiceId: "17656048",
-    // Livonia
-    defaultMissionPath: "dayzps/mpmissions/dayzOffline.enoch",
+    // Livonia — Nitrado file API requires the absolute ftproot path (relative dayzps/mpmissions fails).
+    defaultMissionPath: "/games/ni12096544_1/ftproot/dayzps_missions/dayzOffline.enoch",
   },
   {
     id: "102x",
     label: "102x | ASYLUM",
     serviceEnv: "NITRADO_SERVICE_102X",
-    fallbackServiceId: "19773616",
+    fallbackServiceId: "18689054",
     // Chernarus
-    defaultMissionPath: "dayzps/mpmissions/dayzOffline.chernarusplus",
+    defaultMissionPath: "/games/ni12096544_2/ftproot/dayzps_missions/dayzOffline.chernarusplus",
   },
 ];
 
