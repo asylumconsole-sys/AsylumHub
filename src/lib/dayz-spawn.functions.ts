@@ -5,6 +5,7 @@ import { getNpcSpawnPreset } from "@/lib/npc-presets";
 import { queueNpcSpawn } from "@/lib/dayz-npc-spawn.functions";
 import { restartNitradoServer } from "@/lib/nitrado-files.functions";
 import { emitHubEvent, type HubServerId } from "@/lib/hub-events";
+import { consumeNpcSpawn } from "@/lib/economy.functions";
 import { type DayZServerId } from "@/lib/dayz/servers";
 
 /** Discriminated so the UI can never mistake a queued restart-based spawn for a live one. */
@@ -79,6 +80,7 @@ export const spawnNpc = createServerFn({ method: "POST" })
         z: data.z,
       });
       if (result.ok) {
+        await consumeNpcSpawn({ data: { playerId, npcId: data.npcId } });
         emitSpawnEvent({
           npcId: data.npcId,
           entity: preset.classname,
@@ -105,6 +107,7 @@ export const spawnNpc = createServerFn({ method: "POST" })
     if (queued.needsRestartToApply) {
       await restartNitradoServer({ data: { serviceId: data.serviceId } });
     }
+    await consumeNpcSpawn({ data: { playerId, npcId: data.npcId } });
     const response = {
       mode: "restart_required" as const,
       reason: LIVE_SPAWN_UNAVAILABLE_REASON,
