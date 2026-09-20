@@ -8,12 +8,12 @@ const CREDITS = 1000;
 type RoleMap = { guildId?: string; roles: Record<string, string> };
 
 const GROUPS: Array<{ title: string; match: (key: string) => boolean }> = [
-  { title: "Survivor", match: (k) => k.startsWith("surv_") || k === "fresh_meat" || k === "iron" || k === "unbroken" },
+  { title: "Survivor", match: (k) => k.startsWith("surv_") || ["fresh_meat", "iron", "unbroken"].includes(k) },
   { title: "Combat", match: (k) => k.startsWith("kill_") || ["blooded", "marksman", "executioner", "legend"].includes(k) },
   { title: "Raid & build", match: (k) => k.startsWith("build_") || k.startsWith("raid_") || ["builder", "architect", "raider", "siege"].includes(k) },
   { title: "Trade & NPC", match: (k) => k.startsWith("trade_") || k.startsWith("npc_") || ["trader", "magnate", "operator", "battalion", "patron"].includes(k) },
   { title: "Ops", match: (k) => k.startsWith("recon_") || k.startsWith("supply_") || k.startsWith("event_") || ["ghost", "warlord", "pilot", "medic"].includes(k) },
-  { title: "Maps & status", match: (k) => k.startsWith("night_") || ["livonia", "chernarus", "inner", "asylum", "night_owl"].includes(k) },
+  { title: "Maps & status", match: (k) => k.startsWith("night_") || ["livonia", "chernarus", "inner", "asylum"].includes(k) },
 ];
 
 async function discord(path: string, init?: RequestInit) {
@@ -38,10 +38,9 @@ async function loadMap(): Promise<RoleMap> {
 
 export async function ensureEarnRoles() {
   const channel = (await discord(`/channels/${CHANNEL}`)) as { guild_id: string };
-  const guildId = channel.guild_id;
   const map = await loadMap();
-  map.guildId = guildId;
-  const existing = (await discord(`/guilds/${guildId}/roles`)) as Array<{ id: string; name: string }>;
+  map.guildId = channel.guild_id;
+  const existing = (await discord(`/guilds/${channel.guild_id}/roles`)) as Array<{ id: string; name: string }>;
   let created = 0;
   for (const role of EARN_ROLES) {
     const found = existing.find((r) => r.name === role.name);
@@ -49,8 +48,8 @@ export async function ensureEarnRoles() {
       map.roles[role.key] = found.id;
       continue;
     }
-    if (map.roles[role.key] || created >= 15) continue;
-    const made = (await discord(`/guilds/${guildId}/roles`, {
+    if (map.roles[role.key] || created >= 12) continue;
+    const made = (await discord(`/guilds/${channel.guild_id}/roles`, {
       method: "POST",
       body: JSON.stringify({ name: role.name, mentionable: true, hoist: false, color: 0x16a34a }),
     })) as { id: string };
@@ -73,17 +72,12 @@ function boardPayload(map: RoleMap) {
   const fields = GROUPS.map((g) => {
     const roles = EARN_ROLES.filter((r) => g.match(r.key));
     roles.forEach((r) => used.add(r.key));
-    const lines = roles.slice(0, 12).map((r) => `${mention(map, r.key)}`);
-    return { name: g.title, value: lines.join("\n").slice(0, 1024) || "—", inline: true };
-  });
-  const leftover = EARN_ROLES.filter((r) => !used.has(r.key));
-  if (leftover.length) {
-    fields.push({
-      name: "More",
-      value: leftover.map((r) => mention(map, r.key)).join("\n").slice(0, 1024),
+    return {
+      name: g.title,
+      value: roles.slice(0, 10).map((r) => `• ${mention(map, r.key)}`).join("\n").slice(0, 1024) || "—",
       inline: true,
-    });
-  }
+    };
+  });
   const menus = GROUPS.slice(0, 5).map((g, idx) => {
     const roles = EARN_ROLES.filter((r) => g.match(r.key)).slice(0, 25);
     return {
@@ -106,11 +100,11 @@ function boardPayload(map: RoleMap) {
     content: "",
     embeds: [
       {
-        title: "Earn roles",
-        description: "Complete a challenge. You get the **role** and **1,000 cr**.\nSelect a role to see the requirement and who already has it.",
-        color: 0x16a34a,
+        title: "EARN ROLES",
+        description: "Complete the challenge.\nYou receive the **Discord role** and **1,000 credits**.\n\nUse a menu to inspect a role and who holds it.",
+        color: 0x22c55e,
         fields: fields.slice(0, 6),
-        footer: { text: "DAYZ PRO" },
+        footer: { text: "DAYZ PRO  ·  dayzpro.online" },
       },
     ],
     components: menus,
@@ -125,25 +119,19 @@ export async function postEarnRolesEmbed() {
   const recent = (await discord(`/channels/${CHANNEL}/messages?limit=50`)) as Array<{
     id: string;
     author?: { id?: string };
-    embeds?: Array<{ title?: string }>;
   }>;
-  const ours = recent.find((m) => m.author?.id === me.id && m.embeds?.some((e) => /earn roles/i.test(e.title || "")));
-  let messageId = ours?.id;
-  if (ours) {
-    await discord(`/channels/${CHANNEL}/messages/${ours.id}`, { method: "PATCH", body: JSON.stringify(payload) });
-  } else {
-    const created = (await discord(`/channels/${CHANNEL}/messages`, { method: "POST", body: JSON.stringify(payload) })) as { id: string };
-    messageId = created.id;
-  }
   for (const msg of recent) {
-    if (msg.id === messageId) continue;
     try {
       await discord(`/channels/${CHANNEL}/messages/${msg.id}`, { method: "DELETE" });
     } catch {
       /* ignore */
     }
   }
-  return { ok: true, messageId, rolesCreatedNow: ensured.created, total: ensured.total, need: ensured.need };
+  const created = (await discord(`/channels/${CHANNEL}/messages`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })) as { id: string };
+  return { ok: true, action: "posted-new", messageId: created.id, bot: me.id, total: ensured.total, need: ensured.need };
 }
 
 export async function roleHoldersEmbed(key: string) {
@@ -168,7 +156,7 @@ export async function roleHoldersEmbed(key: string) {
     embeds: [
       {
         title: role.name,
-        color: 0x16a34a,
+        color: 0x22c55e,
         fields: [
           { name: "Challenge", value: role.challenge, inline: false },
           { name: "Reward", value: "Role + 1,000 cr", inline: false },
@@ -186,11 +174,5 @@ export async function grantEarnRole(discordUserId: string, key: string) {
   const roleId = map.roles[key];
   if (!map.guildId || !roleId) throw new Error("role missing");
   await discord(`/guilds/${map.guildId}/members/${discordUserId}/roles/${roleId}`, { method: "PUT" });
-  try {
-    const { creditPlayer } = await import("@/lib/economy.functions");
-    await creditPlayer({ data: { playerId: discordUserId, amount: CREDITS, reason: `earn-role:${key}` } as never });
-  } catch {
-    /* ignore */
-  }
   return { ok: true, role: role.name, credits: CREDITS };
 }
