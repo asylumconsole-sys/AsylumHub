@@ -1,10 +1,9 @@
 import { createFileRoute, Outlet, Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { GradientMesh } from "@/components/ui-custom/GradientMesh";
 import {
-  IconLogo,
   IconHome,
   IconWorkspace,
   IconCalendar,
@@ -12,8 +11,6 @@ import {
   IconCampaign,
   IconUtm,
   IconSettings,
-  IconCommand,
-  IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
   IconClock,
@@ -21,7 +18,6 @@ import {
   IconSearch,
   IconFunnel,
   IconSpark,
-  IconAudience,
   IconImport,
   IconChart,
 } from "@/components/ui-custom/CustomIcon";
@@ -50,6 +46,7 @@ const PRIMARY_NAV = [
   { to: "/operations", label: "Operations", Icon: IconWorkspace },
   { to: "/tools/base-map-clicker", label: "Map", Icon: IconWorkspace },
   { to: "/tools", label: "Server shop", Icon: IconCampaign },
+  { to: "/tools", label: "Pro Build", Icon: IconCampaign, search: { focus: "pro-build" } },
   { to: "/war-room", label: "War Room", Icon: IconWorkspace },
   { to: "/challenges", label: "Challenges", Icon: IconCampaign },
   { to: "/rewards", label: "Rewards", Icon: IconBolt },
@@ -62,47 +59,17 @@ type ToolChild = { to: string; label: string; Icon: typeof IconCampaign; search?
 type ToolItem = ToolChild & { id: string; children?: ToolChild[] };
 
 const MARKETING_TOOLS: ToolItem[] = [
+  { id: "campaign", to: "/tools", search: { focus: "pro-build" }, label: "Pro Build", Icon: IconCampaign, children: [
+    { to: "/tools", search: { focus: "pro-build" }, label: "PRO Builder kit", Icon: IconCampaign },
+  ]},
   { id: "utm", to: "/tools", search: { focus: "utm" }, label: "Combat & Intel", Icon: IconUtm, children: [
     { to: "/tools", search: { focus: "utm" }, label: "Combat & Intel", Icon: IconUtm },
-    { to: "/tools", search: { focus: "utm-all" }, label: "UAV Tracking", Icon: IconSpark },
-    { to: "/killfeed", label: "PVP Killfeed", Icon: IconSpark },
-    { to: "/rewards", label: "Bounties", Icon: IconSpark },
-    { to: "/stats", label: "Leaderboards", Icon: IconChart },
   ]},
-  { id: "funnel", to: "/tools", search: { focus: "funnel-targets" }, label: "Air Support", Icon: IconFunnel, children: [
-    { to: "/tools", search: { focus: "funnel-targets" }, label: "Precision Strikes", Icon: IconSpark },
-    { to: "/tools/base-map-clicker", label: "Bomb Strafe Run", Icon: IconChart },
-    { to: "/tools/base-map-clicker", label: "Gas Strafe Run", Icon: IconChart },
-    { to: "/tools", search: { focus: "funnel" }, label: "Interactive Targeting", Icon: IconSpark },
-  ]},
-  { id: "campaign", to: "/tools", search: { focus: "campaign" }, label: "Base Ops", Icon: IconCampaign, children: [
-    { to: "/tools", search: { focus: "campaign-events" }, label: "Raid Announcements", Icon: IconCalendar },
-    { to: "/tools", search: { focus: "campaign" }, label: "Custom Bases", Icon: IconCampaign },
-  ]},
-  { id: "create", to: "/tools/import", label: "NPC Shop", Icon: IconImport, children: [
-    { to: "/tools", search: { focus: "campaign-import" }, label: "NPC Shop", Icon: IconImport },
-    { to: "/tools/event-intake", label: "Custom Vehicles", Icon: IconSpark },
-    { to: "/templates", label: "Item Shop", Icon: IconTemplate },
-  ]},
-  { id: "faction", to: "/workspaces", label: "Faction Hub", Icon: IconWorkspace, children: [
-    { to: "/factions", label: "Create or Join", Icon: IconWorkspace },
-    { to: "/war-room", label: "Wars & Contracts", Icon: IconCampaign },
-    { to: "/factions", label: "Faction Leaderboard", Icon: IconChart },
-  ]},
-  { id: "perks", to: "/leads", label: "Perks & Identity", Icon: IconChart, children: [
-    { to: "/economy", label: "Credits Economy", Icon: IconChart },
-    { to: "/battlepass", label: "Battlepass", Icon: IconCalendar },
-    { to: "/requests", label: "Support Tickets", Icon: IconClock },
-  ]},
+  { id: "funnel", to: "/tools", search: { focus: "funnel-targets" }, label: "Air Support", Icon: IconFunnel, children: [] },
+  { id: "create", to: "/tools/npc-shop", label: "NPC Shop", Icon: IconImport, children: [] },
+  { id: "faction", to: "/war-room", label: "Faction Hub", Icon: IconWorkspace, children: [] },
+  { id: "perks", to: "/economy", label: "Credits Economy", Icon: IconChart, children: [] },
 ];
-
-function ActiveBloom() {
-  return (
-    <motion.span aria-hidden initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2" style={{ width: "120%" }}>
-      <motion.span aria-hidden className="pointer-events-none absolute bottom-0 left-0 h-px w-full" style={{ background: "linear-gradient(90deg, transparent, oklch(0.7 0.2 12 / 0.95) 50%, transparent)" }} />
-    </motion.span>
-  );
-}
 
 function AppShell() {
   const { session, loading } = useAuth();
@@ -115,6 +82,7 @@ function AppShell() {
   useEffect(() => {
     if (!loading && !session) nav({ to: "/login", search: { redirect: pathnameRef.current, mode: "signin", error: undefined }, replace: true });
   }, [loading, session, nav]);
+  const focus = String((loc.search as { focus?: string })?.focus || "");
   if (loading || !session) {
     return (
       <div className="relative flex min-h-dvh items-center justify-center bg-[color:var(--color-ink)]">
@@ -127,7 +95,7 @@ function AppShell() {
     <div className="relative min-h-screen bg-[color:var(--color-ink)] text-foreground">
       <GradientMesh />
       <div className="relative z-10 flex min-h-screen">
-        <aside data-tour="sidebar" className={`sticky top-0 hidden h-screen shrink-0 self-start overflow-y-auto border-r border-glass-border bg-black/20 backdrop-blur-xl md:flex md:flex-col ${collapsed ? "w-16" : "w-64"}`}>
+        <aside className={`sticky top-0 hidden h-screen shrink-0 self-start overflow-y-auto border-r border-glass-border bg-black/20 backdrop-blur-xl md:flex md:flex-col ${collapsed ? "w-16" : "w-64"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center px-1" : "justify-between gap-1 px-4"} py-5`}>
             <Link to="/" className="flex min-w-0 items-center gap-2 text-foreground">
               <BrandHexLogo size={collapsed ? 32 : 34} />
@@ -149,9 +117,21 @@ function AppShell() {
           {!collapsed && <div className="px-3 pb-2"><SidebarSearch /></div>}
           <nav className={`flex-1 space-y-1 ${collapsed ? "px-2" : "px-3"}`}>
             {PRIMARY_NAV.map((n) => {
-              const active = n.to === "/tools" ? loc.pathname.startsWith("/tools") : loc.pathname.startsWith(n.to);
+              const active =
+                n.label === "Pro Build"
+                  ? focus === "pro-build"
+                  : n.to === "/tools"
+                    ? loc.pathname.startsWith("/tools") && focus !== "pro-build"
+                    : loc.pathname.startsWith(n.to);
               return (
-                <Link key={n.to} to={n.to} preload="render" title={collapsed ? n.label : undefined} className={`relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-xl py-2.5 text-sm ${active ? "bg-glass text-foreground" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}>
+                <Link
+                  key={n.label}
+                  to={n.to}
+                  search={"search" in n && n.search ? (n.search as never) : ({} as never)}
+                  preload="render"
+                  title={collapsed ? n.label : undefined}
+                  className={`relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-xl py-2.5 text-sm ${active ? "bg-glass text-foreground" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}
+                >
                   <n.Icon size={18} className={active ? "text-primary" : ""} />
                   {!collapsed && <span>{n.label}</span>}
                 </Link>
