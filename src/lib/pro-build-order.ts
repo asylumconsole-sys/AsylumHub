@@ -3,13 +3,17 @@ import { BUILDER_CHANNEL_ID, BUILDER_ROLE_ID, PRO_BUILDER_KIT, PRO_BUILDER_PRICE
 
 const DISCORD_API = "https://discord.com/api/v10";
 
+function token() {
+  const raw = process.env.DISCORD_TOKEN;
+  if (!raw) throw new Error("DISCORD_TOKEN missing");
+  return raw.replace(/^Bot\s+/i, "");
+}
+
 async function discord(path: string, init?: RequestInit) {
-  const token = process.env.DISCORD_TOKEN;
-  if (!token) throw new Error("DISCORD_TOKEN missing");
   const res = await fetch(`${DISCORD_API}${path}`, {
     ...init,
     headers: {
-      Authorization: `Bot ${token.replace(/^Bot\\s+/i, "")}`,
+      Authorization: `Bot ${token()}`,
       "Content-Type": "application/json",
       ...(init?.headers || {}),
     },
@@ -55,11 +59,9 @@ export async function placeProBuildOrder(input: {
   x?: number;
   z?: number;
   baseConfirmed: boolean;
-  images: string[];
+  attachments: Array<{ name: string; type: string; bytes: Buffer }>;
 }) {
-  if (input.images.filter(Boolean).length < 3) {
-    throw new Error("Add at least 3 base image links");
-  }
+  if (input.attachments.length < 3) throw new Error("Select at least 3 base photos");
   if (!input.baseConfirmed) throw new Error("Confirm the base location first");
 
   const eco = await readJsonFile<{
@@ -86,7 +88,7 @@ export async function placeProBuildOrder(input: {
     x: input.x,
     z: input.z,
     baseConfirmed: true,
-    images: input.images.filter(Boolean).slice(0, 6),
+    images: input.attachments.map((a) => a.name),
     status: "queued",
     createdAt: new Date().toISOString(),
   };
@@ -99,25 +101,38 @@ export async function placeProBuildOrder(input: {
     Number.isFinite(order.x) && Number.isFinite(order.z) ? `Y ${order.x} / Z ${order.z}` : "coords pending in ticket";
   const mention = order.discordId ? `<@${order.discordId}>` : order.playerName;
   const ticket =
-    `**PRO Builder order** ${order.id}\nBuyer: ${mention}\nDrop: ${coords}\nImages:\n${order.images.map((u) => `- ${u}`).join("\n")}\nKit: ${PRO_BUILDER_KIT.waves}\nStaff place this. Player was told the AI drops it within 4 hours.`;
+    `**PRO Builder order** ${order.id}\nBuyer: ${mention}\nDrop: ${coords}\nPhotos: ${order.images.join(", ")}\nKit: ${PRO_BUILDER_KIT.waves}\nStaff place this. Player was told the AI drops it within 4 hours.`;
+
+  const form = new FormData();
+  form.append(
+    "payload_json",
+    JSON.stringify({
+      content: `<@&${BUILDER_ROLE_ID}> New PRO Builder buy — ${mention} paid 200,000 cr.`,
+      embeds: [{ title: "PRO Builder ticket", description: ticket.slice(0, 4000), color: 0xd4a84b }],
+      allowed_mentions: { parse: ["roles", "users"] },
+    }),
+  );
+  input.attachments.slice(0, 8).forEach((file, i) => {
+    form.append(`files[${i}]`, new Blob([file.bytes], { type: file.type }), file.name);
+  });
+  const fileRes = await fetch(`${DISCORD_API}/channels/${BUILDER_CHANNEL_ID}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bot ${token()}` },
+    body: form,
+  });
+  if (!fileRes.ok) {
+    const err = await fileRes.text();
+    throw new Error(`Discord photos ${fileRes.status}: ${err.slice(0, 220)}`);
+  }
 
   const answers = [
     ...builders.map((b) => ({ poll_media: { text: b.name } })),
     { poll_media: { text: "AI / unassigned" } },
   ].slice(0, 10);
-
   const posted = await discord(`/channels/${BUILDER_CHANNEL_ID}/messages`, {
     method: "POST",
     body: JSON.stringify({
-      content: `<@&${BUILDER_ROLE_ID}> New PRO Builder buy — ${mention} paid 200,000 cr. Who is building it?`,
-      embeds: [
-        {
-          title: "PRO Builder ticket",
-          description: ticket.slice(0, 4000),
-          color: 0xd4a84b,
-        },
-      ],
-      allowed_mentions: { parse: ["roles", "users"] },
+      content: "Who is building it?",
       poll: {
         question: { text: "Who builds this PRO Builder drop?" },
         answers,
@@ -137,29 +152,23 @@ export async function placeProBuildOrder(input: {
       /* DMs closed */
     }
   }
-
   if (order.discordId) {
     try {
       await dm(
         order.discordId,
-        `PRO Builder is queued. The build team drops your kit within **4 hours** after coords + 3 base photos. Ticket ${order.id}. Reply in the ticket if anything changes.`,
+        `PRO Builder is queued. Drop within **4 hours** after coords + 3 base photos. Ticket ${order.id}.`,
       );
     } catch {
       /* ignore */
     }
   }
-
-  // Bot votes last option (AI / unassigned) so the poll is live.
   try {
     const msgId = posted?.id;
     if (msgId && answers.length) {
-      await discord(`/channels/${BUILDER_CHANNEL_ID}/polls/${msgId}/answers/${answers.length}`, {
-        method: "PUT",
-      });
+      await discord(`/channels/${BUILDER_CHANNEL_ID}/polls/${msgId}/answers/${answers.length}`, { method: "PUT" });
     }
   } catch {
-    /* poll vote optional */
+    /* optional */
   }
-
   return { order, ticketChannel: BUILDER_CHANNEL_ID, pollId: posted?.id ?? null };
 }
