@@ -4,7 +4,7 @@ import { Writable } from "node:stream";
 
 const SERVERS = ["101x", "102x"] as const;
 type ServerId = (typeof SERVERS)[number];
-const INVALID_PLAYER_NAMES = new Set(["peter-pit", "bro", "unknown"]);
+const INVALID_PLAYER_NAMES = new Set(["peter-pit"]);
 
 const FTP_KEYS = {
   "101x": { host: "FTP_101X_HOST", user: "FTP_101X_USER", pass: "FTP_101X_PASS", port: "FTP_101X_PORT", path: "FTP_101X_LOGS_PATH" },
@@ -31,7 +31,7 @@ function isKillLine(line: string) {
 }
 
 function isDisconnect(line: string) {
-  return /(disconnected|disconnect|has left|logged out|logout|kicked|timeout|unconscious)/i.test(line);
+  return /(disconnected|disconnect|has left|logged out|logout|kicked|timeout)/i.test(line);
 }
 
 function isConnect(line: string) {
