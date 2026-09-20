@@ -66,27 +66,46 @@ function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => v
       <div className="shop-directory-shell">
         <div className="shop-directory-grid">
           {SERVICE_GROUPS.map((group, index) => (
-            <motion.button key={group.name} type="button" onClick={() => {
-              if (group.name === "Combat & Intel") return onOpenFull("/tools/uav");
-              if (group.name === "Vehicle Shop") return onOpen("vehicle-shop");
-              if (group.name === "Boosts") return onOpen("boosts");
-              if (group.name === "Pro Build") return onOpen("pro-build");
-              if (group.items[0]) onOpen(group.items[0].focus);
-            }} className="shop-card group shop-card-shine" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }} whileHover={{ y: -3 }}>
-              <span className="shop-card-art" aria-hidden>
-                {group.name === "Base Ops" && <img src="/baseops.jpg" alt="" className="h-full w-full object-cover" />}
-                {group.name === "Zombie Hordes" && <img src="/zombie.jpg" alt="" className="h-full w-full object-cover" />}
-                {group.name === "Vehicle Shop" && <img src="/vehicles/ada-4x4.png" alt="" className="h-full w-full object-cover" />}
-                {group.name !== "Base Ops" && group.name !== "Zombie Hordes" && group.name !== "Vehicle Shop" && (
-                  <span className="inline-flex size-full items-center justify-center" style={{ background: `oklch(0.28 0.12 ${group.hue} / 0.55)`, color: `oklch(0.9 0.12 ${group.hue})` }}>{group.icon}</span>
-                )}
-              </span>
-              <span className="shop-card-content">
-                <span className="shop-card-title shop-medieval-title">{group.name}</span>
-                <span className="shop-card-meta">{group.items.length} services · {group.description}</span>
-              </span>
+            <motion.div key={group.name} className="shop-card group shop-card-shine" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }} whileHover={{ y: -3 }}>
+              <button type="button" className="flex w-full flex-1 flex-col text-left" onClick={() => {
+                if (group.name === "Combat & Intel") return onOpenFull("/tools/uav");
+                if (group.name === "Vehicle Shop") return onOpen("vehicle-shop");
+                if (group.name === "Boosts") return onOpen("boosts");
+                if (group.name === "Base Ops") return onOpen("campaign");
+                if (group.items[0]) onOpen(group.items[0].focus);
+              }}>
+                <span className="shop-card-art" aria-hidden>
+                  {group.name === "Base Ops" && <img src="/baseops.jpg" alt="" className="h-full w-full object-cover" />}
+                  {group.name === "Zombie Hordes" && <img src="/zombie.jpg" alt="" className="h-full w-full object-cover" />}
+                  {group.name === "Vehicle Shop" && <img src="/vehicles/ada-4x4.png" alt="" className="h-full w-full object-cover" />}
+                  {group.name !== "Base Ops" && group.name !== "Zombie Hordes" && group.name !== "Vehicle Shop" && (
+                    <span className="inline-flex size-full items-center justify-center" style={{ background: `oklch(0.28 0.12 ${group.hue} / 0.55)`, color: `oklch(0.9 0.12 ${group.hue})` }}>{group.icon}</span>
+                  )}
+                </span>
+                <span className="shop-card-content">
+                  <span className="shop-card-title shop-medieval-title">{group.name}</span>
+                  <span className="shop-card-meta">{group.items.length} services · {group.description}</span>
+                  <span className="shop-card-pills mt-2 flex flex-wrap gap-1">
+                    {group.items.slice(0, 4).map((item) => (
+                      <span
+                        key={item.label}
+                        role="link"
+                        tabIndex={0}
+                        className="shop-card-pill"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onOpen(item.focus);
+                        }}
+                      >
+                        {item.label}
+                      </span>
+                    ))}
+                  </span>
+                </span>
+              </button>
               <IconArrowRight size={14} className="ml-auto mt-auto text-muted-foreground" />
-            </motion.button>
+            </motion.div>
           ))}
         </div>
       </div>
