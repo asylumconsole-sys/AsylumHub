@@ -17,7 +17,6 @@ import {
   IconBolt,
   IconSearch,
   IconFunnel,
-  IconSpark,
   IconImport,
   IconChart,
 } from "@/components/ui-custom/CustomIcon";
@@ -46,7 +45,6 @@ const PRIMARY_NAV = [
   { to: "/operations", label: "Operations", Icon: IconWorkspace },
   { to: "/tools/base-map-clicker", label: "Map", Icon: IconWorkspace },
   { to: "/tools", label: "Server shop", Icon: IconCampaign },
-  { to: "/tools", label: "Pro Build", Icon: IconCampaign, search: { focus: "pro-build" } },
   { to: "/war-room", label: "War Room", Icon: IconWorkspace },
   { to: "/challenges", label: "Challenges", Icon: IconCampaign },
   { to: "/rewards", label: "Rewards", Icon: IconBolt },
@@ -59,12 +57,7 @@ type ToolChild = { to: string; label: string; Icon: typeof IconCampaign; search?
 type ToolItem = ToolChild & { id: string; children?: ToolChild[] };
 
 const MARKETING_TOOLS: ToolItem[] = [
-  { id: "campaign", to: "/tools", search: { focus: "pro-build" }, label: "Pro Build", Icon: IconCampaign, children: [
-    { to: "/tools", search: { focus: "pro-build" }, label: "PRO Builder kit", Icon: IconCampaign },
-  ]},
-  { id: "utm", to: "/tools", search: { focus: "utm" }, label: "Combat & Intel", Icon: IconUtm, children: [
-    { to: "/tools", search: { focus: "utm" }, label: "Combat & Intel", Icon: IconUtm },
-  ]},
+  { id: "utm", to: "/tools", search: { focus: "utm" }, label: "Combat & Intel", Icon: IconUtm, children: [] },
   { id: "funnel", to: "/tools", search: { focus: "funnel-targets" }, label: "Air Support", Icon: IconFunnel, children: [] },
   { id: "create", to: "/tools/npc-shop", label: "NPC Shop", Icon: IconImport, children: [] },
   { id: "faction", to: "/war-room", label: "Faction Hub", Icon: IconWorkspace, children: [] },
@@ -82,7 +75,6 @@ function AppShell() {
   useEffect(() => {
     if (!loading && !session) nav({ to: "/login", search: { redirect: pathnameRef.current, mode: "signin", error: undefined }, replace: true });
   }, [loading, session, nav]);
-  const focus = String((loc.search as { focus?: string })?.focus || "");
   if (loading || !session) {
     return (
       <div className="relative flex min-h-dvh items-center justify-center bg-[color:var(--color-ink)]">
@@ -117,21 +109,9 @@ function AppShell() {
           {!collapsed && <div className="px-3 pb-2"><SidebarSearch /></div>}
           <nav className={`flex-1 space-y-1 ${collapsed ? "px-2" : "px-3"}`}>
             {PRIMARY_NAV.map((n) => {
-              const active =
-                n.label === "Pro Build"
-                  ? focus === "pro-build"
-                  : n.to === "/tools"
-                    ? loc.pathname.startsWith("/tools") && focus !== "pro-build"
-                    : loc.pathname.startsWith(n.to);
+              const active = n.to === "/tools" ? loc.pathname.startsWith("/tools") : loc.pathname.startsWith(n.to);
               return (
-                <Link
-                  key={n.label}
-                  to={n.to}
-                  search={"search" in n && n.search ? (n.search as never) : ({} as never)}
-                  preload="render"
-                  title={collapsed ? n.label : undefined}
-                  className={`relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-xl py-2.5 text-sm ${active ? "bg-glass text-foreground" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}
-                >
+                <Link key={n.label} to={n.to} preload="render" title={collapsed ? n.label : undefined} className={`relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-xl py-2.5 text-sm ${active ? "bg-glass text-foreground" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}>
                   <n.Icon size={18} className={active ? "text-primary" : ""} />
                   {!collapsed && <span>{n.label}</span>}
                 </Link>
