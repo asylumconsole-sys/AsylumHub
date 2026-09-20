@@ -8,12 +8,14 @@ import { getAsylumServerStatus } from "@/lib/dayz/server-status.functions";
 import { DAYZ_SERVERS } from "@/lib/dayz/servers";
 import { BRAND } from "@/lib/brand";
 import { PsnLinkCard } from "@/components/app/PsnLinkCard";
+import { LIVONIA_ZONES, ZONE_REWARD } from "@/lib/challenges/livonia-zones";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
 });
 
 const QUICK = [
+  { to: "/challenges", label: "Challenges", desc: "Zone discovery", Icon: IconCampaign },
   { to: "/tools/npc-shop", label: "NPC Shop", desc: "Buy & spawn", Icon: IconImport },
   { to: "/account", label: "Account", desc: "Link PSN", Icon: IconAudience },
   { to: "/servers", label: "Servers", desc: "Online status", Icon: IconBolt },
@@ -21,7 +23,6 @@ const QUICK = [
   { to: "/live", label: "Live", desc: "Kills & events", Icon: IconSpark },
   { to: "/operations", label: "Ops", desc: "Contracts", Icon: IconCampaign },
   { to: "/stats", label: "Ranks", desc: "Leaderboards", Icon: IconChart },
-  { to: "/factions", label: "Factions", desc: "Wars", Icon: IconWorkspace },
 ] as const;
 
 function Dashboard() {
@@ -73,6 +74,22 @@ function Dashboard() {
       <div className="md:hidden">
         <PsnLinkCard />
       </div>
+
+      <GlassPanel className="p-4 sm:p-5">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-primary">Challenges</div>
+        <h2 className="mt-1 text-xl">Zone discovery · Livonia</h2>
+        <p className="mt-1 text-sm text-muted-foreground">12 city rings. {ZONE_REWARD.toLocaleString()} cr each when you walk in on 101x.</p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {LIVONIA_ZONES.map((z) => (
+            <span key={z.id} className="rounded-full border border-white/10 px-2 py-1 text-[11px] text-zinc-300">
+              {z.name}
+            </span>
+          ))}
+        </div>
+        <Link to="/challenges" className="mt-3 inline-block text-xs uppercase tracking-wider text-primary">
+          Open challenges →
+        </Link>
+      </GlassPanel>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
         {QUICK.map((q) => (
