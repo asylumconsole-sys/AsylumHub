@@ -12,47 +12,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getOnlinePlayers } from "@/lib/online-players.functions";
 import { BRAND } from "@/lib/brand";
 import { SPAWN_PACKS, type SpawnPack } from "@/lib/npc/spawn-packs";
-import { THE_BEAMER_CFG_SPAWNABLETYPES } from "@/lib/npc/the-beamer-cfg";
-import { SKULL_HUNTER_CFG_SPAWNABLETYPES } from "@/lib/npc/skull-hunter-cfg";
-import { BeamerInventoryModal, SkullHunterInventoryModal } from "@/lib/npc/beamer-inventory-modal";
+import { NpcInventoryModal } from "@/lib/npc/beamer-inventory-modal";
+import { NPCS, loadoutFor, type ShopNpc } from "@/lib/npc/roster";
 
 const PRIMARY_SERVER_ID = "101x";
 const DEFAULT_SPAWN_POSITION = { x: 7500, z: 7500, a: 0 };
 const ROSTER_SLOTS = 20;
 
-type NPC = {
-  id: string;
-  name: string;
-  role: string;
-  category: string;
-  price: number;
-  description: string;
-  cfgSpawnabletypes?: string;
-};
-
 type PlacementMode = "map" | "zy" | "gamertag";
-
-const NPCS: NPC[] = [
-  {
-    id: "the_beamer",
-    name: "The Beamer",
-    role: "Elite Operator",
-    category: "Combat",
-    price: 2500,
-    description: "Deployable operator with M14, M4A1, armor, medical, and field kit.",
-    cfgSpawnabletypes: THE_BEAMER_CFG_SPAWNABLETYPES,
-  },
-  {
-    id: "skull_hunter",
-    name: "Skull Hunter",
-    role: "Shadow Hunter",
-    category: "Combat",
-    price: 2500,
-    description:
-      "High-risk kit: suppressed SVD + PSO-6, drum AKM, engraved 1911, black plate, NVGs, PO-X vials.",
-    cfgSpawnabletypes: SKULL_HUNTER_CFG_SPAWNABLETYPES,
-  },
-];
 
 const emptySlots = Math.max(0, ROSTER_SLOTS - NPCS.length);
 
@@ -69,6 +36,7 @@ export function NPCShopContent() {
   const [packId, setPackId] = useState(SPAWN_PACKS[0]?.id ?? "pack_15");
   const [invOpen, setInvOpen] = useState(false);
   const selectedPack: SpawnPack = SPAWN_PACKS.find((p) => p.id === packId) ?? SPAWN_PACKS[0];
+  const selectedLoadout = selected ? loadoutFor(selected.id) : null;
 
   const playerId = user?.id || "demo-user";
   const displayName =
@@ -120,7 +88,7 @@ export function NPCShopContent() {
   }, [gamertag, playersQ.data?.players]);
 
   const buyMut = useMutation({
-    mutationFn: (npc: NPC) =>
+    mutationFn: (npc: ShopNpc) =>
       purchaseNpc({
         data: {
           playerId,
@@ -262,7 +230,7 @@ export function NPCShopContent() {
                     <motion.button type="button" onClick={() => buyMut.mutate(selected)} disabled={buyMut.isPending || credits < selectedPack.price} className="relative min-w-[180px] overflow-hidden rounded-full bg-[#d4a84b] px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#1a1205] disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400">
                       <span className="relative">{buyMut.isPending ? "Purchasing…" : `Buy ${selectedPack.label} · ${selectedPack.price.toLocaleString()} cr`}</span>
                     </motion.button>
-                    {selected.id === "the_beamer" || selected.id === "skull_hunter" ? (
+                    {selectedLoadout ? (
                       <button type="button" onClick={() => setInvOpen(true)} className="rounded-full border border-[#d4a84b]/40 px-4 py-2 text-xs uppercase tracking-[0.14em] text-[#e8c56a] hover:bg-[#d4a84b]/10">View inventory</button>
                     ) : null}
                     <div className="text-center text-[11px] text-zinc-500">{chargesLeft} charges left</div>
@@ -313,8 +281,9 @@ export function NPCShopContent() {
           </aside>
         </div>
       </div>
-      {invOpen && selected?.id === "the_beamer" ? <BeamerInventoryModal onClose={() => setInvOpen(false)} /> : null}
-      {invOpen && selected?.id === "skull_hunter" ? <SkullHunterInventoryModal onClose={() => setInvOpen(false)} /> : null}
+      {invOpen && selected && selectedLoadout ? (
+        <NpcInventoryModal title={`${selected.name} loadout`} loadout={selectedLoadout} onClose={() => setInvOpen(false)} />
+      ) : null}
     </div>
   );
 }
