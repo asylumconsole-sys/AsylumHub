@@ -1,4 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  DEFAULT_MONTHLY_RENT,
+  firstOfNextMonth,
+  loadBases,
+  makeBaseCode,
+  saveBases,
+} from "@/lib/custom-bases";
+import { publishBaseBoard } from "@/lib/custom-bases-discord";
+import { dmOwner } from "@/lib/custom-bases-discord";
 
 export const Route = createFileRoute("/api/pro-build/order")({
   server: {
@@ -17,18 +26,44 @@ export const Route = createFileRoute("/api/pro-build/order")({
               bytes: Buffer.from(await f.arrayBuffer()),
             })),
           );
+          const playerName = String(form.get("playerName") || playerId);
+          const discordId = String(form.get("discordId") || playerId);
+          const x = Number(form.get("x") || 0) || undefined;
+          const z = Number(form.get("z") || 0) || undefined;
           const { placeProBuildOrder } = await import("@/lib/pro-build-order");
           const result = await placeProBuildOrder({
             playerId,
-            playerName: String(form.get("playerName") || playerId),
-            discordId: String(form.get("discordId") || "") || undefined,
+            playerName,
+            discordId: discordId || undefined,
             mode: form.get("mode") === "map" ? "map" : "base",
-            x: Number(form.get("x") || 0) || undefined,
-            z: Number(form.get("z") || 0) || undefined,
+            x,
+            z,
             baseConfirmed: form.get("baseConfirmed") === "true",
             attachments,
           });
-          return Response.json({ ok: true, ...result });
+          const store = await loadBases();
+          const code = makeBaseCode(playerName);
+          store.bases.push({
+            code,
+            name: `${playerName}'s base`,
+            ownerDiscordId: discordId,
+            ownerName: playerName,
+            x,
+            z,
+            map: "livonia",
+            monthlyCost: DEFAULT_MONTHLY_RENT,
+            amountPaid: 0,
+            createdAt: new Date().toISOString(),
+            nextDueAt: firstOfNextMonth(),
+            status: "active",
+          });
+          await saveBases(store);
+          await publishBaseBoard();
+          await dmOwner(
+            discordId,
+            [`Your custom base is on file.`, `Code: ${code}`, `Rent: ${DEFAULT_MONTHLY_RENT.toLocaleString()} cr on the 1st of each month.`, x != null ? `Coords Y ${x} / Z ${z}` : "Coords pending staff confirm."].join("\n"),
+          );
+          return Response.json({ ok: true, ...result, baseCode: code });
         } catch (e) {
           return Response.json({ error: e instanceof Error ? e.message : "failed" }, { status: 400 });
         }
