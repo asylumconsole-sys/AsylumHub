@@ -53,7 +53,11 @@ function Dashboard() {
   const [method, setMethod] = useState<string>("auto");
   const [busy, setBusy] = useState<number | null>(null);
   const balanceQ = useQuery({ queryKey: ["economy-balance"], queryFn: () => getEconomyBalance({ data: {} }) });
-  const killsQ = useQuery({ queryKey: ["live-preview"], queryFn: () => getKillfeed({ data: { server: "all", limit: 5 } }) });
+  const killsQ = useQuery({
+    queryKey: ["killfeed-5d"],
+    queryFn: () => getKillfeed({ data: { server: "all", limit: 400 } }),
+    refetchInterval: 30_000,
+  });
   const statusQ = useQuery({
     queryKey: ["nitrado-status-lobby", DAYZ_SERVERS[0].id],
     queryFn: () => getAsylumServerStatus({ data: { serverId: DAYZ_SERVERS[0].id } }),
@@ -61,6 +65,7 @@ function Dashboard() {
   });
   const credits = balanceQ.data ? balanceQ.data.balance.toLocaleString() : "—";
   const serverLine = statusQ.data ? (statusQ.data.status === "started" ? `${statusQ.data.players.current}/${statusQ.data.players.max}` : statusQ.data.status) : statusQ.error ? "Setup" : "—";
+  const kills = killsQ.data?.events ?? [];
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 px-3 pb-4 pt-2 sm:px-4 sm:py-8">
@@ -79,7 +84,7 @@ function Dashboard() {
         <div className="mt-4 grid grid-cols-3 gap-2">
           <div className="rounded-xl border border-glass-border bg-glass/30 p-3"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Credits</div><div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{credits}</div></div>
           <div className="rounded-xl border border-glass-border bg-glass/30 p-3"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Online</div><div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{serverLine}</div></div>
-          <div className="rounded-xl border border-glass-border bg-glass/30 p-3"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Kills</div><div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{killsQ.data?.events.length ?? 0}</div></div>
+          <div className="rounded-xl border border-glass-border bg-glass/30 p-3"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Kills 5d</div><div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{kills.length}</div></div>
         </div>
       </section>
 
@@ -90,7 +95,6 @@ function Dashboard() {
               <div>
                 <div className="text-[11px] uppercase tracking-[0.22em] text-emerald-300">Support {BRAND.name}</div>
                 <h2 className="font-display text-3xl">Donate</h2>
-                <p className="mt-1 text-sm text-muted-foreground">PayPal, Cash App, Venmo, Apple Pay, Google Pay, card, and crypto via Stripe Checkout.</p>
               </div>
               <button type="button" onClick={() => setDonateOpen(false)} className="text-sm text-muted-foreground">Close</button>
             </div>
@@ -108,18 +112,7 @@ function Dashboard() {
                     <div className="font-display text-3xl" style={{ color: hexColor(tier.color) }}>{tier.name}</div>
                     <div className="text-xs uppercase tracking-wider text-muted-foreground">{tier.creditsMark}</div>
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">Discord role {tier.name}</p>
-                  <button
-                    type="button"
-                    disabled={busy === tier.usd}
-                    onClick={async () => {
-                      setBusy(tier.usd);
-                      await startDonate(tier.usd, method);
-                      setBusy(null);
-                    }}
-                    className="mt-4 w-full rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black disabled:opacity-50"
-                    style={{ background: hexColor(tier.color) }}
-                  >
+                  <button type="button" disabled={busy === tier.usd} onClick={async () => { setBusy(tier.usd); await startDonate(tier.usd, method); setBusy(null); }} className="mt-4 w-full rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black disabled:opacity-50" style={{ background: hexColor(tier.color) }}>
                     {busy === tier.usd ? "Opening Stripe…" : `Pay ${tier.name}`}
                   </button>
                 </div>
@@ -140,9 +133,28 @@ function Dashboard() {
         ))}
       </div>
       <GlassPanel className="p-4 sm:p-5">
-        <h2 className="mb-3 text-sm font-medium">Latest live kills</h2>
-        {(killsQ.data?.events.length ?? 0) === 0 && <p className="text-sm text-muted-foreground">No events yet.</p>}
-        <ul className="space-y-2">{killsQ.data?.events.map((e) => (<li key={e.id} className="text-sm"><span className="text-emerald-300">{e.killer}</span><span className="text-muted-foreground"> → </span><span className="text-red-300">{e.victim}</span></li>))}</ul>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-medium">Killfeed · last 5 days</h2>
+          <span className="text-[11px] text-muted-foreground">{kills.length} kills</span>
+        </div>
+        {killsQ.isLoading && <p className="text-sm text-muted-foreground">Loading logs…</p>}
+        {killsQ.data?.unavailable?.length ? <p className="mb-2 text-xs text-amber-300">{killsQ.data.unavailable.map((u) => `${u.server}: ${u.reason}`).join(" · ")}</p> : null}
+        <div className="max-h-80 overflow-y-auto overscroll-contain pr-1">
+          {kills.length === 0 && !killsQ.isLoading && <p className="text-sm text-muted-foreground">No kills in the last 5 days.</p>}
+          <ul className="space-y-2">
+            {kills.map((e) => (
+              <li key={e.id} className="flex items-baseline justify-between gap-3 border-b border-white/5 pb-2 text-sm">
+                <div className="min-w-0">
+                  <span className="text-emerald-300">{e.killer}</span>
+                  <span className="text-muted-foreground"> killed </span>
+                  <span className="text-red-300">{e.victim}</span>
+                  {e.weapon ? <span className="text-muted-foreground"> · {e.weapon}</span> : null}
+                </div>
+                <div className="shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground">{e.server} · {e.at.replace("T", " ").slice(0, 16)}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
       </GlassPanel>
     </div>
   );
