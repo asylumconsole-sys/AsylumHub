@@ -63,10 +63,10 @@ function mention(map: RoleMap, key: string) {
 function boardPayload(map: RoleMap) {
   const mentions = EARN_ROLES.map((r) => mention(map, r.key));
   const fields = [];
-  for (let i = 0; i < mentions.length; i += 18) {
+  for (let i = 0; i < mentions.length; i += 16) {
     fields.push({
       name: i === 0 ? "Roles" : "​",
-      value: mentions.slice(i, i + 18).join(" "),
+      value: mentions.slice(i, i + 16).join(" "),
       inline: false,
     });
   }
@@ -90,10 +90,11 @@ function boardPayload(map: RoleMap) {
     });
   }
   return {
+    content: "",
     embeds: [
       {
         title: "Earn roles",
-        description: `**${EARN_ROLES.length} roles.** Finish the challenge → role + **1000 cr** auto-applied. Pick a role to see who has it.`,
+        description: `**${EARN_ROLES.length} roles.** Finish the challenge → role + **1000 cr**. Pick a role to see who has it.`,
         color: 0x22c55e,
         fields: fields.slice(0, 8),
         footer: { text: "DAYZ PRO · 1000 cr each" },
@@ -129,7 +130,7 @@ export async function postEarnRolesEmbed() {
       /* ignore */
     }
   }
-  return { ok: true, messageId, ...ensured, rolesCreatedNow: ensured.created };
+  return { ok: true, messageId, rolesCreatedNow: ensured.created, total: ensured.total, need: ensured.need };
 }
 
 export async function roleHoldersEmbed(key: string) {
