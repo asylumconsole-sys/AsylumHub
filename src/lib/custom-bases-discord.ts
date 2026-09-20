@@ -2,15 +2,47 @@ import {
   BASE_ADMIN_CHANNEL,
   type CustomBase,
   daysUntil,
+  firstOfNextMonth,
   loadBases,
   mapLink,
   saveBases,
 } from "@/lib/custom-bases";
 
+const KEEP_OWNER_ID = "1281756735161241621";
+
 function botHeaders() {
   const token = process.env.DISCORD_TOKEN?.replace(/^Bot\s+/i, "");
   if (!token) return null;
   return { Authorization: `Bot ${token}`, "Content-Type": "application/json" };
+}
+
+function onlyDennis(store: { bases: CustomBase[] }) {
+  const keep =
+    store.bases.find((b) => b.code === "df4507049") ||
+    store.bases.find((b) => /dennis fox/i.test(b.name));
+  const base: CustomBase = keep
+    ? {
+        ...keep,
+        name: "Dennis Fox",
+        ownerName: "Dennis Fox",
+        ownerDiscordId: KEEP_OWNER_ID,
+        monthlyCost: 55_000,
+        status: "active",
+        despawnAt: undefined,
+      }
+    : {
+        code: "df4507049",
+        name: "Dennis Fox",
+        ownerDiscordId: KEEP_OWNER_ID,
+        ownerName: "Dennis Fox",
+        monthlyCost: 55_000,
+        amountPaid: 0,
+        createdAt: new Date().toISOString(),
+        nextDueAt: firstOfNextMonth(),
+        status: "active",
+      };
+  store.bases = [base];
+  return store;
 }
 
 export function baseDetailEmbed(base: CustomBase) {
@@ -26,7 +58,7 @@ export function baseDetailEmbed(base: CustomBase) {
       { name: "Next rent", value: `${due}d · ${base.nextDueAt.slice(0, 10)}`, inline: true },
       { name: "Monthly", value: `${base.monthlyCost.toLocaleString()} cr`, inline: true },
       { name: "Paid so far", value: `${base.amountPaid.toLocaleString()} cr`, inline: true },
-      { name: "Coords", value: base.x != null ? `Y ${base.x} / Z ${base.z}` : "pending", inline: true },
+      { name: "Coords", value: base.x != null ? `Y ${base.x} / Z ${base.z}` : "unknown", inline: true },
       { name: "Map", value: mapLink(base), inline: false },
     ],
   };
@@ -34,7 +66,9 @@ export function baseDetailEmbed(base: CustomBase) {
 
 export function boardPayload(bases: CustomBase[]) {
   const live = bases.filter((b) => b.status !== "despawned");
-  const lines = live.slice(0, 20).map((b) => `\• **${b.name}** · \`${b.code}\` · <@${b.ownerDiscordId}> · ${b.monthlyCost.toLocaleString()} cr/mo`);
+  const lines = live.slice(0, 20).map(
+    (b) => `• **${b.name}** · \`${b.code}\` · <@${b.ownerDiscordId}> · ${b.monthlyCost.toLocaleString()} cr/mo`,
+  );
   return {
     content: "",
     embeds: [
@@ -68,7 +102,8 @@ export function boardPayload(bases: CustomBase[]) {
 export async function publishBaseBoard() {
   const headers = botHeaders();
   if (!headers) return { ok: false, error: "no discord token" };
-  const store = await loadBases();
+  const store = onlyDennis(await loadBases());
+  await saveBases(store);
   const body = boardPayload(store.bases);
   if (store.adminMessageId) {
     const edit = await fetch(`https://discord.com/api/v10/channels/${BASE_ADMIN_CHANNEL}/messages/${store.adminMessageId}`, {
@@ -76,7 +111,7 @@ export async function publishBaseBoard() {
       headers,
       body: JSON.stringify(body),
     });
-    if (edit.ok) return { ok: true, messageId: store.adminMessageId };
+    if (edit.ok) return { ok: true, messageId: store.adminMessageId, live: store.bases };
   }
   const created = await fetch(`https://discord.com/api/v10/channels/${BASE_ADMIN_CHANNEL}/messages`, {
     method: "POST",
@@ -88,7 +123,7 @@ export async function publishBaseBoard() {
     store.adminMessageId = msg.id;
     await saveBases(store);
   }
-  return { ok: created.ok, messageId: msg.id, error: msg.message };
+  return { ok: created.ok, messageId: msg.id, error: msg.message, live: store.bases };
 }
 
 export async function dmOwner(discordId: string, text: string) {
