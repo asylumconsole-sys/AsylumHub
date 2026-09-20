@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { GlassPanel } from "@/components/ui-custom/GlassPanel";
 import { IconBolt, IconChart, IconSpark, IconWorkspace, IconImport, IconAudience, IconCampaign } from "@/components/ui-custom/CustomIcon";
 import { getEconomyBalance } from "@/lib/economy.functions";
@@ -26,8 +27,31 @@ const QUICK = [
   { to: "/factions", label: "Factions", desc: "Wars", Icon: IconWorkspace },
 ] as const;
 
+const PAY_METHODS = [
+  { id: "auto", label: "Card / Apple Pay / Google Pay" },
+  { id: "paypal", label: "PayPal" },
+  { id: "cashapp", label: "Cash App" },
+  { id: "venmo", label: "Venmo" },
+] as const;
+
+async function startDonate(usd: number, method: string) {
+  const res = await fetch("/api/stripe/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ usd, method }),
+  });
+  const data = (await res.json()) as { url?: string; error?: string };
+  if (!res.ok || !data.url) {
+    toast.error(data.error || "Stripe is not configured yet");
+    return;
+  }
+  window.location.href = data.url;
+}
+
 function Dashboard() {
   const [donateOpen, setDonateOpen] = useState(false);
+  const [method, setMethod] = useState<string>("auto");
+  const [busy, setBusy] = useState<number | null>(null);
   const balanceQ = useQuery({ queryKey: ["economy-balance"], queryFn: () => getEconomyBalance({ data: {} }) });
   const killsQ = useQuery({ queryKey: ["live-preview"], queryFn: () => getKillfeed({ data: { server: "all", limit: 5 } }) });
   const statusQ = useQuery({
@@ -62,13 +86,20 @@ function Dashboard() {
       <AnimatePresence>
         {donateOpen && (
           <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="rounded-2xl border border-emerald-400/30 bg-black p-4 sm:p-6">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="text-[11px] uppercase tracking-[0.22em] text-emerald-300">Support {BRAND.name}</div>
                 <h2 className="font-display text-3xl">Donate</h2>
-                <p className="mt-1 text-sm text-muted-foreground">$10 marks 10k. $500 marks 500k. Higher gifts get colder colors and a matching Discord role.</p>
+                <p className="mt-1 text-sm text-muted-foreground">PayPal, Cash App, Venmo, Apple Pay, Google Pay, card, and crypto via Stripe Checkout.</p>
               </div>
               <button type="button" onClick={() => setDonateOpen(false)} className="text-sm text-muted-foreground">Close</button>
+            </div>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {PAY_METHODS.map((m) => (
+                <button key={m.id} type="button" onClick={() => setMethod(m.id)} className={`rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.14em] ${method === m.id ? "bg-emerald-400 text-black" : "border border-white/15 text-muted-foreground"}`}>
+                  {m.label}
+                </button>
+              ))}
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {DONATION_TIERS.map((tier) => (
@@ -78,6 +109,19 @@ function Dashboard() {
                     <div className="text-xs uppercase tracking-wider text-muted-foreground">{tier.creditsMark}</div>
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">Discord role {tier.name}</p>
+                  <button
+                    type="button"
+                    disabled={busy === tier.usd}
+                    onClick={async () => {
+                      setBusy(tier.usd);
+                      await startDonate(tier.usd, method);
+                      setBusy(null);
+                    }}
+                    className="mt-4 w-full rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black disabled:opacity-50"
+                    style={{ background: hexColor(tier.color) }}
+                  >
+                    {busy === tier.usd ? "Opening Stripe…" : `Pay ${tier.name}`}
+                  </button>
                 </div>
               ))}
             </div>
