@@ -1,10 +1,38 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Client } from "basic-ftp";
 import { Writable } from "node:stream";
+import { DAYZ_SERVERS, resolveServiceId } from "@/lib/dayz/servers";
 
 const SERVERS = ["101x", "102x"] as const;
 type ServerId = (typeof SERVERS)[number];
 const INVALID_PLAYER_NAMES = new Set(["peter-pit"]);
+const ITEM_OR_AI_NAMES = new Set(
+  [
+    "hatchet",
+    "axe",
+    "knife",
+    "m4a1",
+    "akm",
+    "bandage",
+    "apple",
+    "pear",
+    "can",
+    "zombie",
+    "infected",
+    "animal",
+    "wolf",
+    "bear",
+    "cow",
+    "pig",
+    "sheep",
+    "deer",
+    "survivor",
+    "civilian",
+    "medic",
+    "access_medic",
+    "base_df",
+  ].map((n) => n.toLowerCase()),
+);
 
 const FTP_KEYS = {
   "101x": { host: "FTP_101X_HOST", user: "FTP_101X_USER", pass: "FTP_101X_PASS", port: "FTP_101X_PORT", path: "FTP_101X_LOGS_PATH" },
@@ -26,6 +54,13 @@ export type OnlinePlayersResult = {
   unavailable: Array<{ server: ServerId; reason: string }>;
 };
 
+function looksLikeClassname(name: string) {
+  if (ITEM_OR_AI_NAMES.has(name.toLowerCase())) return true;
+  if (/^(u|access|base|item|land|vehicle|animal|zombie|infected|survivor)_/i.test(name)) return true;
+  if (/^[A-Z][A-Za-z0-9]+_[A-Z]/.test(name)) return true;
+  return false;
+}
+
 function isKillLine(line: string) {
   return /\b(killed|killing|eliminated|was killed|has died|is dead|murdered)\b/i.test(line);
 }
@@ -35,7 +70,7 @@ function isDisconnect(line: string) {
 }
 
 function isConnect(line: string) {
-  return /(connected|has joined|logged in|login:\s|PlayerList)/i.test(line) && !isDisconnect(line) && !isKillLine(line);
+  return /(connected|has joined|logged in|login:\s)/i.test(line) && !isDisconnect(line) && !isKillLine(line);
 }
 
 function readNames(line: string) {
@@ -53,6 +88,7 @@ function readNames(line: string) {
         .replace(/\s+/g, " ");
       if (!name) continue;
       if (INVALID_PLAYER_NAMES.has(name.toLocaleLowerCase())) continue;
+      if (looksLikeClassname(name)) continue;
       if (name.length < 2 || name.length > 32) continue;
       if (/^(identity|unknown|server|player|created|connected|disconnected|killed|killer|victim)$/i.test(name)) continue;
       names.push(name);
@@ -71,6 +107,24 @@ function readPosition(line: string): { x: number; y: number; z: number } | null 
   const z = Number(match[3]);
   if (![x, y, z].every(Number.isFinite)) return null;
   return { x, y, z };
+}
+
+async function nitradoCurrent(server: ServerId): Promise<number | null> {
+  const token = process.env.NITRADO_API_TOKEN;
+  const catalog = DAYZ_SERVERS.find((s) => s.id === server);
+  if (!token || !catalog) return null;
+  const serviceId = resolveServiceId(catalog);
+  try {
+    const res = await fetch(`https://api.nitrado.net/services/${serviceId}/gameservers`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { data?: { gameserver?: { query?: { player_current?: number } } } };
+    const n = json.data?.gameserver?.query?.player_current;
+    return typeof n === "number" ? n : null;
+  } catch {
+    return null;
+  }
 }
 
 async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
@@ -139,7 +193,7 @@ async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
         }
       }
     }
-    return Array.from(state.values()).map((player) => ({
+    let players = Array.from(state.values()).map((player) => ({
       id: `${server}:${player.name.toLocaleLowerCase()}`,
       name: player.name,
       server,
@@ -148,6 +202,13 @@ async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
       y: player.y,
       z: player.z,
     }));
+    const liveCount = await nitradoCurrent(server);
+    if (liveCount != null && players.length > liveCount) {
+      players = players
+        .sort((a, b) => String(b.lastSeen).localeCompare(String(a.lastSeen)))
+        .slice(0, Math.max(0, liveCount));
+    }
+    return players;
   } finally {
     client.close();
   }
