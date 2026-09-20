@@ -1,0 +1,151 @@
+/** DayZ item icons — wiki.gg first, then fandom, then name variants. */
+
+export type ShopImageItem = { id: string; name: string; image: string };
+
+const FILES: Record<string, string[]> = {
+  glock19: ["Glock 19.png"],
+  deagle: ["Desert Eagle.png", "Deagle.png"],
+  fnx45: ["FNX-45.png", "FNX45.png"],
+  "mk-ii": ["MK II.png"],
+  m4a1: ["M4-A1.png", "M4A1.png"],
+  akm: ["AKM.png"],
+  ak74: ["AK-74.png"],
+  aug: ["AUG A1.png", "AUG.png"],
+  lar: ["FAL.png", "LAR.png"],
+  mosin: ["Mosin 9130.png", "Mosin.png"],
+  svd: ["SVD.png"],
+  vss: ["VSS.png"],
+  win70: ["Winchester 70.png"],
+  mp5: ["USG-45.png", "MP5-K.png"],
+  scorpion: ["Scorpion EVO 3.png", "Scorpion.png"],
+  mp133: ["BK-133.png", "MP-133.png"],
+  doublebarrel: ["BK-43.png", "IZH-43.png"],
+  ij70: ["IJ-70.png", "Makarov IJ70.png"],
+  "ammo-556": ["5.56x45mm Rounds.png", "5.56x45mm.png"],
+  "ammo-762": ["7.62x39mm Rounds.png", "7.62x39mm.png"],
+  "ammo-308": [".308 Winchester Rounds.png", ".308 Winchester.png"],
+  "ammo-9mm": ["9x19mm Rounds.png", "9x19mm.png"],
+  bandage: ["Bandage.png"],
+  saline: ["Saline Bag.png"],
+  morphine: ["Morphine Auto-Injector.png", "Morphine.png"],
+  charcoal: ["Charcoal Tablets.png", "Charcoal Tabs.png"],
+  canned: ["Canned Bacon.png"],
+  water: ["Canteen.png"],
+  rice: ["Rice.png"],
+  plate: ["Plate Carrier.png"],
+  ghillie: ["Ghillie Suit.png", "Ghillie Hood.png"],
+  helmet: ["Assault Helmet.png", "Tactical Helmet.png"],
+  knife: ["Combat Knife.png"],
+  hatchet: ["Hatchet.png"],
+  lockpick: ["Lockpick.png"],
+  repair: ["Weapon Cleaning Kit.png"],
+  bicycle: ["Bicycle.png"],
+  tent: ["Medium Tent.png"],
+  cooking: ["Cooking Pot.png"],
+  radio: ["Field Transceiver.png", "Personal Radio.png"],
+  m79: ["M79.png"],
+  bizon: ["PP-19 Bizon.png", "Bizon.png"],
+  repeater: ["Repeater.png"],
+  cr527: ["CR-527.png"],
+  sks: ["SK 59-66.png", "SKS.png"],
+  saiga: ["Vaiga.png", "Saiga.png"],
+  pioneer: ["Pioneer.png"],
+  bk18: ["BK-18.png"],
+  "ammo-12": ["12ga Buckshot.png"],
+  "ammo-45": [".45 ACP Rounds.png", ".45 ACP.png"],
+  "ammo-380": [".380 ACP Rounds.png", ".380 ACP.png"],
+  "ammo-545": ["5.45x39mm Rounds.png", "5.45x39mm.png"],
+  "ammo-76254": ["7.62x54mmR Rounds.png", "7.62x54mmR.png"],
+  "hunter-scope": ["Hunting Scope.png"],
+  "pu-scope": ["PU Scope.png"],
+  kashtan: ["Kashtan Scope.png", "KASHTAN.png"],
+  suppressor: ["Normalized Suppressor.png", "Pistol Suppressor.png"],
+  "mag-m4": ["Standardized Mag.png", "M4 60Rnd Mag.png"],
+  "mag-ak": ["AKM 30Rnd Mag.png"],
+  grenade: ["M67 Grenade.png", "RGD-5 Grenade.png"],
+  smoke: ["RDG-2 Smoke Grenade.png", "Smoke Grenade.png"],
+  flashbang: ["Flash Grenade.png", "Flashbang.png"],
+  stabvest: ["Stab Vest.png"],
+  fieldjacket: ["Field Jacket.png"],
+  militaryboots: ["Combat Boots.png", "Military Boots.png"],
+  tacticalhelmet: ["Tactical Helmet.png"],
+  tacticalbag: ["Tactical Backpack.png"],
+  assaultbag: ["Assault Backpack.png"],
+  drybag: ["Drybag Backpack.png", "Drybag.png"],
+  splint: ["Splint.png"],
+  epipen: ["Epinephrine Auto-Injector.png", "Epinephrine.png"],
+  vitamins: ["Tetracycline Pills.png", "Multivitamin Pills.png"],
+  tacticalbacon: ["Tactical Bacon.png"],
+  peaches: ["Canned Peaches.png", "Canned Spaghetti.png"],
+  fishingrod: ["Fishing Rod.png"],
+  fishinghook: ["Hook.png", "Fishing Hook.png"],
+  shovel: ["Shovel.png"],
+  saw: ["Hacksaw.png"],
+  gascan: ["Jerry Can.png"],
+  carbattery: ["Car Battery.png"],
+  nvgoggles: ["NV-Goggles.png", "NVGoggles.png", "NVG.png"],
+  binoculars: ["Binoculars.png"],
+  rangefinder: ["Rangefinder.png"],
+  watch: ["Quartz Watch.png", "Wrist Watch.png"],
+  gpsgadget: ["GPS Receiver.png", "GPS.png"],
+  chemlight: ["Chemlight.png", "Chemlight (green).png"],
+  roadflare: ["Road Flare.png"],
+  fireplacekit: ["Fireplace Kit.png", "Fireplace.png"],
+  aliceframe: ["ALICE Pack.png", "Alice Pack.png"],
+  czechbag: ["Czech Hiking Pack.png", "Czech Backpack.png"],
+  carrierlite: ["Chest Holster.png", "Carrier Lite Rig.png"],
+  weaponcase: ["Protector Case.png", "Improvised Weapon Case.png"],
+  ammobox: ["Ammo Box.png"],
+  plasticcase: ["Plastic Bottle.png", "Plastic Case.png"],
+  landmine: ["Land Mine.png", "PMN-2 Mine.png"],
+  tripwire: ["Tripwire Trap.png", "Improvised Explosive.png"],
+  fencekit: ["Fence Kit.png"],
+  watchtowerkit: ["Watchtower Kit.png"],
+  gatekit: ["Gate Kit.png"],
+  codelock: ["Code Lock.png"],
+  combolock: ["Combination Lock.png"],
+  territorykit: ["Flag.png", "Flag Kit.png"],
+  shelterkit: ["Shelter Kit.png"],
+  cratewooden: ["Wooden Crate.png"],
+  barrelblue: ["Barrel.png"],
+  undergroundstash: ["Improvised Tent.png", "Barrel.png"],
+  kayak: ["Kayak.png"],
+  "boat-cz": ["Wooden Boat.png", "CSJ-6 Wooden Boat.png"],
+  sparkplug2: ["Spark Plug.png", "Glow Plug.png"],
+  fueltank: ["Canister Gasoline.png", "Fuel Tank (Blue).png"],
+  stone: ["Stone Knife.png"],
+  courierbag: ["Courier Bag.png"],
+  odtruck: ["Truck Wheel.png", "Wheel.png"],
+  v3sengine: ["Engine.png", "Truck Battery.png"],
+  sedanparts: ["Sedan Door.png", "Sedan Door (Blue).png"],
+  hatchbackhood: ["Hatchback Hood.png", "Hatchback Hood (Blue).png"],
+  sledgehammer: ["Sledgehammer.png"],
+  pipewrench: ["Pipe Wrench.png"],
+  pliers: ["Pliers.png"],
+  screwdriver: ["Screwdriver.png"],
+  wrench: ["Wrench.png"],
+  handdrill: ["Hand Drill.png", "Hand Saw.png"],
+};
+
+function filePath(host: "gg" | "fandom", file: string) {
+  const base =
+    host === "gg"
+      ? "https://dayz.wiki.gg/wiki/Special:FilePath/"
+      : "https://dayz.fandom.com/wiki/Special:FilePath/";
+  return `${base}${encodeURIComponent(file)}`;
+}
+
+export function getItemImageUrls(entry: ShopImageItem): string[] {
+  const files = new Set<string>();
+  for (const f of FILES[entry.id] ?? []) files.add(f);
+  const raw = decodeURIComponent(entry.image.split("/").pop() || "").replace(/\.png$/i, "");
+  for (const n of [raw, entry.name, entry.name.replace(/-/g, ""), entry.name.replace(/-/g, " ")]) {
+    if (n) files.add(`${n}.png`);
+  }
+  const urls: string[] = [];
+  for (const file of files) {
+    urls.push(filePath("gg", file));
+    urls.push(filePath("fandom", file));
+  }
+  return urls;
+}
