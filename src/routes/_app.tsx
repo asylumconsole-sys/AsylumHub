@@ -13,7 +13,6 @@ import {
   IconSettings,
   IconChevronLeft,
   IconChevronRight,
-  IconClock,
   IconBolt,
   IconSearch,
   IconFunnel,
@@ -41,7 +40,6 @@ export const Route = createFileRoute("/_app")({
 const PRIMARY_NAV = [
   { to: "/dashboard", label: "Lobby", Icon: IconHome },
   { to: "/servers", label: "Servers", Icon: IconBolt },
-  { to: "/live", label: "Live Feed", Icon: IconChart },
   { to: "/operations", label: "Operations", Icon: IconWorkspace },
   { to: "/tools/base-map-clicker", label: "Map", Icon: IconWorkspace },
   { to: "/tools", label: "Server shop", Icon: IconCampaign },
@@ -49,7 +47,6 @@ const PRIMARY_NAV = [
   { to: "/challenges", label: "Challenges", Icon: IconCampaign },
   { to: "/rewards", label: "Rewards", Icon: IconBolt },
   { to: "/battlepass", label: "Battlepass", Icon: IconCalendar },
-  { to: "/requests", label: "Support tickets", Icon: IconClock },
   { to: "/templates", label: "Locker", Icon: IconTemplate },
 ] as const;
 
