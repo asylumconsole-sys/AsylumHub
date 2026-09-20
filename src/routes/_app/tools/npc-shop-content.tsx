@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { IconArrowRight, IconBot, IconCampaign } from "@/components/ui-custom/CustomIcon";
 import { toast } from "sonner";
-import { spawnNpc } from "@/lib/dayz-spawn.functions";
 import { DAYZ_SERVERS } from "@/lib/dayz/servers";
 import { listAsylumServiceIds } from "@/lib/dayz/server-status.functions";
 import { getEconomyBalance, getNpcInventory, purchaseNpc } from "@/lib/economy.functions";
@@ -113,13 +112,9 @@ export function NPCShopContent() {
     let position = { x: Number(y), z: Number(z) };
     if (placementMode === "gamertag") {
       if (!gamertag.trim()) {
-        return toast.error("No linked PSN tag", {
-          description: "Link your PlayStation name in Discord / hub first.",
-        });
+        return toast.error("No linked PSN tag", { description: "Link your PlayStation name in Discord / hub first." });
       }
-      if (!matchedPlayer) {
-        return toast.error(`${gamertag} is not online on 101x`);
-      }
+      if (!matchedPlayer) return toast.error(`${gamertag} is not online on 101x`);
       if (!Number.isFinite(matchedPlayer.x) || !Number.isFinite(matchedPlayer.z)) {
         return toast.error("Live position unavailable for your linked tag");
       }
@@ -132,17 +127,22 @@ export function NPCShopContent() {
     }
     setSpawning(true);
     try {
-      const result = await spawnNpc({
-        data: {
+      const res = await fetch("/api/npc/spawn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           serviceId,
+          serverId: PRIMARY_SERVER_ID,
           npcId: selected.id,
           x: Math.round(position.x),
           z: Math.round(position.z),
           a: 0,
           playerId,
           playerName: displayName,
-        },
+        }),
       });
+      const result = (await res.json()) as { mode?: string; reason?: string; error?: string };
+      if (!res.ok || result.error) throw new Error(result.error || "Deploy failed");
       if (result.mode === "live") {
         toast.success(`${selected.name} spawned on ${server.label} at ${gamertag || "Z/Y"}`, {
           description: `Y ${Math.round(position.x)} / Z ${Math.round(position.z)}`,
@@ -180,10 +180,7 @@ export function NPCShopContent() {
           </div>
           <div className="rounded-xl border border-[#d4a84b]/40 bg-[#d4a84b]/10 px-4 py-3 text-right">
             <div className="text-[10px] uppercase tracking-[0.2em] text-[#d4a84b]/80">Credits</div>
-            <div className="mt-1 font-mono text-2xl text-[#f5e6c0]">
-              {balanceQ.isLoading ? "…" : credits.toLocaleString()}
-            </div>
-            <div className="mt-1 max-w-[160px] truncate text-[10px] text-zinc-500">{displayName}</div>
+            <div className="mt-1 font-mono text-2xl text-[#f5e6c0]">{balanceQ.isLoading ? "…" : credits.toLocaleString()}</div>
           </div>
         </header>
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -198,17 +195,10 @@ export function NPCShopContent() {
                     <div className="mb-2 flex h-12 items-center justify-center rounded-lg border border-[#d4a84b]/20 bg-[#0c0c0c]"><span className="text-[#d4a84b]"><IconBot size={22} /></span></div>
                     <div className="line-clamp-1 text-sm font-medium text-[#f5e6c0]">{npc.name}</div>
                     <div className="mt-0.5 line-clamp-1 text-[10px] uppercase tracking-wide text-zinc-500">{npc.role}</div>
-                    <div className="mt-auto flex items-center justify-between pt-2">
-                      <span className="font-mono text-[11px] text-[#e8c56a]">{left} left</span>
-                    </div>
+                    <div className="mt-auto flex items-center justify-between pt-2"><span className="font-mono text-[11px] text-[#e8c56a]">{left} left</span></div>
                   </button>
                 );
               })}
-              {Array.from({ length: emptySlots }, (_, i) => (
-                <div key={`slot-${i}`} className="flex min-h-[132px] flex-col items-center justify-center rounded-xl border border-dashed border-[#d4a84b]/15 bg-black/20 px-2 text-center">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">Slot {NPCS.length + i + 1}</div>
-                </div>
-              ))}
             </div>
             {selected ? (
               <motion.div className="rounded-2xl border border-[#d4a84b]/30 bg-black/50 p-4 sm:p-5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -252,9 +242,7 @@ export function NPCShopContent() {
               </div>
               <div className="mt-4 border-t border-[#d4a84b]/20 pt-4">
                 {placementMode === "map" && (
-                  <div className="space-y-3">
-                    <button type="button" disabled={!canDeploy || !selected} onClick={() => selected && window.open(`/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}`, "_blank", "noopener,noreferrer")} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d4a84b]/50 px-4 py-2.5 text-sm uppercase tracking-[0.14em] text-[#e8c56a] disabled:opacity-40">Choose on map <IconArrowRight size={14} /></button>
-                  </div>
+                  <button type="button" disabled={!canDeploy || !selected} onClick={() => selected && window.open(`/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}`, "_blank", "noopener,noreferrer")} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d4a84b]/50 px-4 py-2.5 text-sm uppercase tracking-[0.14em] text-[#e8c56a] disabled:opacity-40">Choose on map <IconArrowRight size={14} /></button>
                 )}
                 {placementMode === "zy" && (
                   <div className="space-y-3">
@@ -267,12 +255,7 @@ export function NPCShopContent() {
                 )}
                 {placementMode === "gamertag" && (
                   <div className="space-y-3">
-                    <div className="rounded-lg border border-[#d4a84b]/25 bg-black px-3 py-2 text-sm text-[#f5e6c0]">
-                      {linksQ.isLoading ? "Loading linked PSN…" : gamertag || "No PSN linked"}
-                    </div>
-                    <p className="text-xs leading-relaxed text-zinc-500">
-                      Auto-uses your linked online PSN. {matchedPlayer ? "Online on 101x — ready." : gamertag ? "Not online on 101x yet." : "Link PSN on Discord first."}
-                    </p>
+                    <div className="rounded-lg border border-[#d4a84b]/25 bg-black px-3 py-2 text-sm text-[#f5e6c0]">{linksQ.isLoading ? "Loading linked PSN…" : gamertag || "No PSN linked"}</div>
                     <button type="button" disabled={!canDeploy || spawning || !gamertag} onClick={spawn} className="relative w-full overflow-hidden rounded-full bg-[#d4a84b] px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.14em] text-[#1a1205] disabled:opacity-40">{spawning ? "Deploying…" : "Spawn at linked PSN"}</button>
                   </div>
                 )}
