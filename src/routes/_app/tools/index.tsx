@@ -33,23 +33,23 @@ function ToolsHub() {
   }, [navigate, workspace]);
 
   return (
-    <div className="relative flex min-h-[calc(100vh-3rem)] flex-col overflow-x-hidden pb-10">
+    <div className="server-shop-root relative flex min-h-[calc(100vh-3rem)] flex-col overflow-x-hidden bg-black pb-10">
       <header className="relative z-10 px-4 pb-4 pt-2 sm:px-6">
         <FadeInUp>
           <div className="flex items-center gap-3">
             <PageHexBadge hue={88} size={26} icon={<IconBolt size={22} />} aria-label="Server shop" />
-            <h1 className="font-display text-3xl sm:text-5xl">Server shop</h1>
+            <h1 className="font-display text-3xl text-white sm:text-5xl">Server shop</h1>
           </div>
-          <div className="mt-4 inline-flex rounded-full border border-glass-border bg-glass/40 p-1">
+          <div className="mt-4 inline-flex rounded-full border border-white/15 bg-black p-1">
             {(["server", "items"] as const).map((id) => (
-              <button key={id} type="button" onClick={() => setShopTab(id)} className={`rounded-full px-5 py-2 text-xs uppercase tracking-[0.18em] ${shopTab === id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+              <button key={id} type="button" onClick={() => setShopTab(id)} className={`rounded-full px-5 py-2 text-xs uppercase tracking-[0.18em] ${shopTab === id ? "bg-white text-black" : "text-white/60"}`}>
                 {id === "server" ? "Server Shop" : "Item Shop"}
               </button>
             ))}
           </div>
         </FadeInUp>
       </header>
-      <div className={tool ? "relative z-10 flex min-h-[calc(100vh-13rem)] flex-1 flex-col" : "relative z-10"}>
+      <div className={tool ? "relative z-10 flex min-h-[calc(100vh-13rem)] flex-1 flex-col bg-black" : "relative z-10 bg-black"}>
         {!tool && (shopTab === "server" ? (
           <ServiceDirectory onOpen={(next) => navigate({ to: "/tools", search: { focus: next, workspace } })} onOpenFull={(path) => navigate({ to: path })} />
         ) : (
@@ -95,7 +95,7 @@ function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => v
                 <span className="shop-card-title">{group.name}</span>
                 <span className="shop-card-meta">{group.description}</span>
               </span>
-              <IconArrowRight size={14} className="ml-auto mt-auto text-muted-foreground" />
+              <IconArrowRight size={14} className="ml-auto mt-auto text-white/40" />
             </motion.button>
           ))}
         </div>
