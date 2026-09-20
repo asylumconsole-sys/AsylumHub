@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { GlassPanel } from "@/components/ui-custom/GlassPanel";
 import { IconBolt, IconChart, IconSpark, IconWorkspace, IconImport, IconAudience, IconCampaign } from "@/components/ui-custom/CustomIcon";
 import { getEconomyBalance } from "@/lib/economy.functions";
@@ -9,6 +10,7 @@ import { getAsylumServerStatus } from "@/lib/dayz/server-status.functions";
 import { DAYZ_SERVERS } from "@/lib/dayz/servers";
 import { BRAND } from "@/lib/brand";
 import { PsnLinkCard } from "@/components/app/PsnLinkCard";
+import { DONATION_TIERS, hexColor } from "@/lib/donation-tiers";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
@@ -22,10 +24,10 @@ const QUICK = [
   { to: "/operations", label: "Ops", desc: "Contracts", Icon: IconCampaign },
   { to: "/stats", label: "Ranks", desc: "Leaderboards", Icon: IconChart },
   { to: "/factions", label: "Factions", desc: "Wars", Icon: IconWorkspace },
-  { to: "/donate", label: "Donate", desc: "Support the hub", Icon: IconSpark },
 ] as const;
 
 function Dashboard() {
+  const [donateOpen, setDonateOpen] = useState(false);
   const balanceQ = useQuery({ queryKey: ["economy-balance"], queryFn: () => getEconomyBalance({ data: {} }) });
   const killsQ = useQuery({ queryKey: ["live-preview"], queryFn: () => getKillfeed({ data: { server: "all", limit: 5 } }) });
   const statusQ = useQuery({
@@ -39,14 +41,14 @@ function Dashboard() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 px-3 pb-4 pt-2 sm:px-4 sm:py-8">
       <section className="relative overflow-hidden rounded-2xl border border-primary/30 bg-black px-4 py-5 sm:rounded-[2rem] sm:px-10 sm:py-10">
-        <Link to="/donate" className="absolute right-3 top-3 z-20 sm:right-6 sm:top-6">
+        <button type="button" onClick={() => { setDonateOpen(true); void fetch("/api/discord/donation-roles", { method: "POST" }); }} className="absolute right-3 top-3 z-20 sm:right-6 sm:top-6">
           <motion.span className="relative inline-flex overflow-hidden rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-black" animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>
             Donate
             {[0, 1, 2, 3, 4].map((i) => (
               <motion.span key={i} className="pointer-events-none absolute text-[11px] font-bold text-emerald-950" style={{ left: `${10 + i * 16}%` }} animate={{ y: [-8, 36], opacity: [0, 1, 0], rotate: [-25, 25] }} transition={{ duration: 1.3, repeat: Infinity, delay: i * 0.16 }}>$</motion.span>
             ))}
           </motion.span>
-        </Link>
+        </button>
         <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary">Command hall</div>
         <h1 className="mt-1 font-display text-3xl leading-none text-primary sm:text-6xl">{BRAND.name}</h1>
         <p className="mt-2 pr-24 text-sm text-zinc-400">{BRAND.tagline}</p>
@@ -56,6 +58,33 @@ function Dashboard() {
           <div className="rounded-xl border border-glass-border bg-glass/30 p-3"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Kills</div><div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{killsQ.data?.events.length ?? 0}</div></div>
         </div>
       </section>
+
+      <AnimatePresence>
+        {donateOpen && (
+          <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="rounded-2xl border border-emerald-400/30 bg-black p-4 sm:p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-emerald-300">Support {BRAND.name}</div>
+                <h2 className="font-display text-3xl">Donate</h2>
+                <p className="mt-1 text-sm text-muted-foreground">$10 marks 10k. $500 marks 500k. Higher gifts get colder colors and a matching Discord role.</p>
+              </div>
+              <button type="button" onClick={() => setDonateOpen(false)} className="text-sm text-muted-foreground">Close</button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {DONATION_TIERS.map((tier) => (
+                <div key={tier.name} className="rounded-2xl border p-4" style={{ borderColor: `${hexColor(tier.color)}66`, background: `${hexColor(tier.color)}14` }}>
+                  <div className="flex items-baseline justify-between">
+                    <div className="font-display text-3xl" style={{ color: hexColor(tier.color) }}>{tier.name}</div>
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground">{tier.creditsMark}</div>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">Discord role {tier.name}</p>
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
       <div className="md:hidden"><PsnLinkCard /></div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
         {QUICK.map((q) => (
