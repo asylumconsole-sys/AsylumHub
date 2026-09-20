@@ -22,9 +22,9 @@ const QUICK = [
   { to: "/account", label: "Account", desc: "Link PSN", Icon: IconAudience },
   { to: "/servers", label: "Servers", desc: "Online status", Icon: IconBolt },
   { to: "/economy", label: "Credits", desc: "Balance & XP", Icon: IconChart },
-  { to: "/operations", label: "Ops", desc: "Contracts", Icon: IconCampaign },
+  { to: "/operations", label: "Operations", desc: "Contracts", Icon: IconCampaign },
   { to: "/stats", label: "Ranks", desc: "Leaderboards", Icon: IconChart },
-  { to: "/factions", label: "Factions", desc: "Wars", Icon: IconWorkspace },
+  { to: "/war-room", label: "War Room", desc: "Factions", Icon: IconWorkspace },
 ] as const;
 
 const PAY_METHODS = [
