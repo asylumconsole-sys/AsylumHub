@@ -1,6 +1,17 @@
-import { THE_BEAMER_LOADOUT } from "@/lib/npc/the-beamer-loadout";
+export type NpcLoadoutCopy = {
+  blurb: string;
+  sections: Array<{ title: string; items: string[] }>;
+};
 
-export function BeamerInventoryModal({ onClose }: { onClose: () => void }) {
+export function NpcInventoryModal({
+  title,
+  loadout,
+  onClose,
+}: {
+  title: string;
+  loadout: NpcLoadoutCopy;
+  onClose: () => void;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
@@ -10,15 +21,15 @@ export function BeamerInventoryModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[10px] uppercase tracking-[0.22em] text-[#d4a84b]">View inventory</div>
-            <h3 className="font-display mt-1 text-2xl text-[#e8c56a]">The Beamer loadout</h3>
+            <h3 className="font-display mt-1 text-2xl text-[#e8c56a]">{title}</h3>
           </div>
           <button type="button" onClick={onClose} className="text-xs uppercase tracking-wide text-zinc-500">
             Close
           </button>
         </div>
-        <p className="mt-3 text-sm text-zinc-400">{THE_BEAMER_LOADOUT.blurb}</p>
+        <p className="mt-3 text-sm text-zinc-400">{loadout.blurb}</p>
         <div className="mt-4 space-y-3">
-          {THE_BEAMER_LOADOUT.sections.map((section) => (
+          {loadout.sections.map((section) => (
             <div key={section.title} className="rounded-xl border border-[#d4a84b]/20 bg-black/40 p-3">
               <div className="text-[10px] uppercase tracking-[0.18em] text-[#d4a84b]">{section.title}</div>
               <ul className="mt-2 space-y-1 text-sm text-zinc-300">
@@ -34,4 +45,11 @@ export function BeamerInventoryModal({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   );
+}
+
+export function BeamerInventoryModal({ onClose }: { onClose: () => void }) {
+  const { THE_BEAMER_LOADOUT } = require("@/lib/npc/the-beamer-loadout") as {
+    THE_BEAMER_LOADOUT: NpcLoadoutCopy;
+  };
+  return <NpcInventoryModal title="The Beamer loadout" loadout={THE_BEAMER_LOADOUT} onClose={onClose} />;
 }
