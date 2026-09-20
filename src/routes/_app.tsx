@@ -4,21 +4,29 @@ import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { GradientMesh } from "@/components/ui-custom/GradientMesh";
 import {
-  IconHome,
-  IconWorkspace,
-  IconCalendar,
-  IconTemplate,
   IconCampaign,
   IconUtm,
-  IconSettings,
   IconChevronLeft,
   IconChevronRight,
-  IconBolt,
   IconSearch,
   IconFunnel,
   IconImport,
   IconChart,
+  IconWorkspace,
 } from "@/components/ui-custom/CustomIcon";
+import {
+  GoldLobby,
+  GoldServers,
+  GoldOperations,
+  GoldMap,
+  GoldShop,
+  GoldWarRoom,
+  GoldChallenges,
+  GoldRewards,
+  GoldBattlepass,
+  GoldLocker,
+  GoldSettings,
+} from "@/components/app/GoldNavIcons";
 import { CommandPalette } from "@/components/app/CommandPalette";
 import { CommanderOrb } from "@/components/app/CommanderOrb";
 import { CommanderAI } from "@/components/app/CommanderAI";
@@ -38,16 +46,16 @@ export const Route = createFileRoute("/_app")({
 });
 
 const PRIMARY_NAV = [
-  { to: "/dashboard", label: "Lobby", Icon: IconHome },
-  { to: "/servers", label: "Servers", Icon: IconBolt },
-  { to: "/operations", label: "Operations", Icon: IconWorkspace },
-  { to: "/tools/base-map-clicker", label: "Map", Icon: IconWorkspace },
-  { to: "/tools", label: "Server shop", Icon: IconCampaign },
-  { to: "/war-room", label: "War Room", Icon: IconWorkspace },
-  { to: "/challenges", label: "Challenges", Icon: IconCampaign },
-  { to: "/rewards", label: "Rewards", Icon: IconBolt },
-  { to: "/battlepass", label: "Battlepass", Icon: IconCalendar },
-  { to: "/templates", label: "Locker", Icon: IconTemplate },
+  { to: "/dashboard", label: "Lobby", Icon: GoldLobby },
+  { to: "/servers", label: "Servers", Icon: GoldServers },
+  { to: "/operations", label: "Operations", Icon: GoldOperations },
+  { to: "/tools/base-map-clicker", label: "Map", Icon: GoldMap },
+  { to: "/tools", label: "Server shop", Icon: GoldShop },
+  { to: "/war-room", label: "War Room", Icon: GoldWarRoom },
+  { to: "/challenges", label: "Challenges", Icon: GoldChallenges },
+  { to: "/rewards", label: "Rewards", Icon: GoldRewards },
+  { to: "/battlepass", label: "Battlepass", Icon: GoldBattlepass },
+  { to: "/templates", label: "Locker", Icon: GoldLocker },
 ] as const;
 
 type ToolChild = { to: string; label: string; Icon: typeof IconCampaign; search?: Record<string, string> };
@@ -109,14 +117,14 @@ function AppShell() {
               const active = n.to === "/tools" ? loc.pathname.startsWith("/tools") : loc.pathname.startsWith(n.to);
               return (
                 <Link key={n.label} to={n.to} preload="render" title={collapsed ? n.label : undefined} className={`relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-xl py-2.5 text-sm ${active ? "bg-glass text-foreground" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}>
-                  <n.Icon size={18} className={active ? "text-primary" : ""} />
+                  <n.Icon size={18} />
                   {!collapsed && <span>{n.label}</span>}
                 </Link>
               );
             })}
             <div className="pt-4">
               <Link to="/settings" className={`flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-xl py-2.5 text-sm ${loc.pathname.startsWith("/settings") ? "bg-glass text-foreground" : "text-muted-foreground hover:bg-glass/50"}`}>
-                <IconSettings size={18} />
+                <GoldSettings size={18} />
                 {!collapsed && <span>Settings</span>}
               </Link>
             </div>
