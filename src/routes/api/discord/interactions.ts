@@ -11,9 +11,13 @@ export const Route = createFileRoute("/api/discord/interactions")({
         if (!body) return Response.json({ error: "bad json" }, { status: 400 });
         if (body.type === 1) return Response.json({ type: 1 });
         if (body.type === 3 && body.data?.custom_id === "ban_pick") {
-          const id = body.data.values?.[0];
           const { banDetailResponse } = await import("@/lib/discord-bans-embed");
-          const payload = await banDetailResponse(id || "");
+          const payload = await banDetailResponse(body.data.values?.[0] || "");
+          return Response.json({ type: 4, data: { ...payload, flags: 64 } });
+        }
+        if (body.type === 3 && body.data?.custom_id === "earn_pick") {
+          const { roleHoldersEmbed } = await import("@/lib/discord-earn-roles");
+          const payload = await roleHoldersEmbed(body.data.values?.[0] || "");
           return Response.json({ type: 4, data: { ...payload, flags: 64 } });
         }
         return Response.json({ type: 4, data: { content: "Unknown action", flags: 64 } });
