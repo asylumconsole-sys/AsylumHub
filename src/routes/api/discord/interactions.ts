@@ -11,7 +11,11 @@ import { runMonthlyRent } from "@/lib/custom-bases-rent";
 
 type Interaction = {
   type: number;
-  data?: { custom_id?: string; values?: string[]; components?: Array<{ components?: Array<{ custom_id?: string; value?: string }> }> };
+  data?: {
+    custom_id?: string;
+    values?: string[];
+    components?: Array<{ components?: Array<{ custom_id?: string; value?: string }> }>;
+  };
 };
 
 function json(type: number, data: Record<string, unknown>) {
@@ -24,19 +28,32 @@ export const Route = createFileRoute("/api/discord/interactions")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const action = url.searchParams.get("action") || "publish";
+        const store = await loadBases();
+        if (action === "wipe") {
+          const keep = (url.searchParams.get("keep") || "df4507049,Dennis Fox").split(",");
+          for (const b of store.bases) {
+            const stay = keep.some((k) => k && (b.code === k || b.name === k));
+            if (!stay) b.status = "despawned";
+          }
+          await saveBases(store);
+          return Response.json({ wiped: true, pub: await publishBaseBoard(), live: store.bases.filter((b) => b.status !== "despawned") });
+        }
+        if (action === "delete") {
+          const code = url.searchParams.get("code") || "";
+          const hit = store.bases.find((b) => b.code === code);
+          if (hit) hit.status = "despawned";
+          await saveBases(store);
+          return Response.json({ deleted: code, pub: await publishBaseBoard() });
+        }
         if (action === "rent") {
-          const rent = await runMonthlyRent(true);
-          const pub = await publishBaseBoard();
-          return Response.json({ rent, pub });
+          return Response.json({ rent: await runMonthlyRent(true), pub: await publishBaseBoard() });
         }
         if (action === "create") {
           const ownerName = url.searchParams.get("ownerName") || "unknown";
-          const ownerDiscordId = url.searchParams.get("ownerDiscordId") || "";
-          const store = await loadBases();
           const base = {
-            code: makeBaseCode(ownerName),
+            code: url.searchParams.get("code") || makeBaseCode(ownerName),
             name: url.searchParams.get("name") || `${ownerName}'s base`,
-            ownerDiscordId,
+            ownerDiscordId: url.searchParams.get("ownerDiscordId") || "",
             ownerName,
             faction: url.searchParams.get("faction") || undefined,
             x: Number(url.searchParams.get("x") || 0) || undefined,
@@ -50,12 +67,9 @@ export const Route = createFileRoute("/api/discord/interactions")({
           };
           store.bases.push(base);
           await saveBases(store);
-          const pub = await publishBaseBoard();
-          return Response.json({ base, pub });
+          return Response.json({ base, pub: await publishBaseBoard() });
         }
-        const pub = await publishBaseBoard();
-        const store = await loadBases();
-        return Response.json({ pub, bases: store.bases.length });
+        return Response.json({ pub: await publishBaseBoard(), live: store.bases.filter((b) => b.status !== "despawned") });
       },
       POST: async ({ request }) => {
         const body = (await request.json().catch(() => ({}))) as Interaction;
@@ -107,9 +121,7 @@ export const Route = createFileRoute("/api/discord/interactions")({
             title: "Transfer ownership",
             components: [{
               type: 1,
-              components: [{
-                type: 4, custom_id: "query", label: "Search Discord name", style: 1, min_length: 1, max_length: 32, required: true,
-              }],
+              components: [{ type: 4, custom_id: "query", label: "Search Discord name", style: 1, min_length: 1, max_length: 32, required: true }],
             }],
           });
         }
