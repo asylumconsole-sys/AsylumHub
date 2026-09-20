@@ -4,7 +4,7 @@ import { Writable } from "node:stream";
 
 const SERVERS = ["101x", "102x"] as const;
 type ServerId = (typeof SERVERS)[number];
-const INVALID_PLAYER_NAMES = new Set(["peter-pit"]);
+const INVALID_PLAYER_NAMES = new Set(["peter-pit", "bro", "unknown"]);
 
 const FTP_KEYS = {
   "101x": { host: "FTP_101X_HOST", user: "FTP_101X_USER", pass: "FTP_101X_PASS", port: "FTP_101X_PORT", path: "FTP_101X_LOGS_PATH" },
@@ -26,29 +26,39 @@ export type OnlinePlayersResult = {
   unavailable: Array<{ server: ServerId; reason: string }>;
 };
 
+function isKillLine(line: string) {
+  return /\b(killed|killing|eliminated|was killed|has died|is dead|murdered)\b/i.test(line);
+}
+
+function isDisconnect(line: string) {
+  return /(disconnected|disconnect|has left|logged out|logout|kicked|timeout|unconscious)/i.test(line);
+}
+
+function isConnect(line: string) {
+  return /(connected|has joined|logged in|login:\s|PlayerList)/i.test(line) && !isDisconnect(line) && !isKillLine(line);
+}
+
 function readNames(line: string) {
+  if (isKillLine(line)) return [] as string[];
+  const names: string[] = [];
   const patterns = [
-    /Player\s+["']([^"']+)["']/i,
-    /(?:Login|logged in|connecting player|connected player)\s*(?:of|player)?\s*["']([^"']+)["']/i,
-    /(?:name|playerName)\s*[=:]\s*["']?([^,"')]+)["']?/i,
+    /Player\s+["']([^"']+)["']/gi,
+    /(?:Login|logged in|connecting player|connected player)\s*(?:of|player)?\s*["']([^"']+)["']/gi,
   ];
   for (const pattern of patterns) {
-    const match = line.match(pattern);
-    const name = match?.[1]
-      ?.replace(/\s+(?:CREATED|CONNECTED|DISCONNECTED|DESTROYED)\b.*$/i, "")
-      .replace(/\s*(?:->|â†’)\s*.*$/u, "")
-      .trim()
-      .replace(/\s+/g, " ");
-    if (
-      name &&
-      !INVALID_PLAYER_NAMES.has(name.toLocaleLowerCase()) &&
-      !/^__server__$/i.test(name) &&
-      !/^(identity|unknown|server|player|created|connected|disconnected)$/i.test(name) &&
-      !/^(?:steam|psn|xbox)?[_ -]?server$/i.test(name)
-    )
-      return name;
+    for (const match of line.matchAll(pattern)) {
+      const name = match[1]
+        ?.replace(/\s+(?:CREATED|CONNECTED|DISCONNECTED|DESTROYED)\b.*$/i, "")
+        .trim()
+        .replace(/\s+/g, " ");
+      if (!name) continue;
+      if (INVALID_PLAYER_NAMES.has(name.toLocaleLowerCase())) continue;
+      if (name.length < 2 || name.length > 32) continue;
+      if (/^(identity|unknown|server|player|created|connected|disconnected|killed|killer|victim)$/i.test(name)) continue;
+      names.push(name);
+    }
   }
-  return null;
+  return names;
 }
 
 function readPosition(line: string): { x: number; y: number; z: number } | null {
@@ -61,14 +71,6 @@ function readPosition(line: string): { x: number; y: number; z: number } | null 
   const z = Number(match[3]);
   if (![x, y, z].every(Number.isFinite)) return null;
   return { x, y, z };
-}
-
-function isDisconnect(line: string) {
-  return /(disconnected|disconnect|has left|logged out|logout|kicked|timeout)/i.test(line);
-}
-
-function isConnect(line: string) {
-  return /(connected|connect|has joined|login|logged in)/i.test(line) && !isDisconnect(line);
 }
 
 async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
@@ -107,26 +109,33 @@ async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
       });
       await client.downloadTo(sink, `${directory.replace(/\/$/, "")}/${file.name}`);
       for (const line of text.split(/\r?\n/)) {
-        const name = readNames(line);
-        if (!name || name.length < 2 || name.length > 64) continue;
-        const key = name.toLocaleLowerCase();
+        if (isKillLine(line)) continue;
+        const names = readNames(line);
+        if (!names.length) continue;
         const timestamp =
           line.match(/(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})/)?.[1] ??
           new Date(file.modifiedAt || Date.now()).toISOString();
         const pos = readPosition(line);
-        if (isDisconnect(line)) {
-          state.delete(key);
-          continue;
-        }
-        const existing = state.get(key);
-        if (isConnect(line) || existing || pos) {
-          state.set(key, {
-            name,
-            lastSeen: timestamp,
-            x: pos?.x ?? existing?.x,
-            y: pos?.y ?? existing?.y,
-            z: pos?.z ?? existing?.z,
-          });
+        for (const name of names) {
+          const key = name.toLocaleLowerCase();
+          if (isDisconnect(line)) {
+            state.delete(key);
+            continue;
+          }
+          const existing = state.get(key);
+          if (isConnect(line)) {
+            state.set(key, {
+              name,
+              lastSeen: timestamp,
+              x: pos?.x ?? existing?.x,
+              y: pos?.y ?? existing?.y,
+              z: pos?.z ?? existing?.z,
+            });
+            continue;
+          }
+          if (existing && pos) {
+            state.set(key, { ...existing, lastSeen: timestamp, x: pos.x, y: pos.y, z: pos.z });
+          }
         }
       }
     }
