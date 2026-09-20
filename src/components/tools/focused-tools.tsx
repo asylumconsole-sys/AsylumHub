@@ -40,50 +40,11 @@ export type FocusedTool = {
   parentIcon?: ReactNode;
 };
 
-const ZOMBIE_TYPES = [
-  { id: "military", label: "Military infected", detail: "Barracks, checkpoints, and armed zones" },
-  { id: "civilian", label: "Civilian infected", detail: "Towns, homes, and roadside settlements" },
-  { id: "industrial", label: "Industrial infected", detail: "Factories, warehouses, and rail yards" },
-  { id: "special", label: "Special infected", detail: "Elite outbreak variants for high-risk zones" },
-] as const;
-
-const HORDE_PACKS = [
-  { amount: 15, price: 10_000 },
-  { amount: 25, price: 30_000 },
-  { amount: 35, price: 40_000 },
-] as const;
-
 function ZombieHordesContent() {
-  const [map, setMap] = useState<"chernarus" | "livonia">("chernarus");
-  const [zombieType, setZombieType] = useState<(typeof ZOMBIE_TYPES)[number]["id"]>("military");
-  const [amount, setAmount] = useState<15 | 25 | 35>(15);
-  const [location, setLocation] = useState<{ x: number; y: number } | null>(null);
-  const selectedPack = HORDE_PACKS.find((pack) => pack.amount === amount) ?? HORDE_PACKS[0];
-  const selectedType = ZOMBIE_TYPES.find((type) => type.id === zombieType) ?? ZOMBIE_TYPES[0];
-  const pickLocation = (event: MouseEvent<HTMLButtonElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    setLocation({
-      x: Math.round(((event.clientX - bounds.left) / bounds.width) * 1000),
-      y: Math.round(((event.clientY - bounds.top) / bounds.height) * 1000),
-    });
-  };
-  const deployHorde = () => {
-    if (!location) {
-      toast.error("Choose a location on the map first");
-      return;
-    }
-    toast.success("Horde deployment queued", {
-      description: `${amount} ${selectedType.label.toLowerCase()} on ${map === "chernarus" ? "Chernarus" : "Livonia"} at ${location.x} x ${location.y}. Cost: ${selectedPack.price.toLocaleString()} credits.`,
-    });
-  };
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Zombie Hordes</div>
-          <h1 className="mt-1 font-display text-3xl">Deploy an outbreak</h1>
-        </div>
-      </div>
+      <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Zombie Hordes</div>
+      <h1 className="font-display text-3xl">Deploy an outbreak</h1>
     </div>
   );
 }
@@ -91,6 +52,7 @@ function ZombieHordesContent() {
 export const FOCUSED_TOOLS: Record<string, FocusedTool> = {
   "zombie-hordes": { slug: "zombie-hordes", primaryId: "server-events", title: "Zombie Hordes", hue: 52, icon: <IconSpark size={22} />, fullRouteTo: "/tools", Component: ZombieHordesContent },
   "pro-build": { slug: "pro-build", primaryId: "campaign", title: "Pro Build", hue: 42, icon: <IconCampaign size={22} />, fullRouteTo: "/tools", Component: ProBuildContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
+  "sleeping-bags": { slug: "sleeping-bags", primaryId: "campaign", title: "Sleeping Bags", hue: 168, icon: <IconScroll size={22} />, fullRouteTo: "/tools", Component: EventsContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
   utm: { slug: "utm", primaryId: "utm", title: "Combat & Intel", hue: 275, icon: <IconUtm size={22} />, fullRouteTo: "/tools/utm", Component: UtmBuilderContent },
   "utm-campaign-name": { slug: "utm-campaign-name", primaryId: "utm", title: "Combat & Intel", hue: 275, icon: <IconUtm size={22} />, fullRouteTo: "/tools/utm", Component: UtmBuilderContent },
   "utm-taxonomy": { slug: "utm-taxonomy", primaryId: "utm", title: "Bounties", hue: 275, icon: <IconSpark size={22} />, fullRouteTo: "/tools/taxonomy", Component: TaxonomyContent, parentTitle: "Combat & Intel", parentHue: 275, parentIcon: <IconUtm size={22} /> },
@@ -128,8 +90,7 @@ export const SATELLITE_TO_FOCUS_SLUG: Record<string, string> = {
   creator: "campaign-creator",
   import: "campaign-import",
   "pro-build": "pro-build",
+  "sleeping-bags": "sleeping-bags",
 };
 
-export const FOCUSED_PRIMARY_IDS = new Set(
-  Object.values(FOCUSED_TOOLS).map((t) => t.primaryId),
-);
+export const FOCUSED_PRIMARY_IDS = new Set(Object.values(FOCUSED_TOOLS).map((t) => t.primaryId));
