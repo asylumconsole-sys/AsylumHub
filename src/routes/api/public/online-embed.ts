@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { repostOnlineEmbed } from "@/lib/discord-online-embed";
 
 async function run(request: Request) {
   const secret = process.env.HUB_BOT_SECRET;
@@ -9,6 +8,7 @@ async function run(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
+    const { repostOnlineEmbed } = await import("@/lib/discord-online-embed");
     const result = await repostOnlineEmbed();
     return Response.json(result);
   } catch (e) {
