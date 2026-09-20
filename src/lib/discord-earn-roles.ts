@@ -33,24 +33,25 @@ export async function ensureEarnRoles() {
   const map = await loadMap();
   map.guildId = guildId;
   const existing = (await discord(`/guilds/${guildId}/roles`)) as Array<{ id: string; name: string }>;
+  let created = 0;
   for (const role of EARN_ROLES) {
     const found = existing.find((r) => r.name === role.name);
     if (found) {
       map.roles[role.key] = found.id;
       continue;
     }
-    try {
-      const created = (await discord(`/guilds/${guildId}/roles`, {
-        method: "POST",
-        body: JSON.stringify({ name: role.name, mentionable: true, hoist: false, color: 0x22c55e }),
-      })) as { id: string };
-      map.roles[role.key] = created.id;
-    } catch {
-      /* Manage Roles missing */
-    }
+    if (map.roles[role.key]) continue;
+    if (created >= 15) continue;
+    const made = (await discord(`/guilds/${guildId}/roles`, {
+      method: "POST",
+      body: JSON.stringify({ name: role.name, mentionable: true, hoist: false, color: 0x22c55e }),
+    })) as { id: string };
+    map.roles[role.key] = made.id;
+    existing.push({ id: made.id, name: role.name });
+    created += 1;
   }
   await writeJsonFile("earn-roles.json", map);
-  return map;
+  return { map, created, total: Object.keys(map.roles).length, need: EARN_ROLES.length };
 }
 
 function mention(map: RoleMap, key: string) {
@@ -60,38 +61,53 @@ function mention(map: RoleMap, key: string) {
 }
 
 function boardPayload(map: RoleMap) {
-  const lines = EARN_ROLES.map((r) => `${mention(map, r.key)} — ${r.challenge} · **+1000 cr**`).join("\n");
-  const half = Math.ceil(EARN_ROLES.length / 2);
-  const a = EARN_ROLES.slice(0, half);
-  const b = EARN_ROLES.slice(half);
-  const opts = (list: typeof EARN_ROLES) =>
-    list.slice(0, 25).map((r) => ({
-      label: r.name,
-      value: r.key,
-      description: `${r.challenge} · +1000 cr`.slice(0, 100),
-    }));
+  const mentions = EARN_ROLES.map((r) => mention(map, r.key));
+  const fields = [];
+  for (let i = 0; i < mentions.length; i += 18) {
+    fields.push({
+      name: i === 0 ? "Roles" : "​",
+      value: mentions.slice(i, i + 18).join(" "),
+      inline: false,
+    });
+  }
+  const menus = [];
+  for (let i = 0; i < EARN_ROLES.length && menus.length < 5; i += 25) {
+    const slice = EARN_ROLES.slice(i, i + 25);
+    menus.push({
+      type: 1,
+      components: [
+        {
+          type: 3,
+          custom_id: `earn_pick_${i}`,
+          placeholder: `View roles ${i + 1}–${i + slice.length}`,
+          options: slice.map((r) => ({
+            label: r.name.slice(0, 100),
+            value: r.key,
+            description: `${r.challenge} · +1000 cr`.slice(0, 100),
+          })),
+        },
+      ],
+    });
+  }
   return {
-    content: lines.slice(0, 1800),
     embeds: [
       {
         title: "Earn roles",
-        description: "Finish the line. Role + **1000 cr** apply automatically. Pick a role to see who has it.",
+        description: `**${EARN_ROLES.length} roles.** Finish the challenge → role + **1000 cr** auto-applied. Pick a role to see who has it.`,
         color: 0x22c55e,
-        footer: { text: "DAYZ PRO · 1000 cr each · no extra tags" },
+        fields: fields.slice(0, 8),
+        footer: { text: "DAYZ PRO · 1000 cr each" },
       },
     ],
-    components: [
-      { type: 1, components: [{ type: 3, custom_id: "earn_pick_a", placeholder: "Roles 1", options: opts(a) }] },
-      { type: 1, components: [{ type: 3, custom_id: "earn_pick_b", placeholder: "Roles 2", options: opts(b) }] },
-    ],
+    components: menus,
     allowed_mentions: { parse: ["roles"] },
   };
 }
 
 export async function postEarnRolesEmbed() {
   const me = (await discord("/users/@me")) as { id: string };
-  const map = await ensureEarnRoles();
-  const payload = boardPayload(map);
+  const ensured = await ensureEarnRoles();
+  const payload = boardPayload(ensured.map);
   const recent = (await discord(`/channels/${CHANNEL}/messages?limit=100`)) as Array<{
     id: string;
     author?: { id?: string };
@@ -113,7 +129,7 @@ export async function postEarnRolesEmbed() {
       /* ignore */
     }
   }
-  return { ok: true, messageId, roles: Object.keys(map.roles).length };
+  return { ok: true, messageId, ...ensured, rolesCreatedNow: ensured.created };
 }
 
 export async function roleHoldersEmbed(key: string) {
@@ -152,15 +168,15 @@ export async function roleHoldersEmbed(key: string) {
 export async function grantEarnRole(discordUserId: string, key: string) {
   const role = EARN_ROLES.find((r) => r.key === key);
   if (!role) throw new Error("unknown role");
-  const map = await ensureEarnRoles();
+  const { map } = await ensureEarnRoles();
   const roleId = map.roles[key];
-  if (!map.guildId || !roleId) throw new Error("role missing — bot needs Manage Roles");
+  if (!map.guildId || !roleId) throw new Error("role missing");
   await discord(`/guilds/${map.guildId}/members/${discordUserId}/roles/${roleId}`, { method: "PUT" });
   try {
     const { creditPlayer } = await import("@/lib/economy.functions");
     await creditPlayer({ data: { playerId: discordUserId, amount: CREDITS, reason: `earn-role:${key}` } as never });
   } catch {
-    /* credits best-effort */
+    /* ignore */
   }
   return { ok: true, role: role.name, credits: CREDITS };
 }
