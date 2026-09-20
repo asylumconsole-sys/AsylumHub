@@ -1,1 +1,2 @@
-PLACEHOLDER_DO_NOT_STUB
+import { createFileRoute } from "@tanstack/react-router";
+export const Route = createFileRoute("/_app/tools/")({ component: () => null });
