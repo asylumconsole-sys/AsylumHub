@@ -7,6 +7,8 @@ export const Route = createFileRoute("/api/discord/interactions")({
         const body = (await request.json().catch(() => null)) as {
           type?: number;
           data?: { custom_id?: string; values?: string[] };
+          member?: { user?: { id?: string } };
+          user?: { id?: string };
         } | null;
         if (!body) return Response.json({ error: "bad json" }, { status: 400 });
         if (body.type === 1) return Response.json({ type: 1 });
@@ -15,7 +17,7 @@ export const Route = createFileRoute("/api/discord/interactions")({
           const payload = await banDetailResponse(body.data.values?.[0] || "");
           return Response.json({ type: 4, data: { ...payload, flags: 64 } });
         }
-        if (body.type === 3 && body.data?.custom_id === "earn_pick") {
+        if (body.type === 3 && body.data?.custom_id?.startsWith("earn_pick")) {
           const { roleHoldersEmbed } = await import("@/lib/discord-earn-roles");
           const payload = await roleHoldersEmbed(body.data.values?.[0] || "");
           return Response.json({ type: 4, data: { ...payload, flags: 64 } });
