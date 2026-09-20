@@ -214,6 +214,28 @@ async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
   }
 }
 
+export async function loadOnlinePlayers(): Promise<OnlinePlayersResult> {
+  const results = await Promise.all(
+    SERVERS.map(async (server) => {
+      try {
+        return { server, players: await readServerLogs(server), reason: null };
+      } catch (error) {
+        return {
+          server,
+          players: [],
+          reason: error instanceof Error ? error.message : "FTP log directory unavailable",
+        };
+      }
+    }),
+  );
+  return {
+    players: results.flatMap((result) => result.players),
+    unavailable: results
+      .filter((result) => result.reason)
+      .map((result) => ({ server: result.server, reason: result.reason as string })),
+  };
+}
+
 export const getOnlinePlayers = createServerFn({ method: "POST" })
   .inputValidator((data: { accessToken?: string }) => data)
   .handler(async ({ data }) => {
@@ -222,23 +244,5 @@ export const getOnlinePlayers = createServerFn({ method: "POST" })
     if (!isDemo && !data.accessToken) {
       throw new Error("Unauthorized: Sign in again.");
     }
-    const results = await Promise.all(
-      SERVERS.map(async (server) => {
-        try {
-          return { server, players: await readServerLogs(server), reason: null };
-        } catch (error) {
-          return {
-            server,
-            players: [],
-            reason: error instanceof Error ? error.message : "FTP log directory unavailable",
-          };
-        }
-      }),
-    );
-    return {
-      players: results.flatMap((result) => result.players),
-      unavailable: results
-        .filter((result) => result.reason)
-        .map((result) => ({ server: result.server, reason: result.reason as string })),
-    } satisfies OnlinePlayersResult;
+    return loadOnlinePlayers();
   });
