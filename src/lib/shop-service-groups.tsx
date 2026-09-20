@@ -42,24 +42,14 @@ export const SERVICE_GROUPS: { name: string; description: string; hue: number; i
   },
   {
     name: "Base Ops",
-    description: "Protect bases, manage territory, and broadcast raid events.",
+    description: "Pro Build, sleeping bags, bases, and raid calls.",
     hue: 35,
     icon: <IconCampaign size={20} />,
     items: [
-      { label: "Base Ops", focus: "campaign", icon: <IconCampaign size={16} /> },
       { label: "Pro Build", focus: "pro-build", icon: <IconCampaign size={16} /> },
-      { label: "Raid Announcements", focus: "campaign-events", icon: <IconCalendar size={16} /> },
+      { label: "Sleeping Bags", focus: "sleeping-bags", icon: <IconScroll size={16} /> },
       { label: "Custom Bases", focus: "campaign", icon: <IconCampaign size={16} /> },
-    ],
-  },
-  {
-    name: "Pro Build",
-    description: "200k builder crate dropped on your confirmed base.",
-    hue: 42,
-    icon: <IconCampaign size={20} />,
-    items: [
-      { label: "Pro Build", focus: "pro-build", icon: <IconCampaign size={16} /> },
-      { label: "PRO Builder kit", focus: "pro-build", icon: <IconSpark size={16} /> },
+      { label: "Raid Announcements", focus: "campaign-events", icon: <IconCalendar size={16} /> },
     ],
   },
   {
@@ -93,17 +83,6 @@ export const SERVICE_GROUPS: { name: string; description: string; hue: number; i
       { label: "Priority Queue", focus: "campaign-events", icon: <IconBolt size={16} /> },
       { label: "Fast Track", focus: "campaign-events", icon: <IconSpark size={16} /> },
       { label: "Queue Boost", focus: "campaign-events", icon: <IconChart size={16} /> },
-    ],
-  },
-  {
-    name: "Sleeping Bags",
-    description: "Set respawn points and stored recovery kits for your squads.",
-    hue: 168,
-    icon: <IconScroll size={20} />,
-    items: [
-      { label: "Sleeping Bags", focus: "campaign-events", icon: <IconScroll size={16} /> },
-      { label: "Field Respawns", focus: "campaign-events", icon: <IconCampaign size={16} /> },
-      { label: "Recovery Kits", focus: "campaign-events", icon: <IconSpark size={16} /> },
     ],
   },
   {
