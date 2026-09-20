@@ -1,21 +1,13 @@
 export type TourStep = {
   id: string;
-  route?: string;
-  /** CSS selector of the element to spotlight + ring */
+  route: string;
   target?: string;
-  /**
-   * Optional broader region selector to keep visible (un-dimmed) while the
-   * narrow `target` gets the focus ring. Use to keep nav/sidebar context.
-   */
   context?: string;
   eyebrow: string;
   title: string;
   body: string;
-  /** Optional deep-link shown as "Open this →" inside the tooltip */
   openTo?: string;
-  /** Preferred tooltip placement relative to target */
   placement?: "bottom" | "top" | "right" | "left" | "center";
-  /** Force the sidebar's "Server services" subtree open before resolving target */
   expandTools?: boolean;
 };
 
@@ -26,164 +18,139 @@ export const TOUR_STEPS: TourStep[] = [
     id: "welcome",
     route: "/dashboard",
     eyebrow: "2-minute tour",
-    title: "Let's walk the whole app.",
-    body: "I'll point at every menu item — top to bottom — and explain in one line what it does and when to open it. Use ← → to move, Esc to skip.",
+    title: "This is DAYZ PRO.",
+    body: "Lobby is home. The left menu is every tool. Donate is top-right. Killfeed is the last 5 days of PvP from Discord. Use arrows to move, Esc to skip.",
     placement: "center",
   },
-
-  // ── Primary nav ───────────────────────────────────────────────
   {
-    id: "nav-dashboard",
+    id: "nav-lobby",
     route: "/dashboard",
     target: '[data-tour="nav-/dashboard"]',
     context: SIDEBAR,
     openTo: "/dashboard",
-    eyebrow: "This week",
-    title: "Your Monday-morning screen.",
-    body: "Live campaigns, pacing toward MQL/SQO targets, and the next action that needs you. Start every day here.",
+    eyebrow: "Lobby",
+    title: "Command hall.",
+    body: "Credits, who's online, and the scrolling killfeed. Donate sits on this page. Start here after every login.",
     placement: "right",
   },
   {
-    id: "nav-campaigns",
+    id: "nav-servers",
     route: "/dashboard",
-    target: '[data-tour="nav-/campaigns"]',
+    target: '[data-tour="nav-/servers"]',
     context: SIDEBAR,
-    openTo: "/campaigns",
-    eyebrow: "Operations",
-    title: "Where every campaign lives.",
-    body: "One row per workspace — brief, assets, checklist, results. Click \"New campaign\" to spin one up or generate one from a brief with AI.",
+    openTo: "/servers",
+    eyebrow: "Servers",
+    title: "101x and 102x status.",
+    body: "See if Livonia and Chernarus are up, player counts, and restart state before you drop.",
     placement: "right",
   },
   {
-    id: "nav-tools",
+    id: "nav-operations",
+    route: "/dashboard",
+    target: '[data-tour="nav-/operations"]',
+    context: SIDEBAR,
+    openTo: "/operations",
+    eyebrow: "Operations",
+    title: "Contracts and tasks.",
+    body: "Server jobs, events, and admin work land here. Open it when you need something done in-game.",
+    placement: "right",
+  },
+  {
+    id: "nav-map",
+    route: "/dashboard",
+    target: '[data-tour="nav-/tools/base-map-clicker"]',
+    context: SIDEBAR,
+    openTo: "/tools/base-map-clicker",
+    eyebrow: "Map",
+    title: "Click the map for coords.",
+    body: "Pick a point on Livonia or Chernarus for bases, NPC drops, and Pro Build locations.",
+    placement: "right",
+  },
+  {
+    id: "nav-shop",
     route: "/dashboard",
     target: '[data-tour="nav-/tools"]',
     context: SIDEBAR,
     openTo: "/tools",
-    eyebrow: "Server services",
-    title: "Your toolbelt — 3 hubs.",
-    body: "Base Ops, Air Support, and Services. I'll open the menu so you can see each one.",
+    eyebrow: "Server shop",
+    title: "Spend credits.",
+    body: "NPC packs, items, Base Ops, Pro Build, and sleeping bags. Everything you buy with hub credits.",
     placement: "right",
-    expandTools: true,
   },
-
-  // ── Tools submenu ─────────────────────────────────────────────
   {
-    id: "tool-campaign",
+    id: "nav-war",
     route: "/dashboard",
-    target: '[data-tour="tool-campaign"]',
+    target: '[data-tour="nav-/war-room"]',
     context: SIDEBAR,
-    openTo: "/tools?focus=campaign",
-    eyebrow: "Tools › Base Ops",
-    title: "Launch a campaign end-to-end.",
-    body: "Draft creative, import a list, and schedule events — all from one place. Use it when you're standing up a new push.",
+    openTo: "/war-room",
+    eyebrow: "War Room",
+    title: "Factions and wars.",
+    body: "Flags, faction boards, kills, playtime, and reputation. This is the faction hub — not a separate Factions page.",
     placement: "right",
-    expandTools: true,
   },
   {
-    id: "tool-funnel",
+    id: "nav-challenges",
     route: "/dashboard",
-    target: '[data-tour="tool-funnel"]',
+    target: '[data-tour="nav-/challenges"]',
     context: SIDEBAR,
-    openTo: "/funnel",
-    eyebrow: "Tools › Air Support",
-    title: "Set targets, watch performance.",
-    body: "MQL / SQO sets your monthly goals (org-wide or per workspace). Performance shows whether you're tracking against them. Open weekly.",
+    openTo: "/challenges",
+    eyebrow: "Challenges",
+    title: "Zone discovery and more.",
+    body: "Visit Livonia city zones and other challenges for credit rewards and Discord pings.",
     placement: "right",
-    expandTools: true,
   },
   {
-    id: "tool-utm",
+    id: "nav-rewards",
     route: "/dashboard",
-    target: '[data-tour="tool-utm"]',
+    target: '[data-tour="nav-/rewards"]',
     context: SIDEBAR,
-    openTo: "/tools/utm",
-    eyebrow: "Tools › Services",
-    title: "Consistent links, every time.",
-    body: "Campaign Name generates canonical names, Naming conventions enforce your taxonomy, and All UTMs shows every link the team has built.",
+    openTo: "/rewards",
+    eyebrow: "Rewards",
+    title: "Claim what you earned.",
+    body: "Credit drops and reward tracks after challenges or events.",
     placement: "right",
-    expandTools: true,
   },
-
-  // ── Rest of primary nav ───────────────────────────────────────
   {
-    id: "nav-calendar",
+    id: "nav-battlepass",
     route: "/dashboard",
-    target: '[data-tour="nav-/calendar"]',
+    target: '[data-tour="nav-/battlepass"]',
     context: SIDEBAR,
-    openTo: "/calendar",
-    eyebrow: "Calendar",
-    title: "Every send, event, and launch.",
-    body: "Month view of every campaign milestone, color-coded by type. Drag to reschedule. The single source of truth for \"what's going out when.\"",
+    openTo: "/battlepass",
+    eyebrow: "Battlepass",
+    title: "Season track.",
+    body: "Season 1 is COMING SOON. When it drops, this is the 100-level reward path.",
     placement: "right",
   },
   {
-    id: "nav-requests",
-    route: "/dashboard",
-    target: '[data-tour="nav-/requests"]',
-    context: SIDEBAR,
-    openTo: "/requests",
-    eyebrow: "Requests",
-    title: "Intake from the rest of the company.",
-    body: "Sales, product, partners — anyone — can request a campaign via your public intake link. Triage, promote to workspace, or decline here.",
-    placement: "right",
-  },
-  {
-    id: "nav-templates",
+    id: "nav-locker",
     route: "/dashboard",
     target: '[data-tour="nav-/templates"]',
     context: SIDEBAR,
     openTo: "/templates",
-    eyebrow: "Templates",
-    title: "Reusable starting points.",
-    body: "Brief templates, email layouts, checklist presets. Save anything that worked once so the next campaign starts at 50%.",
+    eyebrow: "Locker",
+    title: "Saved kits and loadouts.",
+    body: "Stored presets and locker items for your character and base kits.",
     placement: "right",
   },
-
-  // ── Footer nav ────────────────────────────────────────────────
   {
     id: "nav-settings",
     route: "/dashboard",
-    target: '[data-tour="nav-settings"]',
+    target: '[data-tour="nav-/settings"]',
     context: SIDEBAR,
     openTo: "/settings",
     eyebrow: "Settings",
-    title: "Org, team, taxonomy, brand.",
-    body: "Invite teammates, set roles, edit the campaign-type vocabulary, and configure your brand. Visit once during setup, then rarely.",
+    title: "Your account only.",
+    body: "Theme, profile, sign out, and replay this tour. Org / team / server chat were removed.",
     placement: "right",
   },
-  {
-    id: "nav-integrations",
-    route: "/dashboard",
-    target: '[data-tour="nav-integrations"]',
-    context: SIDEBAR,
-    openTo: "/integrations",
-    eyebrow: "Integrations",
-    title: "Connect your CRM, webhooks, and more.",
-    body: "Without these, demo data fills in. Connect your CRM and inbox here to make every panel live. Do this on day one.",
-    placement: "right",
-  },
-
-  // ── Top-right pill ────────────────────────────────────────────
-  {
-    id: "setup-pill",
-    route: "/dashboard",
-    target: '[data-tour="setup-pill"], [data-tour="onboarding-checklist"]',
-    eyebrow: "Setup checklist",
-    title: "Five 30-second wins.",
-    body: "Follow the pill at the top-right to feel the app's value fast. You can replay this tour anytime from inside it.",
-    placement: "bottom",
-  },
-
-  // ── Outro ─────────────────────────────────────────────────────
   {
     id: "done",
     route: "/dashboard",
     eyebrow: "You're set",
-    title: "Go ship something.",
-    body: "Press ⌘K anywhere to jump between tools. Replay this tour from the Setup pill if you need a refresher.",
+    title: "Go play.",
+    body: "Open Server shop to spend credits, War Room for factions, Map for coords. Replay the tour from Settings anytime.",
     placement: "center",
   },
 ];
 
-export const TOUR_PREF_KEY = "tour_v1";
+export const TOUR_PREF_KEY = "tour_v2_dayz";
