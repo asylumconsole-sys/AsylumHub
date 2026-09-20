@@ -33,18 +33,14 @@ function ToolsHub() {
   }, [navigate, workspace]);
 
   return (
-    <div className="server-shop-root relative flex min-h-[calc(100vh-3rem)] flex-col overflow-x-hidden pb-10">
-      <div className="shop-atmosphere" aria-hidden>
-        <div className="shop-desert" />
-        <div className="shop-glow" />
-      </div>
+    <div className="relative flex min-h-[calc(100vh-3rem)] flex-col overflow-x-hidden pb-10">
       <header className="relative z-10 px-4 pb-4 pt-2 sm:px-6">
         <FadeInUp>
           <div className="flex items-center gap-3">
             <PageHexBadge hue={88} size={26} icon={<IconBolt size={22} />} aria-label="Server shop" />
-            <h1 className="shop-medieval-title font-display text-3xl sm:text-5xl">Server shop</h1>
+            <h1 className="font-display text-3xl sm:text-5xl">Server shop</h1>
           </div>
-          <div className="mt-4 inline-flex rounded-full border border-primary/25 bg-black/40 p-1">
+          <div className="mt-4 inline-flex rounded-full border border-glass-border bg-glass/40 p-1">
             {(["server", "items"] as const).map((id) => (
               <button key={id} type="button" onClick={() => setShopTab(id)} className={`rounded-full px-5 py-2 text-xs uppercase tracking-[0.18em] ${shopTab === id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
                 {id === "server" ? "Server Shop" : "Item Shop"}
@@ -74,7 +70,7 @@ function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => v
             <motion.button
               key={group.name}
               type="button"
-              className="shop-card group shop-card-shine"
+              className="shop-card group"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04 }}
@@ -96,23 +92,8 @@ function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => v
                 )}
               </span>
               <span className="shop-card-content">
-                <span className="shop-card-title shop-medieval-title">{group.name}</span>
-                <span className="shop-card-meta">{group.items.length} services · {group.description}</span>
-                <span className="shop-card-pills">
-                  {group.items.slice(0, 4).map((item) => (
-                    <span
-                      key={item.label}
-                      className="shop-card-pill"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onOpen(item.focus);
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                  ))}
-                </span>
+                <span className="shop-card-title">{group.name}</span>
+                <span className="shop-card-meta">{group.description}</span>
               </span>
               <IconArrowRight size={14} className="ml-auto mt-auto text-muted-foreground" />
             </motion.button>
