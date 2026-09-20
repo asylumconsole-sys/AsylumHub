@@ -1,20 +1,2 @@
-.gold-nav-icon {
-  display: inline-grid;
-  place-items: center;
-  filter: drop-shadow(0 0 4px rgba(246, 190, 88, 0.35));
-}
-.gold-nav-icon svg { overflow: visible; }
-.gold-nav-icon path,
-.gold-nav-icon circle,
-.gold-nav-icon rect,
-.gold-nav-icon polygon {
-  filter: drop-shadow(0 0 1.5px rgba(255, 214, 120, 0.7));
-}
-@keyframes gold-nav-pulse {
-  0%, 100% { filter: drop-shadow(0 0 3px rgba(246, 190, 88, 0.3)); }
-  50% { filter: drop-shadow(0 0 8px rgba(255, 214, 120, 0.75)); }
-}
-a[class*="bg-glass"] .gold-nav-icon,
-.gold-nav-icon.is-active {
-  animation: gold-nav-pulse 2.4s ease-in-out infinite;
-}
+.gold-nav-icon { display: inline-grid; place-items: center; color: #d4a017; }
+.gold-nav-icon svg { display: block; }

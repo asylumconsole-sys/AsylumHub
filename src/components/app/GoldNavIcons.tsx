@@ -1,111 +1,48 @@
-import { useId, type ReactNode, type SVGProps } from "react";
+import type { SVGProps } from "react";
 import "@/styles/gold-nav-icons.css";
 
 type P = SVGProps<SVGSVGElement> & { size?: number };
 
-function GoldSvg({ size = 18, children, ...p }: P & { children: ReactNode }) {
-  const id = useId().replace(/:/g, "");
-  const gid = `gGold${id}`;
+function I({ size = 18, children, ...p }: P & { children: React.ReactNode }) {
   return (
     <span className="gold-nav-icon" aria-hidden>
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...p}>
-        <defs>
-          <linearGradient id={gid} x1="4" y1="2" x2="20" y2="22">
-            <stop offset="0%" stopColor="#fff1b8" />
-            <stop offset="45%" stopColor="#f6be58" />
-            <stop offset="100%" stopColor="#b45309" />
-          </linearGradient>
-        </defs>
-        <g fill={`url(#${gid})`} stroke="#7c4a12" strokeWidth={0.6}>
-          {children}
-        </g>
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...p}>
+        {children}
       </svg>
     </span>
   );
 }
 
 export function GoldLobby(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <path d="M12 2.5 21 8v3H3V8l9-5.5Z" />
-      <path d="M5 11h14v10H5z" />
-      <path fill="#1a0e04" stroke="none" d="M11 14h2v7h-2z" />
-    </GoldSvg>
-  );
+  return <I {...p}><path d="M4 20V10l8-6 8 6v10" /><path d="M10 20v-6h4v6" /></I>;
 }
 export function GoldServers(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <rect x="4" y="3" width="16" height="5" rx="1" />
-      <rect x="4" y="9.5" width="16" height="5" rx="1" />
-      <rect x="4" y="16" width="16" height="5" rx="1" />
-    </GoldSvg>
-  );
+  return <I {...p}><rect x="4" y="4" width="16" height="5" /><rect x="4" y="10.5" width="16" height="5" /><rect x="4" y="17" width="16" height="4" /><path d="M7 6.5h.01M7 13h.01M7 19h.01" /></I>;
 }
 export function GoldOperations(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <path d="M4 19 12 4l8 15H4Z" />
-    </GoldSvg>
-  );
+  return <I {...p}><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /></I>;
 }
 export function GoldMap(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <path d="M4 6.5 9 5l6 2 5-1.5v13L15 20l-6-2-5 1.5v-13Z" />
-    </GoldSvg>
-  );
+  return <I {...p}><path d="M4 7l5-2 6 2 5-2v12l-5 2-6-2-5 2z" /><path d="M9 5v12M15 7v12" /></I>;
 }
 export function GoldShop(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <path d="M5 9h14l-1.2 11H6.2L5 9Z" />
-      <path d="M8 9V7a4 4 0 0 1 8 0v2" />
-    </GoldSvg>
-  );
+  return <I {...p}><path d="M6 9h12l-1 11H7L6 9z" /><path d="M9 9V8a3 3 0 0 1 6 0v1" /></I>;
 }
 export function GoldWarRoom(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <path d="M12 3 20 6.5v5.2c0 5-3.4 8.3-8 9.8-4.6-1.5-8-4.8-8-9.8V6.5L12 3Z" />
-    </GoldSvg>
-  );
+  return <I {...p}><path d="M12 3 20 7v5c0 5-3.2 8-8 9-4.8-1-8-4-8-9V7l8-4z" /></I>;
 }
 export function GoldChallenges(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <circle cx="12" cy="12" r="8.5" />
-    </GoldSvg>
-  );
+  return <I {...p}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="1" fill="currentColor" /></I>;
 }
 export function GoldRewards(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <path d="M7 4h10v3a5 5 0 0 1-10 0V4Z" />
-      <path d="M9 12h6v8H9z" />
-      <path d="M6 20h12v2H6z" />
-    </GoldSvg>
-  );
+  return <I {...p}><path d="M8 5h8v3a4 4 0 0 1-8 0V5z" /><path d="M10 12h4v7h-4z" /><path d="M8 21h8" /></I>;
 }
 export function GoldBattlepass(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <path d="M3 8h18v10H3z" />
-    </GoldSvg>
-  );
+  return <I {...p}><rect x="3" y="7" width="18" height="10" rx="2" /><path d="M7 11h4" /><circle cx="16" cy="12" r="1.2" /></I>;
 }
 export function GoldLocker(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <rect x="6" y="3" width="12" height="18" rx="1" />
-    </GoldSvg>
-  );
+  return <I {...p}><rect x="6" y="3" width="12" height="18" rx="1" /><path d="M12 3v18" /><path d="M14.5 12h1.5" /></I>;
 }
 export function GoldSettings(p: P) {
-  return (
-    <GoldSvg {...p}>
-      <circle cx="12" cy="12" r="8.2" />
-      <circle cx="12" cy="12" r="3" fill="#1a0e04" stroke="none" />
-    </GoldSvg>
-  );
+  return <I {...p}><circle cx="12" cy="12" r="3" /><path d="M12 3.5v2.2M12 18.3V21M4.7 7.2l1.9 1.1M17.4 15.7l1.9 1.1M4.7 16.8l1.9-1.1M17.4 8.3l1.9-1.1" /></I>;
 }
