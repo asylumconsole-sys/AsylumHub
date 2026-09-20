@@ -1,8 +1,3 @@
-/**
- * Registry of tools that can open INLINE inside the Tools hub as a focused
- * side panel (driven by ?focus=<slug>) instead of routing to a full page.
- */
-
 import type { ComponentType, MouseEvent, ReactNode } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -18,6 +13,7 @@ import { CampaignPerformanceContent, CampaignPerformanceSummary } from "@/routes
 import { EventsContent } from "@/routes/_app/tools/events";
 import { FactionHubContent } from "@/routes/_app/tools/event-intake";
 import { ListCleanerContent } from "@/routes/_app/tools/list-cleaner";
+import { ProBuildContent } from "@/routes/_app/tools/pro-build-content";
 import {
   IconUtm,
   IconSpark,
@@ -94,6 +90,7 @@ function ZombieHordesContent() {
 
 export const FOCUSED_TOOLS: Record<string, FocusedTool> = {
   "zombie-hordes": { slug: "zombie-hordes", primaryId: "server-events", title: "Zombie Hordes", hue: 52, icon: <IconSpark size={22} />, fullRouteTo: "/tools", Component: ZombieHordesContent },
+  "pro-build": { slug: "pro-build", primaryId: "campaign", title: "Pro Build", hue: 42, icon: <IconCampaign size={22} />, fullRouteTo: "/tools", Component: ProBuildContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
   utm: { slug: "utm", primaryId: "utm", title: "Combat & Intel", hue: 275, icon: <IconUtm size={22} />, fullRouteTo: "/tools/utm", Component: UtmBuilderContent },
   "utm-campaign-name": { slug: "utm-campaign-name", primaryId: "utm", title: "Combat & Intel", hue: 275, icon: <IconUtm size={22} />, fullRouteTo: "/tools/utm", Component: UtmBuilderContent },
   "utm-taxonomy": { slug: "utm-taxonomy", primaryId: "utm", title: "Bounties", hue: 275, icon: <IconSpark size={22} />, fullRouteTo: "/tools/taxonomy", Component: TaxonomyContent, parentTitle: "Combat & Intel", parentHue: 275, parentIcon: <IconUtm size={22} /> },
@@ -130,6 +127,7 @@ export const SATELLITE_TO_FOCUS_SLUG: Record<string, string> = {
   bases: "campaign",
   creator: "campaign-creator",
   import: "campaign-import",
+  "pro-build": "pro-build",
 };
 
 export const FOCUSED_PRIMARY_IDS = new Set(
