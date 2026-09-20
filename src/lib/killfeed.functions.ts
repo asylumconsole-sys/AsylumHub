@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Client } from "basic-ftp";
 import { Writable } from "node:stream";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { DAYZ_SERVERS, requiredFtpEnv, type DayZServerId } from "@/lib/dayz/servers";
+import { DAYZ_SERVERS, requiredFtpEnv, resolveMissionPath, resolveServiceId, type DayZServerId } from "@/lib/dayz/servers";
 
 export type KillEvent = {
   id: string;
@@ -16,7 +16,6 @@ export type KillEvent = {
 };
 
 export type LiveEventKind = "kill" | "connect" | "disconnect" | "suicide" | "other";
-
 export type LiveEvent = {
   id: string;
   server: DayZServerId;
@@ -29,23 +28,16 @@ export type LiveEvent = {
   distance?: number;
   raw: string;
 };
-
 export type KillfeedResult = {
   events: KillEvent[];
   unavailable: Array<{ server: DayZServerId; reason: string; missingEnv?: string[] }>;
 };
-
 export type LiveFeedResult = {
   events: LiveEvent[];
-  unavailable: Array<{ server: DayZServerId; reason: string; missingEnv?: string[] }>;
+  unavailable: KillfeedResult["unavailable"];
 };
 
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
-
-const FTP_KEYS = {
-  "101x": { host: "FTP_101X_HOST", user: "FTP_101X_USER", pass: "FTP_101X_PASS", port: "FTP_101X_PORT", path: "FTP_101X_LOGS_PATH" },
-  "102x": { host: "FTP_102X_HOST", user: "FTP_102X_USER", pass: "FTP_102X_PASS", port: "FTP_102X_PORT", path: "FTP_102X_LOGS_PATH" },
-} as const;
 
 const KILL_PATTERNS: RegExp[] = [
   /Player\s+["']([^"']+)["']\s+(?:\(DEAD\)\s+)?killed by\s+Player\s+["']([^"']+)["'](?:\s+with\s+([^\s]+))?(?:\s+from\s+([0-9.]+)\s*m)?/i,
@@ -68,9 +60,7 @@ function parseKillLine(line: string, server: DayZServerId, fileStamp: string): K
       killer = m[1]?.trim();
       victim = m[2]?.trim();
     }
-    if (!killer || !victim) continue;
-    if (killer.toLowerCase() === victim.toLowerCase()) continue;
-    if (/suicide/i.test(line)) continue;
+    if (!killer || !victim || killer.toLowerCase() === victim.toLowerCase() || /suicide/i.test(line)) continue;
     const weapon = m[3]?.trim();
     const distance = m[4] ? Number(m[4]) : undefined;
     const at = lineTimestamp(line, fileStamp);
@@ -94,20 +84,69 @@ function withinFiveDays(iso: string) {
   return Date.now() - t <= FIVE_DAYS_MS;
 }
 
-async function downloadRecentLogText(server: DayZServerId): Promise<{
-  lines: Array<{ line: string; stamp: string }>;
-  missingEnv?: string[];
-}> {
-  const keys = FTP_KEYS[server];
-  const host = process.env[keys.host] ?? process.env.FTP_HOST;
-  const user = process.env[keys.user] ?? process.env.FTP_USER;
-  const password = process.env[keys.pass] ?? process.env.FTP_PASS;
-  const directory = process.env[keys.path] ?? process.env.FTP_LOGS_PATH ?? "/dayzps/config";
-  const missing = requiredFtpEnv(server).filter((k) => !process.env[k] && !process.env[k.replace(/_101X|_102X/, "")]);
-  if (!host || !user || !password) {
-    return { lines: [], missingEnv: requiredFtpEnv(server) };
-  }
+function logDirs(server: DayZServerId): string[] {
+  const mission = resolveMissionPath(DAYZ_SERVERS.find((s) => s.id === server)!);
+  const fromMission = mission.replace(/\/dayzps_missions\/.*$/, "/dayzps/config");
+  const specific = server === "101x" ? process.env.FTP_101X_LOGS_PATH : process.env.FTP_102X_LOGS_PATH;
+  return Array.from(
+    new Set(
+      [specific, process.env.FTP_LOGS_PATH, fromMission, "/dayzps/config", `${fromMission.replace(/\/config$/, "")}/config`].filter(Boolean) as string[],
+    ),
+  );
+}
 
+async function nitradoList(serviceId: string, dir: string, token: string) {
+  const url = `https://api.nitrado.net/services/${serviceId}/gameservers/file_server/list?dir=${encodeURIComponent(dir)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const json = (await res.json()) as { data?: { entries?: Array<{ type?: string; name?: string; path?: string; modified_at?: number }> } };
+  return json.data?.entries ?? [];
+}
+
+async function nitradoDownload(serviceId: string, filePath: string, token: string): Promise<string> {
+  const url = `https://api.nitrado.net/services/${serviceId}/gameservers/file_server/download?file=${encodeURIComponent(filePath)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const json = (await res.json()) as { data?: { token?: { url?: string } } };
+  const fileUrl = json.data?.token?.url;
+  if (!fileUrl) return "";
+  const file = await fetch(fileUrl);
+  return file.ok ? await file.text() : "";
+}
+
+async function downloadViaNitrado(server: DayZServerId): Promise<Array<{ line: string; stamp: string }>> {
+  const token = process.env.NITRADO_API_TOKEN;
+  if (!token) return [];
+  const serviceId = resolveServiceId(DAYZ_SERVERS.find((s) => s.id === server)!);
+  const cutoff = Date.now() - FIVE_DAYS_MS;
+  const lines: Array<{ line: string; stamp: string }> = [];
+  for (const dir of logDirs(server)) {
+    try {
+      const entries = await nitradoList(serviceId, dir, token);
+      const files = entries
+        .filter((e) => /adm/i.test(`${e.name ?? ""} ${e.path ?? ""}`))
+        .sort((a, b) => (b.modified_at ?? 0) - (a.modified_at ?? 0))
+        .slice(0, 12);
+      for (const file of files) {
+        const modified = (file.modified_at ?? 0) * (String(file.modified_at ?? 0).length < 12 ? 1000 : 1);
+        if (modified && modified < cutoff) continue;
+        const path = file.path || `${dir.replace(/\/$/, "")}/${file.name}`;
+        const text = await nitradoDownload(serviceId, path, token);
+        const stamp = new Date(modified || Date.now()).toISOString();
+        for (const line of text.split(/\r?\n/)) if (line.trim()) lines.push({ line, stamp });
+      }
+      if (lines.length) return lines;
+    } catch {
+      /* try next dir */
+    }
+  }
+  return lines;
+}
+
+async function downloadViaFtp(server: DayZServerId): Promise<Array<{ line: string; stamp: string }>> {
+  const host = process.env.FTP_101X_HOST ?? process.env.FTP_102X_HOST ?? process.env.FTP_HOST;
+  const user = process.env.FTP_101X_USER ?? process.env.FTP_102X_USER ?? process.env.FTP_USER;
+  const password = process.env.FTP_101X_PASS ?? process.env.FTP_102X_PASS ?? process.env.FTP_PASS;
+  if (!host || !user || !password) return [];
+  const directory = logDirs(server)[0] ?? "/dayzps/config";
   const client = new Client();
   client.ftp.timeout = 25_000;
   const cutoff = Date.now() - FIVE_DAYS_MS;
@@ -116,24 +155,16 @@ async function downloadRecentLogText(server: DayZServerId): Promise<{
       host,
       user,
       password,
-      port: Number(process.env[keys.port] ?? process.env.FTP_PORT ?? 21),
+      port: Number(process.env.FTP_101X_PORT ?? process.env.FTP_PORT ?? 21),
     });
     const listed = await client.list(directory);
     const files = listed
-      .filter((file) => /\.ADM$/i.test(file.name) || /adm/i.test(file.name))
-      .filter((file) => {
-        const modified = file.modifiedAt ? new Date(file.modifiedAt).getTime() : Date.now();
-        const named = file.name.match(/(\d{4})[-_]?(\d{2})[-_]?(\d{2})/);
-        const namedTs = named ? Date.parse(`${named[1]}-${named[2]}-${named[3]}T00:00:00Z`) : 0;
-        return modified >= cutoff || namedTs >= cutoff;
-      })
+      .filter((file) => /adm/i.test(file.name))
+      .filter((file) => !file.modifiedAt || file.modifiedAt >= cutoff)
       .sort((a, b) => (b.modifiedAt || 0) - (a.modifiedAt || 0))
-      .slice(0, 14);
-    const fallback = files.length
-      ? files
-      : listed.filter((file) => /\.(ADM|RPT)$/i.test(file.name)).sort((a, b) => (b.modifiedAt || 0) - (a.modifiedAt || 0)).slice(0, 8);
+      .slice(0, 12);
     const lines: Array<{ line: string; stamp: string }> = [];
-    for (const file of fallback) {
+    for (const file of files) {
       let text = "";
       const sink = new Writable({
         write(chunk, _enc, cb) {
@@ -144,19 +175,35 @@ async function downloadRecentLogText(server: DayZServerId): Promise<{
       });
       await client.downloadTo(sink, `${directory.replace(/\/$/, "")}/${file.name}`);
       const stamp = new Date(file.modifiedAt || Date.now()).toISOString();
-      for (const line of text.split(/\r?\n/)) {
-        if (line.trim()) lines.push({ line, stamp });
-      }
+      for (const line of text.split(/\r?\n/)) if (line.trim()) lines.push({ line, stamp });
     }
-    return { lines, missingEnv: missing.length ? missing : undefined };
+    return lines;
   } finally {
     client.close();
   }
 }
 
-async function readServerKills(server: DayZServerId): Promise<{ events: KillEvent[]; missingEnv?: string[] }> {
-  const { lines, missingEnv } = await downloadRecentLogText(server);
-  if (missingEnv?.length && lines.length === 0) return { events: [], missingEnv };
+async function downloadRecentLogText(server: DayZServerId): Promise<{
+  lines: Array<{ line: string; stamp: string }>;
+  error?: string;
+}> {
+  try {
+    const nitrado = await downloadViaNitrado(server);
+    if (nitrado.length) return { lines: nitrado };
+  } catch (error) {
+    /* fall through */
+  }
+  try {
+    const ftp = await downloadViaFtp(server);
+    if (ftp.length) return { lines: ftp };
+  } catch (error) {
+    return { lines: [], error: error instanceof Error ? error.message : "FTP log read failed" };
+  }
+  return { lines: [], error: "No ADM logs found on Nitrado or FTP" };
+}
+
+async function readServerKills(server: DayZServerId): Promise<{ events: KillEvent[]; error?: string }> {
+  const { lines, error } = await downloadRecentLogText(server);
   const events: KillEvent[] = [];
   const seen = new Set<string>();
   for (const { line, stamp } of lines) {
@@ -167,7 +214,7 @@ async function readServerKills(server: DayZServerId): Promise<{ events: KillEven
     events.push(event);
   }
   events.sort((a, b) => b.at.localeCompare(a.at));
-  return { events: events.slice(0, 800), missingEnv };
+  return { events: events.slice(0, 800), error: events.length ? undefined : error };
 }
 
 export const getKillfeed = createServerFn({ method: "GET" })
@@ -181,15 +228,14 @@ export const getKillfeed = createServerFn({ method: "GET" })
     for (const server of wanted) {
       try {
         const result = await readServerKills(server);
-        if (result.missingEnv?.length && result.events.length === 0) {
-          unavailable.push({ server, reason: "FTP credentials missing", missingEnv: result.missingEnv });
-        } else {
-          events.push(...result.events);
+        events.push(...result.events);
+        if (result.error && result.events.length === 0) {
+          unavailable.push({ server, reason: result.error, missingEnv: requiredFtpEnv(server) });
         }
       } catch (error) {
         unavailable.push({
           server,
-          reason: error instanceof Error ? error.message : "FTP log read failed",
+          reason: error instanceof Error ? error.message : "Log read failed",
           missingEnv: requiredFtpEnv(server),
         });
       }
@@ -223,6 +269,5 @@ export const getLiveEvents = createServerFn({ method: "GET" })
 export function killfeedMissingEnvSummary(unavailable: KillfeedResult["unavailable"]): string[] {
   const set = new Set<string>();
   for (const u of unavailable) u.missingEnv?.forEach((k) => set.add(k));
-  if (set.size === 0) DAYZ_SERVERS.forEach((s) => requiredFtpEnv(s.id).forEach((k) => set.add(k)));
   return Array.from(set);
 }
