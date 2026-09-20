@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { readJsonFile, writeJsonFile } from "@/lib/dayz/store";
 import { emitHubEvent } from "@/lib/hub-events";
+import { applyEconomyGrants } from "@/lib/economy-apply";
 
 export type EconomyAccount = {
 		playerId: string;
@@ -22,12 +23,15 @@ export type EconomyTransfer = {
 type EconomyStore = {
 		accounts: Record<string, EconomyAccount>;
 		transfers: EconomyTransfer[];
+		appliedGrants?: string[];
 };
 
 const DEFAULT_STORE: EconomyStore = { accounts: {}, transfers: [] };
 
 async function loadStore() {
-		return readJsonFile<EconomyStore>("economy.json", DEFAULT_STORE);
+		const store = await readJsonFile<EconomyStore>("economy.json", DEFAULT_STORE);
+		if (applyEconomyGrants(store)) await writeJsonFile("economy.json", store);
+		return store;
 }
 
 function accountFor(store: EconomyStore, playerId: string): EconomyAccount {
@@ -96,9 +100,7 @@ export const payPlayer = createServerFn({ method: "POST" })
 	});
 
 type NpcInventoryStore = {
-	/** @deprecated permanent unlocks — migrated into charges on read */
 	owned?: Record<string, string[]>;
-	/** playerId -> npcId -> remaining spawn charges */
 	charges: Record<string, Record<string, number>>;
 };
 
@@ -125,9 +127,7 @@ export const getNpcInventory = createServerFn({ method: "GET" })
 		const playerId = data.playerId ?? context.userId ?? "demo-user";
 		const inv = await loadNpcInv();
 		const charges = playerCharges(inv, playerId);
-		const owned = Object.entries(charges)
-			.filter(([, n]) => n > 0)
-			.map(([id]) => id);
+		const owned = Object.entries(charges).filter(([, n]) => n > 0).map(([id]) => id);
 		return { playerId, charges, owned };
 	});
 
@@ -139,7 +139,6 @@ export const purchaseNpc = createServerFn({ method: "POST" })
 		npcId: string;
 		npcName?: string;
 		price: number;
-		/** Spawn charges granted by this pack (consumable). */
 		spawns: number;
 		serverId?: "101" | "102" | null;
 	}) => data)
@@ -152,56 +151,23 @@ export const purchaseNpc = createServerFn({ method: "POST" })
 		if (!npcId) throw new Error("NPC id required");
 		if (!Number.isFinite(price) || price < 0) throw new Error("Invalid price");
 		if (!Number.isFinite(spawns) || spawns <= 0) throw new Error("Invalid spawn pack size");
-
 		const inv = await loadNpcInv();
 		const charges = playerCharges(inv, playerId);
 		const store = await loadStore();
 		const account = accountFor(store, playerId);
 		account.displayName = displayName;
-
 		if (account.balance < price) throw new Error("Insufficient credits");
-
 		account.balance -= price;
-		const transfer: EconomyTransfer = {
-			id: `tx_${Date.now().toString(36)}`,
-			fromPlayerId: playerId,
-			toPlayerId: "system",
-			amount: price,
-			note: `NPC pack: ${npcId} x${spawns}`,
-			createdAt: new Date().toISOString(),
-		};
-		store.transfers.unshift(transfer);
+		store.transfers.unshift({ id: `tx_${Date.now().toString(36)}`, fromPlayerId: playerId, toPlayerId: "system", amount: price, note: `NPC pack: ${npcId} x${spawns}`, createdAt: new Date().toISOString() });
 		charges[npcId] = (charges[npcId] ?? 0) + spawns;
 		inv.charges[playerId] = charges;
-		if (inv.owned?.[playerId]) {
-			inv.owned[playerId] = (inv.owned[playerId] ?? []).filter((id) => id !== npcId);
-		}
+		if (inv.owned?.[playerId]) inv.owned[playerId] = (inv.owned[playerId] ?? []).filter((id) => id !== npcId);
 		await writeJsonFile("economy.json", store);
 		await writeJsonFile("npc-inventory.json", inv);
-
-		emitHubEvent({
-			type: "shop.purchase",
-			playerId,
-			playerName: displayName,
-			serverId: data.serverId ?? null,
-			ts: Date.now(),
-			meta: {
-				category: "npc",
-				itemId: npcId,
-				itemName: data.npcName ?? npcId,
-				price,
-				spawns,
-				currency: "credits",
-			},
-		});
-
-		const owned = Object.entries(charges)
-			.filter(([, n]) => n > 0)
-			.map(([id]) => id);
+		const owned = Object.entries(charges).filter(([, n]) => n > 0).map(([id]) => id);
 		return { alreadyOwned: false as const, account, owned, charges, spawnsAdded: spawns };
 	});
 
-/** Burn one spawn charge after a successful deploy. */
 export const consumeNpcSpawn = createServerFn({ method: "POST" })
 	.middleware([requireSupabaseAuth])
 	.inputValidator((data: { playerId?: string; npcId: string }) => data)
@@ -215,19 +181,13 @@ export const consumeNpcSpawn = createServerFn({ method: "POST" })
 		if (left <= 0) throw new Error("No spawn charges left — buy a pack first");
 		charges[npcId] = left - 1;
 		inv.charges[playerId] = charges;
-		if (inv.owned?.[playerId]) {
-			inv.owned[playerId] = (inv.owned[playerId] ?? []).filter((id) => id !== npcId);
-		}
+		if (inv.owned?.[playerId]) inv.owned[playerId] = (inv.owned[playerId] ?? []).filter((id) => id !== npcId);
 		await writeJsonFile("npc-inventory.json", inv);
 		return { playerId, npcId, remaining: charges[npcId] };
 	});
 
-type ShopInventoryStore = {
-	owned: Record<string, string[]>;
-};
-
+type ShopInventoryStore = { owned: Record<string, string[]> };
 const DEFAULT_SHOP_INV: ShopInventoryStore = { owned: {} };
-
 async function loadShopInv() {
 	return readJsonFile<ShopInventoryStore>("shop-inventory.json", DEFAULT_SHOP_INV);
 }
@@ -244,14 +204,8 @@ export const getShopInventory = createServerFn({ method: "GET" })
 export const purchaseShopItem = createServerFn({ method: "POST" })
 	.middleware([requireSupabaseAuth])
 	.inputValidator((data: {
-		playerId?: string;
-		displayName?: string;
-		itemId: string;
-		itemName?: string;
-		price: number;
-		category: "item" | "uav";
-		serverId?: "101" | "102" | null;
-		allowRepeat?: boolean;
+		playerId?: string; displayName?: string; itemId: string; itemName?: string; price: number;
+		category: "item" | "uav"; serverId?: "101" | "102" | null; allowRepeat?: boolean;
 	}) => data)
 	.handler(async ({ data, context }) => {
 		const playerId = data.playerId ?? context.userId ?? "demo-user";
@@ -263,49 +217,20 @@ export const purchaseShopItem = createServerFn({ method: "POST" })
 		if (!itemId) throw new Error("Item id required");
 		if (category !== "item" && category !== "uav") throw new Error("Invalid category");
 		if (!Number.isFinite(price) || price < 0) throw new Error("Invalid price");
-
 		const inv = await loadShopInv();
 		const owned = new Set(inv.owned[playerId] ?? []);
 		const store = await loadStore();
 		const account = accountFor(store, playerId);
 		account.displayName = displayName;
-
-		if (!allowRepeat && owned.has(itemId)) {
-			return { alreadyOwned: true as const, account, owned: [...owned] };
-		}
+		if (!allowRepeat && owned.has(itemId)) return { alreadyOwned: true as const, account, owned: [...owned] };
 		if (account.balance < price) throw new Error("Insufficient credits");
-
 		account.balance -= price;
-		const transfer: EconomyTransfer = {
-			id: `tx_${Date.now().toString(36)}`,
-			fromPlayerId: playerId,
-			toPlayerId: "system",
-			amount: price,
-			note: `${category} purchase: ${itemId}`,
-			createdAt: new Date().toISOString(),
-		};
-		store.transfers.unshift(transfer);
+		store.transfers.unshift({ id: `tx_${Date.now().toString(36)}`, fromPlayerId: playerId, toPlayerId: "system", amount: price, note: `${category} purchase: ${itemId}`, createdAt: new Date().toISOString() });
 		if (!allowRepeat) {
 			owned.add(itemId);
 			inv.owned[playerId] = [...owned];
 			await writeJsonFile("shop-inventory.json", inv);
 		}
 		await writeJsonFile("economy.json", store);
-
-		emitHubEvent({
-			type: "shop.purchase",
-			playerId,
-			playerName: displayName,
-			serverId: data.serverId ?? null,
-			ts: Date.now(),
-			meta: {
-				category,
-				itemId,
-				itemName: data.itemName ?? itemId,
-				price,
-				currency: "credits",
-			},
-		});
-
 		return { alreadyOwned: false as const, account, owned: inv.owned[playerId] ?? [...owned] };
 	});
