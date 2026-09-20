@@ -21,15 +21,13 @@ export const Route = createFileRoute("/api/admin/bases")({
     handlers: {
       GET: async () => {
         const store = await loadBases();
-        return Response.json(store);
+        const pub = await publishBaseBoard();
+        return Response.json({ ...store, published: pub });
       },
       POST: async ({ request }) => {
         if (!authorized(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
-        const body = (await request.json().catch(() => ({}))) as Partial<CustomBase> & { action?: string; query?: string };
-        if (body.action === "publish") {
-          const pub = await publishBaseBoard();
-          return Response.json(pub);
-        }
+        const body = (await request.json().catch(() => ({}))) as Partial<CustomBase> & { action?: string };
+        if (body.action === "publish") return Response.json(await publishBaseBoard());
         if (body.action === "rent") {
           const rent = await runMonthlyRent(true);
           await publishBaseBoard();
