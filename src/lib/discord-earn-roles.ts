@@ -33,24 +33,30 @@ export async function ensureEarnRoles() {
   map.guildId = guildId;
   const existing = (await discord(`/guilds/${guildId}/roles`)) as Array<{ id: string; name: string }>;
   for (const role of EARN_ROLES) {
-    const found = existing.find((r) => r.name === role.name) || (map.roles[role.key] ? { id: map.roles[role.key], name: role.name } : null);
+    const found = existing.find((r) => r.name === role.name);
     if (found) {
       map.roles[role.key] = found.id;
       continue;
     }
-    const created = (await discord(`/guilds/${guildId}/roles`, {
-      method: "POST",
-      body: JSON.stringify({ name: role.name, color: role.color, mentionable: true, hoist: false }),
-    })) as { id: string };
-    map.roles[role.key] = created.id;
+    if (map.roles[role.key] && existing.some((r) => r.id === map.roles[role.key])) continue;
+    try {
+      const created = (await discord(`/guilds/${guildId}/roles`, {
+        method: "POST",
+        body: JSON.stringify({ name: role.name, color: role.color, mentionable: true, hoist: false }),
+      })) as { id: string };
+      map.roles[role.key] = created.id;
+    } catch {
+      /* missing Manage Roles — keep posting the board */
+    }
   }
   await writeJsonFile("earn-roles.json", map);
   return map;
 }
 
 function boardPayload() {
-  const combat = EARN_ROLES.filter((r) => ["blooded", "hunter", "slayer", "reaper", "raider", "warlord", "legend", "ghost", "operator", "battalion", "pilot"].includes(r.key));
-  const life = EARN_ROLES.filter((r) => !combat.includes(r));
+  const combatKeys = new Set(["blooded", "hunter", "slayer", "reaper", "raider", "warlord", "legend", "ghost", "operator", "battalion", "pilot"]);
+  const combat = EARN_ROLES.filter((r) => combatKeys.has(r.key));
+  const life = EARN_ROLES.filter((r) => !combatKeys.has(r.key));
   const block = (list: typeof EARN_ROLES) =>
     list.map((r) => `**${r.name}** — ${r.challenge}\nReward: ${r.reward}`).join("\n\n").slice(0, 1024);
   return {
@@ -89,46 +95,31 @@ function boardPayload() {
 }
 
 export async function postEarnRolesEmbed() {
-  const map = await ensureEarnRoles();
+  const me = (await discord("/users/@me")) as { id: string };
+  await ensureEarnRoles();
   const payload = boardPayload();
   const recent = (await discord(`/channels/${CHANNEL}/messages?limit=100`)) as Array<{
     id: string;
+    author?: { id?: string };
     embeds?: Array<{ title?: string }>;
   }>;
-  const existing = recent.find((m) => m.embeds?.some((e) => /earn roles/i.test(e.title || "")));
-  let messageId = existing?.id;
-  if (existing) {
-    await discord(`/channels/${CHANNEL}/messages/${existing.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+  const ours = recent.find((m) => m.author?.id === me.id && m.embeds?.some((e) => /earn roles/i.test(e.title || "")));
+  let messageId = ours?.id;
+  if (ours) {
+    await discord(`/channels/${CHANNEL}/messages/${ours.id}`, { method: "PATCH", body: JSON.stringify(payload) });
   } else {
     const created = (await discord(`/channels/${CHANNEL}/messages`, { method: "POST", body: JSON.stringify(payload) })) as { id: string };
     messageId = created.id;
   }
-  const extra = recent.map((m) => m.id).filter((id) => id !== messageId);
-  if (extra.length >= 2) {
+  for (const msg of recent) {
+    if (msg.id === messageId) continue;
     try {
-      await discord(`/channels/${CHANNEL}/messages/bulk-delete`, {
-        method: "POST",
-        body: JSON.stringify({ messages: extra.slice(0, 100) }),
-      });
+      await discord(`/channels/${CHANNEL}/messages/${msg.id}`, { method: "DELETE" });
     } catch {
-      for (const id of extra) {
-        try {
-          await discord(`/channels/${CHANNEL}/messages/${id}`, { method: "DELETE" });
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-  } else {
-    for (const id of extra) {
-      try {
-        await discord(`/channels/${CHANNEL}/messages/${id}`, { method: "DELETE" });
-      } catch {
-        /* ignore */
-      }
+      /* no manage messages or system msg */
     }
   }
-  return { ok: true, messageId, roles: Object.keys(map.roles).length };
+  return { ok: true, messageId, bot: me.id };
 }
 
 export async function roleHoldersEmbed(key: string) {
