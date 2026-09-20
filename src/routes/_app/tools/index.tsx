@@ -9,7 +9,7 @@ import { FadeInUp } from "@/components/motion/WordStagger";
 import { BRAND } from "@/lib/brand";
 import { SERVICE_GROUPS } from "@/lib/shop-service-groups";
 import { ItemShop } from "@/routes/_app/tools/ItemShop";
-import { FOCUSED_TOOLS, SATELLITE_TO_FOCUS_SLUG, getFocusedTool } from "@/components/tools/focused-tools";
+import { getFocusedTool } from "@/components/tools/focused-tools";
 
 const searchSchema = z.object({
   focus: z.string().optional(),
@@ -41,12 +41,7 @@ function ToolsHub() {
           </div>
           <div className="mt-4 inline-flex rounded-full border border-primary/25 bg-black/40 p-1">
             {(["server", "items"] as const).map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setShopTab(id)}
-                className={`rounded-full px-5 py-2 text-xs uppercase tracking-[0.18em] ${shopTab === id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-              >
+              <button key={id} type="button" onClick={() => setShopTab(id)} className={`rounded-full px-5 py-2 text-xs uppercase tracking-[0.18em] ${shopTab === id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
                 {id === "server" ? "Services" : "Item Shop"}
               </button>
             ))}
@@ -55,10 +50,7 @@ function ToolsHub() {
       </header>
       <div className={tool ? "relative flex min-h-[calc(100vh-13rem)] flex-1 flex-col" : "relative"}>
         {!tool && (shopTab === "server" ? (
-          <ServiceDirectory
-            onOpen={(next) => navigate({ to: "/tools", search: { focus: next, workspace } })}
-            onOpenFull={(path) => navigate({ to: path })}
-          />
+          <ServiceDirectory onOpen={(next) => navigate({ to: "/tools", search: { focus: next, workspace } })} onOpenFull={(path) => navigate({ to: path })} />
         ) : (
           <ItemShop />
         ))}
@@ -68,34 +60,19 @@ function ToolsHub() {
   );
 }
 
-function ServiceDirectory({
-  onOpen,
-  onOpenFull,
-}: {
-  onOpen: (focus: string) => void;
-  onOpenFull: (path: string) => void;
-}) {
+function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => void; onOpenFull: (path: string) => void }) {
   return (
     <section className="shop-directory-wrap" aria-label="Server service directory">
       <div className="shop-directory-shell">
         <div className="shop-directory-grid">
           {SERVICE_GROUPS.map((group, index) => (
-            <motion.button
-              key={group.name}
-              type="button"
-              onClick={() => {
-                if (group.name === "Combat & Intel") return onOpenFull("/tools/uav");
-                if (group.name === "Vehicle Shop") return onOpen("vehicle-shop");
-                if (group.name === "Boosts") return onOpen("boosts");
-                if (group.name === "Pro Build") return onOpen("pro-build");
-                if (group.items[0]) onOpen(group.items[0].focus);
-              }}
-              className="shop-card group shop-card-shine"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.04 }}
-              whileHover={{ y: -3 }}
-            >
+            <motion.button key={group.name} type="button" onClick={() => {
+              if (group.name === "Combat & Intel") return onOpenFull("/tools/uav");
+              if (group.name === "Vehicle Shop") return onOpen("vehicle-shop");
+              if (group.name === "Boosts") return onOpen("boosts");
+              if (group.name === "Pro Build") return onOpen("pro-build");
+              if (group.items[0]) onOpen(group.items[0].focus);
+            }} className="shop-card group shop-card-shine" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }} whileHover={{ y: -3 }}>
               <span className="shop-card-art" aria-hidden>
                 {group.name === "Base Ops" && <img src="/baseops.jpg" alt="" className="h-full w-full object-cover" />}
                 {group.name === "Zombie Hordes" && <img src="/zombie.jpg" alt="" className="h-full w-full object-cover" />}
