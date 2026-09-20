@@ -76,27 +76,54 @@ function listPayload(bans: BanRecord[]) {
   };
 }
 
+async function wipeOthers(keepId: string) {
+  const recent = (await discord(`/channels/${CHANNEL}/messages?limit=100`)) as Array<{ id: string }>;
+  const extra = recent.map((m) => m.id).filter((id) => id !== keepId);
+  if (extra.length >= 2) {
+    try {
+      await discord(`/channels/${CHANNEL}/messages/bulk-delete`, {
+        method: "POST",
+        body: JSON.stringify({ messages: extra.slice(0, 100) }),
+      });
+      extra.splice(0, extra.length);
+    } catch {
+      /* fall through to singles */
+    }
+  }
+  for (const id of extra) {
+    try {
+      await discord(`/channels/${CHANNEL}/messages/${id}`, { method: "DELETE" });
+    } catch {
+      /* pinned or missing */
+    }
+  }
+  return extra.length;
+}
+
 export async function postBansEmbed() {
   const bans = await listBans();
   const payload = listPayload(bans);
-  const recent = (await discord(`/channels/${CHANNEL}/messages?limit=15`)) as Array<{
+  const recent = (await discord(`/channels/${CHANNEL}/messages?limit=100`)) as Array<{
     id: string;
     author?: { bot?: boolean };
     embeds?: Array<{ title?: string }>;
   }>;
-  const existing = recent.find((m) => m.author?.bot && m.embeds?.some((e) => /banned players/i.test(e.title || "")));
+  const existing = recent.find((m) => m.embeds?.some((e) => /banned players/i.test(e.title || "")));
+  let messageId = existing?.id;
   if (existing) {
     await discord(`/channels/${CHANNEL}/messages/${existing.id}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
-    return { ok: true, action: "edited", count: bans.length, messageId: existing.id };
+  } else {
+    const created = (await discord(`/channels/${CHANNEL}/messages`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })) as { id: string };
+    messageId = created.id;
   }
-  const created = (await discord(`/channels/${CHANNEL}/messages`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  })) as { id: string };
-  return { ok: true, action: "posted", count: bans.length, messageId: created.id };
+  const deleted = await wipeOthers(messageId!);
+  return { ok: true, action: existing ? "edited" : "posted", count: bans.length, messageId, deleted };
 }
 
 export async function banDetailResponse(banId: string) {
