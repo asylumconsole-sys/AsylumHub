@@ -75,17 +75,17 @@ function AppShell() {
   useEffect(() => {
     if (!loading && !session) nav({ to: "/login", search: { redirect: pathnameRef.current, mode: "signin", error: undefined }, replace: true });
   }, [loading, session, nav]);
+  const hideMesh = loc.pathname.startsWith("/tools");
   if (loading || !session) {
     return (
-      <div className="relative flex min-h-dvh items-center justify-center bg-[color:var(--color-ink)]">
-        <GradientMesh />
+      <div className="relative flex min-h-dvh items-center justify-center bg-black">
         <div className="relative z-10 text-sm text-muted-foreground">{loading ? `Booting ${BRAND.name}` : "Redirecting to sign in"}</div>
       </div>
     );
   }
   return (
-    <div className="relative min-h-screen bg-[color:var(--color-ink)] text-foreground">
-      <GradientMesh />
+    <div className={`relative min-h-screen text-foreground ${hideMesh ? "bg-black" : "bg-[color:var(--color-ink)]"}`}>
+      {!hideMesh && <GradientMesh />}
       <div className="relative z-10 flex min-h-screen">
         <aside className={`sticky top-0 hidden h-screen shrink-0 self-start overflow-y-auto border-r border-glass-border bg-black/20 backdrop-blur-xl md:flex md:flex-col ${collapsed ? "w-16" : "w-64"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center px-1" : "justify-between gap-1 px-4"} py-5`}>
