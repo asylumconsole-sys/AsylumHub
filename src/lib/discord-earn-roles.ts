@@ -13,7 +13,7 @@ const GROUPS: Array<{ title: string; match: (key: string) => boolean }> = [
   { title: "Raid & build", match: (k) => k.startsWith("build_") || k.startsWith("raid_") || ["builder", "architect", "raider", "siege"].includes(k) },
   { title: "Trade & NPC", match: (k) => k.startsWith("trade_") || k.startsWith("npc_") || ["trader", "magnate", "operator", "battalion", "patron"].includes(k) },
   { title: "Ops", match: (k) => k.startsWith("recon_") || k.startsWith("supply_") || k.startsWith("event_") || ["ghost", "warlord", "pilot", "medic"].includes(k) },
-  { title: "Maps & status", match: (k) => k.startsWith("night_") || ["livonia", "chernarus", "inner", "asylum"].includes(k) },
+  { title: "Maps", match: (k) => k.startsWith("night_") || ["livonia", "chernarus", "inner", "asylum"].includes(k) },
 ];
 
 async function discord(path: string, init?: RequestInit) {
@@ -51,7 +51,7 @@ export async function ensureEarnRoles() {
     if (map.roles[role.key] || created >= 12) continue;
     const made = (await discord(`/guilds/${channel.guild_id}/roles`, {
       method: "POST",
-      body: JSON.stringify({ name: role.name, mentionable: true, hoist: false, color: 0x16a34a }),
+      body: JSON.stringify({ name: role.name, mentionable: true, hoist: false, color: 0x22c55e }),
     })) as { id: string };
     map.roles[role.key] = made.id;
     existing.push({ id: made.id, name: role.name });
@@ -74,52 +74,38 @@ function boardPayload(map: RoleMap) {
     roles.forEach((r) => used.add(r.key));
     return {
       name: g.title,
-      value: roles.slice(0, 10).map((r) => `• ${mention(map, r.key)}`).join("\n").slice(0, 1024) || "—",
+      value: roles.map((r) => mention(map, r.key)).join(" ").slice(0, 1024) || "—",
       inline: true,
     };
   });
-  const menus = GROUPS.slice(0, 5).map((g, idx) => {
-    const roles = EARN_ROLES.filter((r) => g.match(r.key)).slice(0, 25);
-    return {
-      type: 1,
-      components: [
-        {
-          type: 3,
-          custom_id: `earn_pick_${idx}`,
-          placeholder: g.title,
-          options: roles.map((r) => ({
-            label: r.name.slice(0, 100),
-            value: r.key,
-            description: `${r.challenge} · +1000 cr`.slice(0, 100),
-          })),
-        },
-      ],
-    };
-  });
+  const leftover = EARN_ROLES.filter((r) => !used.has(r.key));
+  if (leftover.length) {
+    fields.push({
+      name: "More",
+      value: leftover.map((r) => mention(map, r.key)).join(" ").slice(0, 1024),
+      inline: true,
+    });
+  }
   return {
     content: "",
     embeds: [
       {
-        title: "EARN ROLES",
-        description: "Complete the challenge.\nYou receive the **Discord role** and **1,000 credits**.\n\nUse a menu to inspect a role and who holds it.",
+        title: "Earn roles",
+        description: "Clear the challenge → **role + 1,000 cr**.",
         color: 0x22c55e,
         fields: fields.slice(0, 6),
-        footer: { text: "DAYZ PRO  ·  dayzpro.online" },
+        footer: { text: "DAYZ PRO" },
       },
     ],
-    components: menus,
+    components: [],
     allowed_mentions: { parse: [] },
   };
 }
 
 export async function postEarnRolesEmbed() {
-  const me = (await discord("/users/@me")) as { id: string };
   const ensured = await ensureEarnRoles();
   const payload = boardPayload(ensured.map);
-  const recent = (await discord(`/channels/${CHANNEL}/messages?limit=50`)) as Array<{
-    id: string;
-    author?: { id?: string };
-  }>;
+  const recent = (await discord(`/channels/${CHANNEL}/messages?limit=30`)) as Array<{ id: string }>;
   for (const msg of recent) {
     try {
       await discord(`/channels/${CHANNEL}/messages/${msg.id}`, { method: "DELETE" });
@@ -131,27 +117,12 @@ export async function postEarnRolesEmbed() {
     method: "POST",
     body: JSON.stringify(payload),
   })) as { id: string };
-  return { ok: true, action: "posted-new", messageId: created.id, bot: me.id, total: ensured.total, need: ensured.need };
+  return { ok: true, action: "posted-new", messageId: created.id, total: ensured.total, need: ensured.need };
 }
 
 export async function roleHoldersEmbed(key: string) {
   const role = EARN_ROLES.find((r) => r.key === key);
   if (!role) return { embeds: [{ title: "Unknown role", color: 0x6b7280 }] };
-  const map = await loadMap();
-  const roleId = map.roles[key];
-  let holders = "Nobody has this role yet.";
-  if (roleId && map.guildId) {
-    const members = (await discord(`/guilds/${map.guildId}/members?limit=1000`)) as Array<{
-      user?: { username?: string; global_name?: string };
-      nick?: string;
-      roles?: string[];
-    }>;
-    const names = members
-      .filter((m) => m.roles?.includes(roleId))
-      .map((m) => m.nick || m.user?.global_name || m.user?.username)
-      .filter(Boolean) as string[];
-    if (names.length) holders = names.slice(0, 40).map((n, i) => `${i + 1}. ${n}`).join("\n");
-  }
   return {
     embeds: [
       {
@@ -160,7 +131,6 @@ export async function roleHoldersEmbed(key: string) {
         fields: [
           { name: "Challenge", value: role.challenge, inline: false },
           { name: "Reward", value: "Role + 1,000 cr", inline: false },
-          { name: "Who has it", value: holders.slice(0, 1024), inline: false },
         ],
       },
     ],
