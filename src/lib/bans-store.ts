@@ -25,7 +25,13 @@ export async function getBan(id: string) {
 
 export async function upsertBan(ban: BanRecord) {
   const store = await readJsonFile<BanStore>("bans.json", { bans: [] });
-  const next = [...(store.bans ?? []).filter((b) => b.id !== ban.id), ban];
+  const next = [...(store.bans ?? []).filter((b) => b.id !== ban.id && b.name.toLowerCase() !== ban.name.toLowerCase()), ban];
   await writeJsonFile("bans.json", { bans: next });
+  try {
+    const { postBansEmbed } = await import("@/lib/discord-bans-embed");
+    await postBansEmbed();
+  } catch {
+    /* Discord refresh is best-effort */
+  }
   return ban;
 }
