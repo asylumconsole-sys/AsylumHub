@@ -20,13 +20,7 @@ export const SERVICE_GROUPS: { name: string; description: string; hue: number; i
     items: [
       { label: "Combat & Intel", focus: "utm", icon: <IconUtm size={16} /> },
       { label: "UAV", focus: "utm-all", icon: <IconScroll size={16} /> },
-      { label: "UAV Tracking", focus: "utm-all", icon: <IconScroll size={16} /> },
-      { label: "Counter-UAV", focus: "campaign-list-cleaner", icon: <IconSpark size={16} /> },
-      { label: "PVP Killfeed", focus: "utm", icon: <IconSpark size={16} /> },
       { label: "Bounties", focus: "utm-taxonomy", icon: <IconSpark size={16} /> },
-      { label: "Heatmap", focus: "campaign-list-cleaner", icon: <IconChart size={16} /> },
-      { label: "Intel Board", focus: "funnel-performance", icon: <IconChart size={16} /> },
-      { label: "Leaderboards", focus: "funnel-performance", icon: <IconChart size={16} /> },
     ],
   },
   {
@@ -37,17 +31,14 @@ export const SERVICE_GROUPS: { name: string; description: string; hue: number; i
     items: [
       { label: "Air Support", focus: "funnel-targets", icon: <IconFunnel size={16} /> },
       { label: "Precision Strikes", focus: "funnel-targets", icon: <IconSpark size={16} /> },
-      { label: "Strafe Runs", focus: "funnel-performance", icon: <IconChart size={16} /> },
     ],
   },
   {
     name: "Base Ops",
-    description: "Pro Build, sleeping bags, bases, and raid calls.",
+    description: "Protect bases, manage territory, and broadcast raid events.",
     hue: 35,
     icon: <IconCampaign size={20} />,
     items: [
-      { label: "Pro Build", focus: "pro-build", icon: <IconCampaign size={16} /> },
-      { label: "Sleeping Bags", focus: "sleeping-bags", icon: <IconScroll size={16} /> },
       { label: "Custom Bases", focus: "campaign", icon: <IconCampaign size={16} /> },
       { label: "Raid Announcements", focus: "campaign-events", icon: <IconCalendar size={16} /> },
     ],
@@ -59,8 +50,6 @@ export const SERVICE_GROUPS: { name: string; description: string; hue: number; i
     icon: <IconImport size={20} />,
     items: [
       { label: "NPC Shop", focus: "campaign-import", icon: <IconImport size={16} /> },
-      { label: "Custom Vehicles", focus: "campaign-events", icon: <IconSpark size={16} /> },
-      { label: "Item Shop", focus: "campaign-import", icon: <IconScroll size={16} /> },
     ],
   },
   {
@@ -70,8 +59,6 @@ export const SERVICE_GROUPS: { name: string; description: string; hue: number; i
     icon: <IconCampaign size={20} />,
     items: [
       { label: "Vehicle Shop", focus: "vehicle-shop", icon: <IconCampaign size={16} /> },
-      { label: "Utility Vehicles", focus: "vehicle-shop", icon: <IconScroll size={16} /> },
-      { label: "Combat Vehicles", focus: "vehicle-shop", icon: <IconSpark size={16} /> },
     ],
   },
   {
@@ -79,11 +66,7 @@ export const SERVICE_GROUPS: { name: string; description: string; hue: number; i
     description: "Skip the line and keep your faction ahead of the pack.",
     hue: 48,
     icon: <IconBolt size={20} />,
-    items: [
-      { label: "Priority Queue", focus: "campaign-events", icon: <IconBolt size={16} /> },
-      { label: "Fast Track", focus: "campaign-events", icon: <IconSpark size={16} /> },
-      { label: "Queue Boost", focus: "campaign-events", icon: <IconChart size={16} /> },
-    ],
+    items: [{ label: "Priority Queue", focus: "campaign-events", icon: <IconBolt size={16} /> }],
   },
   {
     name: "Boosts",
@@ -93,7 +76,6 @@ export const SERVICE_GROUPS: { name: string; description: string; hue: number; i
     items: [
       { label: "Double XP", focus: "boosts", icon: <IconSpark size={16} /> },
       { label: "Double CR", focus: "boosts", icon: <IconUtm size={16} /> },
-      { label: "Reputation Boost", focus: "boosts", icon: <IconChart size={16} /> },
     ],
   },
   {
