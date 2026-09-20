@@ -33,12 +33,7 @@ export type KillfeedResult = {
 export type LiveFeedResult = { events: LiveEvent[]; unavailable: KillfeedResult["unavailable"] };
 
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
-
-const LINE_PATTERNS: RegExp[] = [
-  /\*\*([^*]+)\*\*\s+(?:killed|eliminated|downed)\s+\*\*([^*]+)\*\*(?:\s+with\s+\*\*([^*]+)\*\*)?/i,
-  /([A-Za-z0-9_\-.\[\]]{2,32})\s+(?:killed|eliminated|downed)\s+([A-Za-z0-9_\-.\[\]]{2,32})(?:\s+with\s+([A-Za-z0-9_\-]+))?/i,
-  /Player\s+["']([^"']+)["'].*killed by\s+(?:Player\s+)?["']([^"']+)["']/i,
-];
+const STOP = new Set(["by", "was", "with", "killed", "player", "the", "a", "an", "from", "and", "to", "of", "in", "on", "dead"]);
 
 function withinFiveDays(iso: string) {
   const t = Date.parse(iso.replace(" ", "T"));
@@ -46,27 +41,61 @@ function withinFiveDays(iso: string) {
   return Date.now() - t <= FIVE_DAYS_MS;
 }
 
+function cleanName(value: string | undefined): string | null {
+  if (!value) return null;
+  const name = value.replace(/[*_`]/g, "").replace(/<@!?\d+>/g, "").replace(/\s+/g, " ").trim();
+  if (name.length < 2 || name.length > 32) return null;
+  if (STOP.has(name.toLowerCase())) return null;
+  if (!/[A-Za-z0-9]/.test(name)) return null;
+  if (/^(was|by|killed|with)$/i.test(name)) return null;
+  return name;
+}
+
+function distanceOf(text: string): number | undefined {
+  const m = text.match(/(\d+(?:\.\d+)?)\s*(?:m|meters?|meter)\b/i);
+  if (!m) return undefined;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function weaponOf(text: string): string | undefined {
+  const m = text.match(/\bwith\s+\*?\*?([A-Za-z][A-Za-z0-9_\-\s]{1,40}?)\*?\*?(?:\s+from|\s+at|\s+\d|$)/i);
+  const w = m?.[1]?.trim();
+  if (!w || STOP.has(w.toLowerCase())) return undefined;
+  return w;
+}
+
+function parsePair(text: string): { killer: string; victim: string; weapon?: string; distance?: number } | null {
+  const blob = text.replace(/\n+/g, " ");
+  const killedBy = blob.match(/(.+?)\s+was killed by\s+(.+?)(?:\s+with\s+(.+?))?(?:\s+from\s+([0-9.]+))?/i);
+  if (killedBy) {
+    const victim = cleanName(killedBy[1].split(/[•|-]/).pop());
+    const killer = cleanName(killedBy[2].split(/\s+with\s+/i)[0]);
+    if (killer && victim) {
+      return { killer, victim, weapon: cleanName(killedBy[3] || "") || weaponOf(blob), distance: killedBy[4] ? Number(killedBy[4]) : distanceOf(blob) };
+    }
+  }
+  const killed = blob.match(/(.+?)\s+killed\s+(.+?)(?:\s+with\s+(.+?))?(?:\s+from\s+([0-9.]+))?/i);
+  if (killed && !/was killed/i.test(blob)) {
+    const killer = cleanName(killed[1].split(/[•|-]/).pop());
+    const victim = cleanName(killed[2].split(/\s+with\s+/i)[0]);
+    if (killer && victim) {
+      return { killer, victim, weapon: cleanName(killed[3] || "") || weaponOf(blob), distance: killed[4] ? Number(killed[4]) : distanceOf(blob) };
+    }
+  }
+  return null;
+}
+
+function fieldMap(fields: Array<{ name: string; value: string }> | undefined) {
+  const map: Record<string, string> = {};
+  for (const field of fields ?? []) map[field.name.toLowerCase()] = field.value.replace(/[*_`]/g, "").trim();
+  return map;
+}
+
 function botHeaders() {
   const token = process.env.DISCORD_TOKEN?.replace(/^Bot\s+/i, "");
   if (!token) return null;
   return { Authorization: `Bot ${token}` };
-}
-
-function parseText(text: string): { killer: string; victim: string; weapon?: string } | null {
-  const cleaned = text.replace(/<@!?\d+>/g, "").replace(/\n+/g, " ");
-  for (const pattern of LINE_PATTERNS) {
-    const m = cleaned.match(pattern);
-    if (!m) continue;
-    let killer = m[1]?.trim();
-    let victim = m[2]?.trim();
-    if (/killed by/i.test(cleaned)) {
-      victim = m[1]?.trim();
-      killer = m[2]?.trim();
-    }
-    if (!killer || !victim || killer.toLowerCase() === victim.toLowerCase()) continue;
-    return { killer, victim, weapon: m[3]?.trim() };
-  }
-  return null;
 }
 
 function serverFromText(text: string): DayZServerId {
@@ -78,10 +107,9 @@ async function findKillfeedChannelId(headers: Record<string, string>): Promise<s
   const guilds = (await (await fetch("https://discord.com/api/v10/users/@me/guilds", { headers })).json()) as Array<{ id: string }>;
   const guildId = process.env.DISCORD_GUILD_ID || guilds?.[0]?.id;
   if (!guildId) return null;
-  const channels = (await (await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, { headers })).json()) as Array<{ id: string; name?: string; type: number }>;
+  const channels = (await (await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, { headers })).json()) as Array<{ id: string; name?: string }>;
   if (!Array.isArray(channels)) return null;
-  const hit = channels.find((c) => /kill\s*-?feed|kills/i.test(c.name ?? ""));
-  return hit?.id ?? null;
+  return channels.find((c) => /kill\s*-?feed|kills/i.test(c.name ?? ""))?.id ?? null;
 }
 
 async function downloadViaDiscord(): Promise<KillEvent[]> {
@@ -112,13 +140,18 @@ async function downloadViaDiscord(): Promise<KillEvent[]> {
         older = true;
         continue;
       }
-      const chunks = [msg.content ?? ""];
-      for (const embed of msg.embeds ?? []) {
-        chunks.push(`${embed.title ?? ""} ${embed.description ?? ""}`);
-        for (const field of embed.fields ?? []) chunks.push(`${field.name} ${field.value}`);
+      const fields = fieldMap(msg.embeds?.flatMap((e) => e.fields ?? []) ?? []);
+      const blob = [
+        msg.content ?? "",
+        ...(msg.embeds ?? []).flatMap((e) => [e.title ?? "", e.description ?? ""]),
+        ...Object.values(fields),
+      ].join(" \n ");
+      let parsed = parsePair(blob);
+      if (!parsed) {
+        const killer = cleanName(fields.killer || fields.attacker || fields.player);
+        const victim = cleanName(fields.victim || fields.killed || fields.target);
+        if (killer && victim) parsed = { killer, victim, weapon: cleanName(fields.weapon || fields.gun) || undefined, distance: distanceOf(fields.distance || blob) };
       }
-      const blob = chunks.join(" \n ");
-      const parsed = parseText(blob);
       if (!parsed) continue;
       const id = `${at}:${parsed.killer}:${parsed.victim}`.toLowerCase();
       if (seen.has(id)) continue;
@@ -129,6 +162,7 @@ async function downloadViaDiscord(): Promise<KillEvent[]> {
         killer: parsed.killer,
         victim: parsed.victim,
         weapon: parsed.weapon,
+        distance: parsed.distance,
         at,
         raw: blob.slice(0, 240),
       });
@@ -151,13 +185,7 @@ export const getKillfeed = createServerFn({ method: "GET" })
     } catch (error) {
       return {
         events: [],
-        unavailable: [
-          {
-            server: "101x",
-            reason: error instanceof Error ? error.message : "Discord killfeed read failed",
-            missingEnv: requiredFtpEnv("101x"),
-          },
-        ],
+        unavailable: [{ server: "101x", reason: error instanceof Error ? error.message : "Discord killfeed read failed", missingEnv: requiredFtpEnv("101x") }],
       };
     }
   });
