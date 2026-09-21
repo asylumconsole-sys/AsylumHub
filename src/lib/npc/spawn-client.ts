@@ -6,17 +6,21 @@ export type SpawnClientResult =
       eventName: string;
       restockSeconds: number;
       restarted: boolean;
+      remaining?: number;
+      waveLeft?: number;
     };
 
 export async function postNpcSpawn(payload: {
   serviceId: string;
   serverId?: string;
   npcId: string;
+  npcName?: string;
   x: number;
   z: number;
   a?: number;
   playerId?: string;
   playerName?: string;
+  count?: number;
 }): Promise<SpawnClientResult> {
   const res = await fetch("/api/npc/spawn", {
     method: "POST",
