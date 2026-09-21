@@ -77,7 +77,7 @@ function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => v
               whileHover={{ y: -3 }}
               onClick={() => {
                 if (group.name === "Combat & Intel") return onOpenFull("/tools/uav");
-                if (group.name === "Vehicle Shop") return onOpen("vehicle-shop");
+                if (group.name === "Vehicle Shop") return onOpenFull("/tools/vehicle-shop");
                 if (group.name === "Boosts") return onOpen("boosts");
                 if (group.name === "Base Ops") return onOpen("campaign");
                 if (group.items[0]) onOpen(group.items[0].focus);
