@@ -78,18 +78,24 @@ function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => v
               onClick={() => {
                 if (group.name === "Combat & Intel") return onOpenFull("/tools/uav");
                 if (group.name === "Vehicle Shop") return onOpenFull("/tools/vehicle-shop");
+                if (group.name === "Factions") return onOpenFull("/tools/event-intake");
                 if (group.name === "Boosts") return onOpen("boosts");
                 if (group.name === "Base Ops") return onOpen("campaign");
                 if (group.items[0]) onOpen(group.items[0].focus);
               }}
             >
               <span className="shop-card-art" aria-hidden>
-                {group.name === "Base Ops" && <img src="/baseops.jpg" alt="" />}
-                {group.name === "Zombie Hordes" && <img src="/zombie.jpg" alt="" />}
-                {group.name === "Vehicle Shop" && <img src="/vehicles/ada-4x4.png" alt="" />}
-                {group.name !== "Base Ops" && group.name !== "Zombie Hordes" && group.name !== "Vehicle Shop" && (
-                  <span className="inline-flex size-full items-center justify-center" style={{ background: `oklch(0.28 0.12 ${group.hue} / 0.55)`, color: `oklch(0.9 0.12 ${group.hue})` }}>{group.icon}</span>
-                )}
+                <img
+                  src={group.image}
+                  alt=""
+                  onError={(e) => {
+                    const el = e.currentTarget;
+                    if (group.name === "Zombie Hordes") el.src = "/zombie.jpg";
+                    else if (group.name === "Base Ops") el.src = "/baseops.jpg";
+                    else if (group.name === "Factions") el.src = "/factions.jpg";
+                    else el.style.display = "none";
+                  }}
+                />
               </span>
               <span className="shop-card-content">
                 <span className="shop-card-title">{group.name}</span>
