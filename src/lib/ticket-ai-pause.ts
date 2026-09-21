@@ -1,5 +1,5 @@
 import { readJsonFile, writeJsonFile } from "@/lib/dayz/store";
-import { discordPost } from "@/lib/staff-embed";
+import { discordGet, discordPost } from "@/lib/staff-embed";
 
 const FILE = "ticket-ai-pause.json";
 const ANNOUNCE_CHANNEL = "1371150773857288324";
@@ -19,21 +19,23 @@ export async function setTicketAiPaused(paused: boolean, by = "system") {
 
 export function aioffReply(paused: boolean) {
   return paused
-    ? "PRO AI ticket replies are **OFF**. Staff only until `!aion` / `/aion`."
+    ? "PRO AI ticket replies are **OFF**. Staff only until `/aion`."
     : "PRO AI ticket replies are **ON** again.";
 }
 
 export async function registerAiToggleCommands() {
   const appId = process.env.DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID || "";
   if (!appId) return { ok: false, error: "no application id" };
-  const channel = (await (await import("@/lib/staff-embed")).discordGet(`/channels/${ANNOUNCE_CHANNEL}`)) as { guild_id?: string } | null;
+  const channel = (await discordGet(`/channels/${ANNOUNCE_CHANNEL}`)) as { guild_id?: string } | null;
   const guildId = channel?.guild_id;
   if (!guildId) return { ok: false, error: "no guild id" };
-  const payload = [
-    { name: "aioff", description: "Pause PRO AI ticket replies" },
-    { name: "aion", description: "Resume PRO AI ticket replies" },
-  ];
-  const res = await discordPost(`/applications/${appId}/guilds/${guildId}/commands`, payload[0]);
-  await discordPost(`/applications/${appId}/guilds/${guildId}/commands`, payload[1]);
-  return { ok: true, guildId, res };
+  await discordPost(`/applications/${appId}/guilds/${guildId}/commands`, {
+    name: "aioff",
+    description: "Pause PRO AI ticket replies",
+  });
+  await discordPost(`/applications/${appId}/guilds/${guildId}/commands`, {
+    name: "aion",
+    description: "Resume PRO AI ticket replies",
+  });
+  return { ok: true, guildId };
 }
