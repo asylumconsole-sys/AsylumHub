@@ -4,9 +4,10 @@ import {
   firstOfNextMonth,
   loadBases,
   makeBaseCode,
+  mapLink,
   saveBases,
 } from "@/lib/custom-bases";
-import { baseDetailEmbed, listGuildMembers, publishBaseBoard } from "@/lib/custom-bases-discord";
+import { baseDetailEmbed, dmOwner, listGuildMembers, publishBaseBoard } from "@/lib/custom-bases-discord";
 import { runMonthlyRent } from "@/lib/custom-bases-rent";
 
 type Interaction = {
@@ -28,6 +29,19 @@ export const Route = createFileRoute("/api/discord/interactions")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const action = url.searchParams.get("action") || "publish";
+        if (action === "dm") {
+          const to = url.searchParams.get("to") || "239814047627870208";
+          const text = [
+            "DAYZ PRO base rent TEST",
+            "Base: Dennis Fox (df4507049)",
+            "Coords: unknown",
+            `Map: ${mapLink({ code: "df4507049", name: "Dennis Fox", ownerDiscordId: to, ownerName: "Dennis Fox", monthlyCost: 55000, amountPaid: 0, createdAt: new Date().toISOString(), nextDueAt: firstOfNextMonth(), status: "active" })}`,
+            "55,000 cr will auto-deduct on the 1st.",
+            "If credits are short, the base despawns in 48 hours.",
+          ].join("\n");
+          await dmOwner(to, text);
+          return Response.json({ ok: true, to });
+        }
         const store = await loadBases();
         if (action === "wipe") {
           const keep = (url.searchParams.get("keep") || "df4507049,Dennis Fox").split(",");
