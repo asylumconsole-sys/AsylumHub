@@ -11,10 +11,13 @@ const PAY_METHODS = [
 ] as const;
 
 const BLACK_MARKET = [
-  { name: "Ghost Drop", price: "$25", blurb: "Off-grid crate. No killfeed tag on the drop." },
-  { name: "Night Courier", price: "$50", blurb: "Vehicle + sealed crate at your coords after restart." },
-  { name: "Black Card", price: "$100", blurb: "Priority queue + one custom loadout review." },
-  { name: "Silent Base", price: "$250", blurb: "Staff-built stash kit. Ticket opens on buy." },
+  { name: "Buy player information", price: "25,000 CR", blurb: "Last seen server, linked tags, and recent killfeed on a target." },
+  { name: "Buy faction information", price: "40,000 CR", blurb: "Roster, flag coords if known, and faction kill totals." },
+  { name: "Remove wanted status", price: "30,000 CR", blurb: "Clears your wanted mark across Hub and Discord." },
+  { name: "Reputation buy", price: "20,000 CR", blurb: "Buy a reputation bump. Staff confirms the amount before apply." },
+  { name: "Identity Wipe", price: "75,000 CR", blurb: "Unlink public tags from Hub intel. Your Discord stay linked to staff." },
+  { name: "Ghost Mode role", price: "100,000 CR", blurb: "Hidden from public online list and default killfeed highlight." },
+  { name: "High-Risk Contract", price: "250,000 CR", blurb: "Extremely high-reward custom mission. Staff writes the contract." },
 ];
 
 async function startDonate(usd: number, method: string) {
@@ -107,7 +110,7 @@ export function DonatorShop() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
               whileHover={{ y: -3 }}
-              onClick={() => toast.message(`${item.name} — staff drop after payment`)}
+              onClick={() => toast.message(`${item.name} — opens a staff ticket after confirm`)}
               className="rounded-2xl border border-[#d4a84b]/25 bg-black/60 p-5 text-left"
             >
               <div className="font-display text-2xl text-[#e8c56a]">{item.name}</div>
