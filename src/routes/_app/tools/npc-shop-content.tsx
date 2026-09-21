@@ -13,6 +13,7 @@ import { BRAND } from "@/lib/brand";
 import { SPAWN_PACKS, type SpawnPack } from "@/lib/npc/spawn-packs";
 import { NpcInventoryModal } from "@/lib/npc/beamer-inventory-modal";
 import { NPCS, loadoutFor, type ShopNpc } from "@/lib/npc/roster";
+import { priceForSpawnCount } from "@/lib/npc/buy-count";
 
 const PRIMARY_SERVER_ID = "101x";
 const DEFAULT_SPAWN_POSITION = { x: 7500, z: 7500, a: 0 };
@@ -31,10 +32,12 @@ export function NPCShopContent() {
   const [gamertag, setGamertag] = useState("");
   const [spawning, setSpawning] = useState(false);
   const [waveCount, setWaveCount] = useState(1);
+  const [buyCount, setBuyCount] = useState(15);
   const [packId, setPackId] = useState(SPAWN_PACKS[0]?.id ?? "pack_15");
   const [invOpen, setInvOpen] = useState(false);
   const selectedPack: SpawnPack = SPAWN_PACKS.find((p) => p.id === packId) ?? SPAWN_PACKS[0];
   const selectedLoadout = selected ? loadoutFor(selected.id) : null;
+  const buyQuote = priceForSpawnCount(buyCount);
 
   const playerId = user?.id || "demo-user";
   const displayName =
@@ -93,12 +96,12 @@ export function NPCShopContent() {
           displayName,
           npcId: npc.id,
           npcName: npc.name,
-          price: selectedPack.price,
-          spawns: selectedPack.spawns,
+          price: buyQuote.price,
+          spawns: buyQuote.count,
         },
       }),
     onSuccess: (res, npc) => {
-      toast.success(`${npc.name} · ${selectedPack.label} +${res.spawnsAdded} charges`);
+      toast.success(`${npc.name} · ${res.spawnsAdded} for next restart`);
       qc.invalidateQueries({ queryKey: ["economy-balance", playerId] });
       qc.invalidateQueries({ queryKey: ["npc-inventory", playerId] });
     },
@@ -107,21 +110,19 @@ export function NPCShopContent() {
 
   const spawn = async () => {
     if (!selected) return;
-    if (!canDeploy) return toast.error(`No charges left — buy a pack for ${selected.name}`);
+    if (!canDeploy) return toast.error(`No charges left — buy first`);
     let position = { x: Number(y), z: Number(z) };
     if (placementMode === "gamertag") {
-      if (!gamertag.trim()) {
-        return toast.error("No linked PSN tag", { description: "Link your PlayStation name in Discord / hub first." });
-      }
+      if (!gamertag.trim()) return toast.error("No linked PSN tag");
       if (!matchedPlayer) return toast.error(`${gamertag} is not online on 101x`);
       if (!Number.isFinite(matchedPlayer.x) || !Number.isFinite(matchedPlayer.z)) {
-        return toast.error("Live position unavailable for your linked tag");
+        return toast.error("Live position unavailable");
       }
       position = { x: matchedPlayer.x as number, z: matchedPlayer.z as number };
     }
     if (placementMode === "zy") {
       if (!Number.isFinite(position.x) || !Number.isFinite(position.z) || position.x < 0 || position.z < 0) {
-        return toast.error("Enter valid Y and Z coordinates");
+        return toast.error("Enter valid Y and Z");
       }
     }
     setSpawning(true);
@@ -142,9 +143,9 @@ export function NPCShopContent() {
           count: Math.max(1, Math.min(chargesLeft || 1, Number(waveCount) || 1)),
         }),
       });
-      const result = (await res.json()) as { mode?: string; reason?: string; error?: string };
+      const result = (await res.json()) as { error?: string };
       if (!res.ok || result.error) throw new Error(result.error || "Deploy failed");
-      toast.success(`${selected.name} wave ${waveCount} queued`);
+      toast.success(`${selected.name} queued`);
       qc.invalidateQueries({ queryKey: ["npc-inventory", playerId] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to queue spawn");
@@ -168,9 +169,7 @@ export function NPCShopContent() {
               <IconCampaign size={14} /> {BRAND.name} · Gold bay
             </div>
             <h1 className="font-display mt-1 text-4xl text-[#e8c56a] sm:text-5xl">Operators</h1>
-            <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-              Packs: 2,500 cr / 15 · 5,000 cr / 30 · 7,500 cr / 50. Pick how many to burn this wave.
-            </p>
+            <p className="mt-2 max-w-2xl text-sm text-zinc-400">Type how many spawn this restart. 167 cr each (2,500 / 15).</p>
           </div>
           <div className="rounded-xl border border-[#d4a84b]/40 bg-[#d4a84b]/10 px-4 py-3 text-right">
             <div className="text-[10px] uppercase tracking-[0.2em] text-[#d4a84b]/80">Credits</div>
@@ -203,16 +202,12 @@ export function NPCShopContent() {
                     <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">{selected.description}</p>
                   </div>
                   <div className="flex min-w-[220px] flex-col gap-2">
-                    <div className="grid grid-cols-1 gap-1.5">
-                      {SPAWN_PACKS.map((pack) => (
-                        <button key={pack.id} type="button" onClick={() => setPackId(pack.id)} className={`rounded-lg border px-2 py-1.5 text-left ${selectedPack.id === pack.id ? "border-[#e8c56a] bg-[#d4a84b]/20" : "border-[#d4a84b]/20 hover:border-[#d4a84b]/40"}`}>
-                          <div className="text-[10px] uppercase tracking-wide text-[#e8c56a]">{pack.label}</div>
-                          <div className="font-mono text-[11px] text-zinc-300">{pack.price.toLocaleString()} cr · {pack.spawns} spawns</div>
-                        </button>
-                      ))}
-                    </div>
-                    <motion.button type="button" onClick={() => buyMut.mutate(selected)} disabled={buyMut.isPending || credits < selectedPack.price} className="relative min-w-[180px] overflow-hidden rounded-full bg-[#d4a84b] px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#1a1205] disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400">
-                      <span className="relative">{buyMut.isPending ? "Purchasing…" : `Buy ${selectedPack.label} · ${selectedPack.price.toLocaleString()} cr`}</span>
+                    <label className="text-[10px] uppercase tracking-wide text-[#e8c56a]">Spawn count this restart
+                      <input type="number" min={1} max={200} value={buyCount} onChange={(e) => setBuyCount(priceForSpawnCount(e.target.value).count)} className="mt-1 w-full rounded-lg border border-[#d4a84b]/40 bg-black px-3 py-3 font-mono text-xl text-[#f5e6c0] outline-none" />
+                    </label>
+                    <div className="text-[11px] text-zinc-500">{buyQuote.count} land next restart · {buyQuote.price.toLocaleString()} cr</div>
+                    <motion.button type="button" onClick={() => buyMut.mutate(selected)} disabled={buyMut.isPending || credits < buyQuote.price} className="relative min-w-[180px] overflow-hidden rounded-full bg-[#d4a84b] px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#1a1205] disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400">
+                      <span className="relative">{buyMut.isPending ? "Purchasing…" : `Buy ${buyQuote.count} this restart · ${buyQuote.price.toLocaleString()} cr`}</span>
                     </motion.button>
                     {selectedLoadout ? (
                       <button type="button" onClick={() => setInvOpen(true)} className="rounded-full border border-[#d4a84b]/40 px-4 py-2 text-xs uppercase tracking-[0.14em] text-[#e8c56a] hover:bg-[#d4a84b]/10">View inventory</button>
@@ -235,12 +230,8 @@ export function NPCShopContent() {
                 ))}
               </div>
               <div className="mt-4 border-t border-[#d4a84b]/20 pt-4 space-y-3">
-                <label className="block text-[10px] uppercase tracking-wide text-[#e8c56a]">Spawn count
-                  <input type="number" min={1} max={Math.max(1, chargesLeft)} value={waveCount} onChange={(e) => setWaveCount(Math.max(1, Math.min(chargesLeft || 1, Number(e.target.value) || 1)))} className="mt-1 w-full rounded-lg border border-[#d4a84b]/25 bg-black px-3 py-2 font-mono text-sm text-[#f5e6c0] outline-none" />
-                </label>
-                <div className="text-[11px] text-zinc-500">{waveCount} of {chargesLeft} · one now, then every 30s</div>
                 {placementMode === "map" && (
-                  <button type="button" disabled={!canDeploy || !selected} onClick={() => selected && window.open(`/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}&count=${waveCount}`, "_blank", "noopener,noreferrer")} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d4a84b]/50 px-4 py-2.5 text-sm uppercase tracking-[0.14em] text-[#e8c56a] disabled:opacity-40">Choose on map <IconArrowRight size={14} /></button>
+                  <button type="button" disabled={!canDeploy || !selected} onClick={() => selected && window.open(`/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}&count=${buyCount}`, "_blank", "noopener,noreferrer")} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d4a84b]/50 px-4 py-2.5 text-sm uppercase tracking-[0.14em] text-[#e8c56a] disabled:opacity-40">Choose on map <IconArrowRight size={14} /></button>
                 )}
                 {placementMode === "zy" && (
                   <div className="space-y-3">
