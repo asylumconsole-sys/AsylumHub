@@ -1,6 +1,4 @@
-import type { ComponentType, MouseEvent, ReactNode } from "react";
-import { useState } from "react";
-import { toast } from "sonner";
+import type { ComponentType, ReactNode } from "react";
 import { UtmBuilderContent } from "@/routes/_app/tools/utm";
 import { AllUtmsContent } from "@/routes/_app/tools/all-utms";
 import { TaxonomyContent } from "@/routes/_app/tools/taxonomy";
@@ -9,6 +7,7 @@ import { FunnelTargetsContent } from "@/routes/_app/tools/funnel-targets";
 import { CampaignInABoxContent } from "@/routes/_app/tools/campaign-in-a-box";
 import { CampaignCreatorContent } from "@/routes/_app/tools/campaign-creator";
 import { NPCShopContent } from "@/routes/_app/tools/npc-shop-content";
+import { VehicleShopContent } from "@/routes/_app/tools/vehicle-shop-content";
 import { CampaignPerformanceContent, CampaignPerformanceSummary } from "@/routes/_app/tools/campaign-performance";
 import { EventsContent } from "@/routes/_app/tools/events";
 import { FactionHubContent } from "@/routes/_app/tools/event-intake";
@@ -53,6 +52,7 @@ export const FOCUSED_TOOLS: Record<string, FocusedTool> = {
   "zombie-hordes": { slug: "zombie-hordes", primaryId: "server-events", title: "Zombie Hordes", hue: 52, icon: <IconSpark size={22} />, fullRouteTo: "/tools", Component: ZombieHordesContent },
   "pro-build": { slug: "pro-build", primaryId: "campaign", title: "Pro Build", hue: 42, icon: <IconCampaign size={22} />, fullRouteTo: "/tools", Component: ProBuildContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
   "sleeping-bags": { slug: "sleeping-bags", primaryId: "campaign", title: "Sleeping Bags", hue: 168, icon: <IconScroll size={22} />, fullRouteTo: "/tools", Component: EventsContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
+  "vehicle-shop": { slug: "vehicle-shop", primaryId: "campaign", title: "Vehicle Shop", hue: 122, icon: <IconCampaign size={22} />, fullRouteTo: "/tools", Component: VehicleShopContent },
   utm: { slug: "utm", primaryId: "utm", title: "Combat & Intel", hue: 275, icon: <IconUtm size={22} />, fullRouteTo: "/tools/utm", Component: UtmBuilderContent },
   "utm-campaign-name": { slug: "utm-campaign-name", primaryId: "utm", title: "Combat & Intel", hue: 275, icon: <IconUtm size={22} />, fullRouteTo: "/tools/utm", Component: UtmBuilderContent },
   "utm-taxonomy": { slug: "utm-taxonomy", primaryId: "utm", title: "Bounties", hue: 275, icon: <IconSpark size={22} />, fullRouteTo: "/tools/taxonomy", Component: TaxonomyContent, parentTitle: "Combat & Intel", parentHue: 275, parentIcon: <IconUtm size={22} /> },
@@ -91,6 +91,7 @@ export const SATELLITE_TO_FOCUS_SLUG: Record<string, string> = {
   import: "campaign-import",
   "pro-build": "pro-build",
   "sleeping-bags": "sleeping-bags",
+  "vehicle-shop": "vehicle-shop",
 };
 
 export const FOCUSED_PRIMARY_IDS = new Set(Object.values(FOCUSED_TOOLS).map((t) => t.primaryId));
