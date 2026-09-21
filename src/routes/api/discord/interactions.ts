@@ -9,6 +9,8 @@ import {
 } from "@/lib/custom-bases";
 import { baseDetailEmbed, dmOwner, listGuildMembers, publishBaseBoard } from "@/lib/custom-bases-discord";
 import { runMonthlyRent } from "@/lib/custom-bases-rent";
+import { repostOnlineEmbed } from "@/lib/discord-online-embed";
+import { getOnlinePlayers } from "@/lib/online-players.functions";
 
 type Interaction = {
   type: number;
@@ -29,6 +31,12 @@ export const Route = createFileRoute("/api/discord/interactions")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const action = url.searchParams.get("action") || "publish";
+        if (action === "online") {
+          const raw = await getOnlinePlayers({ data: { accessToken: "discord-access-token" } }).catch(() => ({ players: [] as Array<{ name: string }> }));
+          const names = raw.players.map((p) => p.name);
+          const posted = await repostOnlineEmbed(names);
+          return Response.json(posted);
+        }
         if (action === "dm") {
           const to = url.searchParams.get("to") || "239814047627870208";
           const text = [
