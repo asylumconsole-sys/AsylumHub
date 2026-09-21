@@ -78,24 +78,13 @@ function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => v
               onClick={() => {
                 if (group.name === "Combat & Intel") return onOpenFull("/tools/uav");
                 if (group.name === "Vehicle Shop") return onOpenFull("/tools/vehicle-shop");
-                if (group.name === "Factions") return onOpenFull("/tools/event-intake");
                 if (group.name === "Boosts") return onOpen("boosts");
                 if (group.name === "Base Ops") return onOpen("campaign");
                 if (group.items[0]) onOpen(group.items[0].focus);
               }}
             >
               <span className="shop-card-art" aria-hidden>
-                <img
-                  src={group.image}
-                  alt=""
-                  onError={(e) => {
-                    const el = e.currentTarget;
-                    if (group.name === "Zombie Hordes") el.src = "/zombie.jpg";
-                    else if (group.name === "Base Ops") el.src = "/baseops.jpg";
-                    else if (group.name === "Factions") el.src = "/factions.jpg";
-                    else el.style.display = "none";
-                  }}
-                />
+                <img src={group.image} alt="" />
               </span>
               <span className="shop-card-content">
                 <span className="shop-card-title">{group.name}</span>
