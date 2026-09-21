@@ -4,14 +4,16 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { GlassPanel } from "@/components/ui-custom/GlassPanel";
-import { IconBolt, IconChart, IconSpark, IconWorkspace, IconImport, IconAudience, IconCampaign } from "@/components/ui-custom/CustomIcon";
+import { IconBolt, IconChart, IconWorkspace, IconImport, IconAudience, IconCampaign } from "@/components/ui-custom/CustomIcon";
 import { getEconomyBalance } from "@/lib/economy.functions";
 import { getKillfeed } from "@/lib/killfeed.functions";
 import { getAsylumServerStatus } from "@/lib/dayz/server-status.functions";
+import { getMyLinkedPlayernames } from "@/lib/account-links.functions";
 import { DAYZ_SERVERS } from "@/lib/dayz/servers";
 import { BRAND } from "@/lib/brand";
 import { PsnLinkCard } from "@/components/app/PsnLinkCard";
 import { DONATION_TIERS, hexColor } from "@/lib/donation-tiers";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
@@ -50,19 +52,34 @@ function PlayerLink({ name, tone }: { name: string; tone: "kill" | "death" }) {
 }
 
 function Dashboard() {
+  const { user } = useAuth();
+  const playerId = user?.id || "";
   const [donateOpen, setDonateOpen] = useState(false);
   const [method, setMethod] = useState<string>("auto");
   const [busy, setBusy] = useState<number | null>(null);
-  const balanceQ = useQuery({ queryKey: ["economy-balance"], queryFn: () => getEconomyBalance({ data: {} }) });
+  const balanceQ = useQuery({
+    queryKey: ["economy-balance", playerId],
+    queryFn: () => getEconomyBalance({ data: { playerId } }),
+    enabled: Boolean(playerId),
+  });
+  const linksQ = useQuery({
+    queryKey: ["linked-playernames", playerId],
+    queryFn: () => getMyLinkedPlayernames({ data: { discordId: playerId } }),
+    enabled: Boolean(playerId),
+  });
   const killsQ = useQuery({ queryKey: ["killfeed-5d"], queryFn: () => getKillfeed({ data: { server: "all", limit: 400 } }), refetchInterval: 30_000 });
   const statusQ = useQuery({ queryKey: ["nitrado-status-lobby", DAYZ_SERVERS[0].id], queryFn: () => getAsylumServerStatus({ data: { serverId: DAYZ_SERVERS[0].id } }), retry: 0 });
-  const credits = balanceQ.data ? balanceQ.data.balance.toLocaleString() : "—";
-  const serverLine = statusQ.data ? (statusQ.data.status === "started" ? `${statusQ.data.players.current}/${statusQ.data.players.max}` : statusQ.data.status) : statusQ.error ? "Setup" : "—";
+  const credits = balanceQ.data ? balanceQ.data.balance.toLocaleString() : balanceQ.isLoading ? "…" : "0";
+  const serverLine = statusQ.data ? (statusQ.data.status === "started" ? `${statusQ.data.players.current}/${statusQ.data.players.max}` : statusQ.data.status) : statusQ.error ? "Setup" : "…";
   const kills = killsQ.data?.events ?? [];
+  const tags = (linksQ.data?.links ?? []).map((l) => l.username).filter(Boolean);
+  if (linksQ.data?.psn && !tags.includes(linksQ.data.psn)) tags.unshift(linksQ.data.psn);
+  const tagLine = tags.length ? tags.slice(0, 2).join(" · ") : "Link PSN";
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 px-3 pb-4 pt-2 sm:px-4 sm:py-8">
       <section className="relative overflow-hidden rounded-2xl border border-primary/30 bg-black px-4 py-5 sm:rounded-[2rem] sm:px-10 sm:py-10">
+        <motion.div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-primary/20 blur-3xl" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 4, repeat: Infinity }} />
         <button type="button" onClick={() => { setDonateOpen(true); void fetch("/api/discord/donation-roles", { method: "POST" }); }} className="absolute right-3 top-3 z-20 sm:right-6 sm:top-6">
           <motion.span className="relative inline-flex overflow-hidden rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-black" animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>Donate</motion.span>
         </button>
@@ -70,15 +87,25 @@ function Dashboard() {
         <h1 className="mt-1 font-display text-3xl leading-none text-primary sm:text-6xl">{BRAND.name}</h1>
         <p className="mt-2 pr-24 text-sm text-zinc-400">{BRAND.tagline}</p>
         <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="rounded-xl border border-glass-border bg-glass/30 p-3"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Credits</div><div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{credits}</div></div>
-          <div className="rounded-xl border border-glass-border bg-glass/30 p-3"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Online</div><div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{serverLine}</div></div>
-          <div className="rounded-xl border border-glass-border bg-glass/30 p-3"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Kills 5d</div><div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{kills.length}</div></div>
+          <Link to="/economy" className="rounded-xl border border-glass-border bg-glass/30 p-3 transition hover:border-primary/50">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Credits</div>
+            <div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{credits}</div>
+          </Link>
+          <Link to="/servers" className="rounded-xl border border-glass-border bg-glass/30 p-3 transition hover:border-primary/50">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Online</div>
+            <div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{serverLine}</div>
+          </Link>
+          <Link to="/account" className="rounded-xl border border-glass-border bg-glass/30 p-3 transition hover:border-primary/50">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Gamertag</div>
+            <div className="mt-0.5 truncate font-display text-sm text-primary sm:text-xl">{tagLine}</div>
+            <div className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-zinc-500">Faction · War Room</div>
+          </Link>
         </div>
       </section>
       <div className="md:hidden"><PsnLinkCard /></div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
         {QUICK.map((q) => (
-          <Link key={q.to} to={q.to as "/servers"} className="min-h-20 rounded-2xl border border-glass-border bg-glass/30 p-3 sm:p-4">
+          <Link key={q.to} to={q.to as "/servers"} className="min-h-20 rounded-2xl border border-glass-border bg-glass/30 p-3 sm:p-4 transition hover:border-primary/40">
             <q.Icon size={18} className="text-primary" />
             <div className="mt-2 text-sm font-medium">{q.label}</div>
             <div className="text-[11px] text-muted-foreground">{q.desc}</div>
