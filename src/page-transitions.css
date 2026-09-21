@@ -1,0 +1,31 @@
+/* Native View Transitions — used by TanStack defaultViewTransition */
+::view-transition-old(root) {
+  animation: hub-page-out 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+::view-transition-new(root) {
+  animation: hub-page-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+::view-transition-old(hub-page) {
+  animation: hub-page-out 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+::view-transition-new(hub-page) {
+  animation: hub-page-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes hub-page-out {
+  from { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); }
+  to { opacity: 0; filter: blur(8px); transform: translateY(-10px) scale(0.985); }
+}
+@keyframes hub-page-in {
+  from { opacity: 0; filter: blur(8px); transform: translateY(16px) scale(0.985); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-old(hub-page),
+  ::view-transition-new(hub-page) {
+    animation-duration: 0.01ms !important;
+  }
+}
