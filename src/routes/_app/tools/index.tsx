@@ -22,7 +22,7 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/_app/tools/")({
   component: ToolsHub,
   validateSearch: searchSchema,
-  head: () => ({ meta: [{ title: `Server shop — ${BRAND.name}` }] }),
+  head: () => ({ meta: [{ title: `Shop — ${BRAND.name}` }] }),
 });
 
 type ShopTab = "server" | "items" | "donator";
@@ -42,13 +42,13 @@ function ToolsHub() {
         <FadeInUp>
           <div className="flex flex-col items-center text-center">
             <div className="flex items-center gap-3">
-              <PageHexBadge hue={88} size={26} icon={<IconBolt size={22} />} aria-label="Server shop" />
-              <h1 className="font-display text-3xl sm:text-5xl">Server shop</h1>
+              <PageHexBadge hue={88} size={26} icon={<IconBolt size={22} />} aria-label="Shop" />
+              <h1 className="font-display text-3xl sm:text-5xl">Shop</h1>
             </div>
             <div className="mt-5 inline-flex flex-wrap justify-center rounded-full border border-glass-border p-1">
               {(
                 [
-                  ["server", "Server Shop"],
+                  ["server", "Services"],
                   ["items", "Item Shop"],
                   ["donator", "Donator Shop"],
                 ] as const
@@ -86,7 +86,7 @@ function ServiceDirectory({
   onOpenFull: (path: string) => void;
 }) {
   return (
-    <section className="shop-directory-wrap" aria-label="Server service directory">
+    <section className="shop-directory-wrap" aria-label="Shop services">
       <div className="shop-directory-shell">
         <div className="shop-directory-grid">
           {SERVICE_GROUPS.map((group, index) => (
