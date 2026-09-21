@@ -9,6 +9,7 @@ const HUB = "https://dayzpro.online";
 const GOLD = 0xd4a84b;
 const BANNER =
   "https://raw.githubusercontent.com/asylumconsole-sys/AsylumHub/main/src/assets/console-1.jpg";
+const SHOP = `${HUB}/api/discord/shop`;
 
 type EconomyStore = {
   accounts: Record<string, { playerId: string; displayName: string; balance: number; xp: number }>;
@@ -24,44 +25,21 @@ function accountFor(store: EconomyStore, playerId: string, displayName: string) 
 }
 
 export function shopBoardPayload() {
-  const cats = [...new Set(ITEM_CATALOG.map((i) => i.category))];
   return {
     embeds: [
       {
         title: "DAYZ PRO SHOP",
         color: GOLD,
         image: { url: BANNER },
-        thumbnail: { url: BANNER },
       },
     ],
     components: [
       {
         type: 1,
         components: [
-          {
-            type: 3,
-            custom_id: "shop_npc_pick",
-            placeholder: "NPC",
-            options: NPCS.slice(0, 25).map((n) => ({ label: n.name.slice(0, 100), value: n.id })),
-          },
-        ],
-      },
-      {
-        type: 1,
-        components: [
-          {
-            type: 3,
-            custom_id: "shop_icat",
-            placeholder: "Items",
-            options: cats.slice(0, 25).map((c) => ({ label: c, value: c })),
-          },
-        ],
-      },
-      {
-        type: 1,
-        components: [
-          { type: 2, style: 1, label: "Credits", custom_id: "shop_bal" },
-          { type: 2, style: 5, label: "Hub", url: `${HUB}/tools` },
+          { type: 2, style: 5, label: "NPC", url: `${SHOP}?view=npc` },
+          { type: 2, style: 5, label: "Items", url: `${SHOP}?view=items` },
+          { type: 2, style: 5, label: "Credits", url: `${SHOP}?view=bal` },
         ],
       },
     ],
@@ -71,62 +49,17 @@ export function shopBoardPayload() {
 export function npcPickPayload(npcId: string) {
   const npc = NPCS.find((n) => n.id === npcId);
   if (!npc) return { flags: 64, content: "Unknown NPC." };
-  return {
-    flags: 64,
-    content: npc.name,
-    components: [
-      {
-        type: 1,
-        components: SPAWN_PACKS.map((p) => ({
-          type: 2,
-          style: 3,
-          label: `${p.spawns}  ·  ${p.price.toLocaleString()}`,
-          custom_id: `shop_nbuy:${npc.id}:${p.spawns}:${p.price}`,
-        })),
-      },
-    ],
-  };
+  return { flags: 64, content: npc.name };
 }
 
 export function itemCategoryPayload(category: string) {
-  const items = ITEM_CATALOG.filter((i) => i.category === category).slice(0, 25);
-  return {
-    flags: 64,
-    content: category,
-    components: [
-      {
-        type: 1,
-        components: [
-          {
-            type: 3,
-            custom_id: "shop_item",
-            placeholder: "Buy",
-            options: items.map((i) => ({
-              label: i.name.slice(0, 100),
-              value: i.id,
-              description: `${i.price.toLocaleString()} cr`.slice(0, 100),
-            })),
-          },
-        ],
-      },
-    ],
-  };
+  return { flags: 64, content: category };
 }
 
 export function itemPickPayload(itemId: string) {
   const item = ITEM_CATALOG.find((i) => i.id === itemId);
   if (!item) return { flags: 64, content: "Unknown item." };
-  return {
-    flags: 64,
-    content: `${item.name}  ·  ${item.price.toLocaleString()} cr`,
-    embeds: item.image ? [{ color: GOLD, image: { url: item.image } }] : [],
-    components: [
-      {
-        type: 1,
-        components: [{ type: 2, style: 3, label: "Buy", custom_id: `shop_ibuy:${item.id}` }],
-      },
-    ],
-  };
+  return { flags: 64, content: `${item.name}  ·  ${item.price.toLocaleString()} cr` };
 }
 
 export async function shopBalance(userId: string, displayName: string) {
