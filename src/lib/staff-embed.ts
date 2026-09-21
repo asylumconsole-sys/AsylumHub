@@ -39,23 +39,31 @@ export function staffBoardPayload() {
   };
 }
 
-export async function resolveStaffChannel() {
+export async function resolveStaffChannel(override?: string | null) {
+  if (override) return override;
   if (process.env.DISCORD_STAFF_CHANNEL_ID) return process.env.DISCORD_STAFF_CHANNEL_ID;
-  const guild = process.env.DISCORD_GUILD_ID;
   const h = headers();
-  if (!guild || !h) return null;
-  const channels = (await (await fetch(`${API}/guilds/${guild}/channels`, { headers: h })).json()) as Array<{ id: string; name?: string }>;
-  if (!Array.isArray(channels)) return null;
-  const hit =
-    channels.find((c) => /staff[-_ ]?(intro|info|hub)/i.test(c.name || "")) ||
-    channels.find((c) => /^staff$/i.test(c.name || "")) ||
-    channels.find((c) => /staff/i.test(c.name || ""));
-  return hit?.id ?? null;
+  if (!h) return null;
+  const guildIds = [process.env.DISCORD_GUILD_ID].filter(Boolean) as string[];
+  if (!guildIds.length) {
+    const guilds = (await (await fetch(`${API}/users/@me/guilds`, { headers: h })).json()) as Array<{ id: string }>;
+    if (Array.isArray(guilds)) guildIds.push(...guilds.map((g) => g.id));
+  }
+  for (const guild of guildIds) {
+    const channels = (await (await fetch(`${API}/guilds/${guild}/channels`, { headers: h })).json()) as Array<{ id: string; name?: string }>;
+    if (!Array.isArray(channels)) continue;
+    const hit =
+      channels.find((c) => /staff[-_ ]?(intro|info|hub)/i.test(c.name || "")) ||
+      channels.find((c) => /^staff$/i.test(c.name || "")) ||
+      channels.find((c) => /staff/i.test(c.name || ""));
+    if (hit) return hit.id;
+  }
+  return null;
 }
 
-export async function publishStaffBoard() {
+export async function publishStaffBoard(override?: string | null) {
   const h = headers();
-  const channelId = await resolveStaffChannel();
+  const channelId = await resolveStaffChannel(override);
   if (!h || !channelId) return { ok: false, error: "no staff channel or token", channelId };
   const body = staffBoardPayload();
   const recent = (await (await fetch(`${API}/channels/${channelId}/messages?limit=30`, { headers: h })).json()) as Array<{
