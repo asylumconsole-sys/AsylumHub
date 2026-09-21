@@ -33,6 +33,7 @@ import { CommanderAI } from "@/components/app/CommanderAI";
 const COMMANDER_ENABLED = import.meta.env.VITE_COMMANDER_ENABLED !== "false";
 import { BottomNav } from "@/components/app/BottomNav";
 import { UserMenu } from "@/components/app/UserMenu";
+import { DonateDock } from "@/components/app/DonateDock";
 import { GuidedTour } from "@/components/tour/GuidedTour";
 import { RouteProgressBar } from "@/components/app/RouteProgressBar";
 import { BrandHexLogo } from "@/components/app/BrandHexLogo";
@@ -159,6 +160,7 @@ function AppShell() {
                 <GoldSettings size={18} />
                 {!collapsed && <span>Settings</span>}
               </Link>
+              <DonateDock collapsed={collapsed} />
             </div>
           </nav>
           {COMMANDER_ENABLED && (
