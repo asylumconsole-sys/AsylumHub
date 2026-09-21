@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { IconHome, IconCampaign, IconWorkspace, IconSettings } from "@/components/ui-custom/CustomIcon";
+import { DonateDock } from "@/components/app/DonateDock";
 
 const items = [
   { to: "/dashboard", label: "Home", Icon: IconHome },
@@ -12,6 +13,9 @@ export function BottomNav() {
   const loc = useLocation();
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-glass-border bg-black/80 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+      <div className="px-3 pt-1">
+        <DonateDock />
+      </div>
       <div className="grid grid-cols-4">
         {items.map((it) => {
           const active =
