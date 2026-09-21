@@ -60,11 +60,19 @@ export const SERVICE_GROUPS: {
   },
   {
     name: "NPC Shop",
-    description: "Build NPCs, recruit survivors, and manage custom server content.",
+    description: "Buy spawn charges and deploy roster operators.",
     hue: 285,
     image: tile("NPC SPAWNS", "#2a2a2a", "#6a6a6a"),
     icon: <IconImport size={20} />,
     items: [{ label: "NPC Spawns", focus: "campaign-import", icon: <IconImport size={16} /> }],
+  },
+  {
+    name: "NPC Maker",
+    description: "Build a custom operator: skin, weapons, gear, handcuffs, export.",
+    hue: 42,
+    image: tile("NPC MAKER", "#1a1408", "#d4a84b"),
+    icon: <IconImport size={20} />,
+    items: [{ label: "NPC Maker", focus: "npc-maker", icon: <IconImport size={16} /> }],
   },
   {
     name: "Vehicle Shop",
