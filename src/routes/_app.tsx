@@ -79,6 +79,7 @@ function AppShell() {
     if (!loading && !session) nav({ to: "/login", search: { redirect: pathnameRef.current, mode: "signin", error: undefined }, replace: true });
   }, [loading, session, nav]);
   const hideMesh = loc.pathname.startsWith("/tools");
+  const isMap = loc.pathname.includes("base-map-clicker") || loc.pathname.includes("npc-map-clicker");
   if (loading || !session) {
     return (
       <div className="relative flex min-h-dvh items-center justify-center bg-black">
@@ -90,6 +91,7 @@ function AppShell() {
     <div className={`relative min-h-screen text-foreground ${hideMesh ? "bg-black" : "bg-[color:var(--color-ink)]"}`}>
       {!hideMesh && <GradientMesh />}
       <div className="relative z-10 flex min-h-screen">
+        {!isMap && (
         <aside className={`sticky top-0 hidden h-screen shrink-0 self-start overflow-y-auto border-r border-glass-border bg-black/20 backdrop-blur-xl md:flex md:flex-col ${collapsed ? "w-16" : "w-64"}`}>
           <div className={`flex items-center ${collapsed ? "justify-center px-1" : "justify-between gap-1 px-4"} py-5`}>
             <Link to="/" className="flex min-w-0 items-center gap-2 text-foreground">
@@ -136,22 +138,44 @@ function AppShell() {
             </div>
           )}
         </aside>
+        )}
         {COMMANDER_ENABLED ? <CommanderAI /> : <CommandPalette />}
-        <main className="min-w-0 flex-1 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+5rem)] md:pb-0">
+        <main className={`min-w-0 flex-1 overflow-x-hidden ${isMap ? "p-0" : "pb-[calc(env(safe-area-inset-bottom)+5rem)] md:pb-0"}`}>
+          {!isMap && (
           <header className="sticky top-0 z-30 flex items-center justify-between border-b border-glass-border bg-black/50 px-4 py-3 backdrop-blur-xl md:hidden">
             <Link to="/dashboard" className="flex items-center gap-2"><BrandHexLogo size={26} /><span className="font-display">{BRAND.name}</span></Link>
           </header>
-          <div className="pointer-events-none fixed right-4 top-3 z-40 flex items-center gap-2 md:right-5 md:top-4">
-            <div className="pointer-events-auto hidden md:block"><AutosaveStatus /></div>
-            <Link
-              to="/tools/base-map-clicker"
-              className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/70 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a] hover:bg-[#d4a84b]/15"
-            >
-              <GoldMap size={14} />
-              Map
-            </Link>
+          )}
+          <div className="pointer-events-none fixed right-4 top-3 z-[60] flex items-center gap-2 md:right-5 md:top-4">
+            {!isMap && <div className="pointer-events-auto hidden md:block"><AutosaveStatus /></div>}
+            {isMap ? (
+              <Link
+                to="/dashboard"
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/80 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a] hover:bg-[#d4a84b]/15"
+              >
+                Close map
+              </Link>
+            ) : (
+              <Link
+                to="/tools/base-map-clicker"
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/70 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a] hover:bg-[#d4a84b]/15"
+              >
+                <GoldMap size={14} />
+                Map
+              </Link>
+            )}
             <div className="pointer-events-auto"><UserMenu /></div>
           </div>
+          {isMap ? (
+            <div className="map-fs fixed inset-0 z-50 bg-black">
+              <style>{`
+                .map-fs > div { height:100% !important; min-height:100% !important; max-width:none !important; margin:0 !important; padding:0 !important; gap:0 !important; }
+                .map-fs .leaflet-container { height:100vh !important; min-height:100vh !important; width:100% !important; }
+                .map-fs [class*="min-h-[72vh]"] { min-height:100vh !important; height:100vh !important; }
+              `}</style>
+              <Outlet />
+            </div>
+          ) : (
           <div className={`mx-auto w-full pb-10 pt-6 md:pt-20 ${loc.pathname === "/tools" ? "max-w-full px-0" : "max-w-6xl px-4 sm:px-6"}`}>
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
@@ -165,11 +189,12 @@ function AppShell() {
               </motion.div>
             </AnimatePresence>
           </div>
+          )}
         </main>
       </div>
-      <BottomNav />
+      {!isMap && <BottomNav />}
       <RouteProgressBar />
-      <GuidedTour />
+      {!isMap && <GuidedTour />}
     </div>
   );
 }
