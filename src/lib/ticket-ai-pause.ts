@@ -1,8 +1,9 @@
 import { readJsonFile, writeJsonFile } from "@/lib/dayz/store";
-import { discordGet, discordPost } from "@/lib/staff-embed";
+import { discordGet, discordPatch, discordPost } from "@/lib/staff-embed";
 
 const FILE = "ticket-ai-pause.json";
 const ANNOUNCE_CHANNEL = "1371150773857288324";
+const INTERACTIONS_URL = "https://dayzpro.online/api/discord/interactions";
 
 type PauseStore = { paused: boolean; updatedAt: string; by?: string };
 
@@ -37,5 +38,8 @@ export async function registerAiToggleCommands() {
     name: "aion",
     description: "Resume PRO AI ticket replies",
   });
-  return { ok: true, guildId };
+  const endpoint = await discordPatch("/applications/@me", {
+    interactions_endpoint_url: INTERACTIONS_URL,
+  });
+  return { ok: true, guildId, endpoint };
 }
