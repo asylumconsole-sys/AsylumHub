@@ -40,22 +40,24 @@ function ToolsHub() {
     <div className="relative flex min-h-[calc(100vh-3rem)] flex-col overflow-x-hidden pb-10">
       <header className="relative z-10 px-4 pb-4 pt-2 sm:px-6">
         <FadeInUp>
-          <div className="flex items-center gap-3">
-            <PageHexBadge hue={88} size={26} icon={<IconBolt size={22} />} aria-label="Server shop" />
-            <h1 className="font-display text-3xl sm:text-5xl">Server shop</h1>
-          </div>
-          <div className="mt-4 inline-flex flex-wrap rounded-full border border-glass-border p-1">
-            {(
-              [
-                ["server", "Server Shop"],
-                ["items", "Item Shop"],
-                ["donator", "Donator Shop"],
-              ] as const
-            ).map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setShopTab(id)} className={`rounded-full px-5 py-2 text-xs uppercase tracking-[0.18em] ${shopTab === id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-                {label}
-              </button>
-            ))}
+          <div className="flex flex-col items-center text-center">
+            <div className="flex items-center gap-3">
+              <PageHexBadge hue={88} size={26} icon={<IconBolt size={22} />} aria-label="Server shop" />
+              <h1 className="font-display text-3xl sm:text-5xl">Server shop</h1>
+            </div>
+            <div className="mt-5 inline-flex flex-wrap justify-center rounded-full border border-glass-border p-1">
+              {(
+                [
+                  ["server", "Server Shop"],
+                  ["items", "Item Shop"],
+                  ["donator", "Donator Shop"],
+                ] as const
+              ).map(([id, label]) => (
+                <button key={id} type="button" onClick={() => setShopTab(id)} className={`rounded-full px-5 py-2 text-xs uppercase tracking-[0.18em] ${shopTab === id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </FadeInUp>
       </header>
