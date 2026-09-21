@@ -16,20 +16,20 @@ function oauthLink(kind: "claim" | "promo") {
   const state = Buffer.from(
     JSON.stringify({ redirect: `/api/discord/interactions?action=staff_done&kind=${kind}`, redirectUri }),
   ).toString("base64");
-  if (!clientId) return `${HUB}/api/discord/interactions?action=staff_done&kind=${kind}`;
+  const fallback = `${HUB}/api/discord/interactions?action=staff_done&kind=${kind}`;
+  if (!clientId) return fallback;
   return `https://discord.com/oauth2/authorize?${new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
     scope: "identify",
     state,
-    prompt: "none",
   }).toString()}`;
 }
 
 export function staffBoardPayload() {
   return {
-    content: "",
+    content: "Tap a button — it opens login, then pays or files the rank-up.",
     embeds: [
       {
         title: "DAYZ PRO · Staff",
@@ -69,16 +69,10 @@ export async function publishStaffBoard(override?: string | null) {
   const body = staffBoardPayload();
   const recentRes = await fetch(`${API}/channels/${channelId}/messages?limit=30`, { headers: h });
   const recent = (await recentRes.json()) as Array<{ id: string; author?: { bot?: boolean }; embeds?: Array<{ title?: string }> }>;
-  const existing = Array.isArray(recent)
-    ? recent.find((m) => m.author?.bot && m.embeds?.some((e) => /staff/i.test(e.title || "")))
-    : null;
-  if (existing) {
-    const edit = await fetch(`${API}/channels/${channelId}/messages/${existing.id}`, {
-      method: "PATCH",
-      headers: h,
-      body: JSON.stringify(body),
-    });
-    return { ok: edit.ok, action: "edited", messageId: existing.id, channelId, status: edit.status };
+  if (Array.isArray(recent)) {
+    for (const msg of recent.filter((m) => m.author?.bot && m.embeds?.some((e) => /staff/i.test(e.title || "")))) {
+      await fetch(`${API}/channels/${channelId}/messages/${msg.id}`, { method: "DELETE", headers: h });
+    }
   }
   const created = await fetch(`${API}/channels/${channelId}/messages`, {
     method: "POST",
@@ -86,7 +80,7 @@ export async function publishStaffBoard(override?: string | null) {
     body: JSON.stringify(body),
   });
   const msg = (await created.json()) as { id?: string; message?: string };
-  return { ok: created.ok, action: "posted", messageId: msg.id, channelId, error: msg.message, status: created.status };
+  return { ok: created.ok, action: "posted", messageId: msg.id, channelId, error: msg.message, status: created.status, url: oauthLink("claim").slice(0, 80) };
 }
 
 export async function discordGet(path: string) {
