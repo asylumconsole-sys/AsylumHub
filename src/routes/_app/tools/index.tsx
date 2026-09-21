@@ -3,6 +3,7 @@ import "@/server-shop.css";
 import { useCallback, useState } from "react";
 import { z } from "zod";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { IconArrowRight, IconBolt } from "@/components/ui-custom/CustomIcon";
 import { PageHexBadge } from "@/components/app/PageHexBadge";
 import { FocusedToolPanel } from "@/components/tools/FocusedToolPanel";
@@ -54,7 +55,6 @@ function ToolsHub() {
           <ServiceDirectory
             onOpen={(next) => navigate({ to: "/tools", search: { focus: next, workspace } })}
             onOpenFull={(path) => navigate({ to: path })}
-            onNpcMaker={() => navigate({ to: "/tools/npc-shop", search: { maker: true } as never })}
           />
         ) : (
           <ItemShop />
@@ -68,11 +68,9 @@ function ToolsHub() {
 function ServiceDirectory({
   onOpen,
   onOpenFull,
-  onNpcMaker,
 }: {
   onOpen: (focus: string) => void;
   onOpenFull: (path: string) => void;
-  onNpcMaker: () => void;
 }) {
   return (
     <section className="shop-directory-wrap" aria-label="Server service directory">
@@ -88,10 +86,13 @@ function ServiceDirectory({
               transition={{ delay: index * 0.04 }}
               whileHover={{ y: -3 }}
               onClick={() => {
+                if (group.name === "NPC Maker") {
+                  toast.message("NPC Maker — Coming soon");
+                  return;
+                }
                 if (group.name === "Combat & Intel") return onOpenFull("/tools/uav");
                 if (group.name === "Vehicle Shop") return onOpenFull("/tools/vehicle-shop");
                 if (group.name === "NPC Shop") return onOpenFull("/tools/npc-shop");
-                if (group.name === "NPC Maker") return onNpcMaker();
                 if (group.name === "Boosts") return onOpen("boosts");
                 if (group.name === "Base Ops") return onOpen("campaign");
                 if (group.items[0]) onOpen(group.items[0].focus);
@@ -102,7 +103,7 @@ function ServiceDirectory({
               </span>
               <span className="shop-card-content">
                 <span className="shop-card-title">{group.name}</span>
-                <span className="shop-card-meta">{group.description}</span>
+                <span className="shop-card-meta">{group.name === "NPC Maker" ? "Coming soon" : group.description}</span>
               </span>
               <IconArrowRight size={14} className="ml-auto mt-auto text-muted-foreground" />
             </motion.button>
