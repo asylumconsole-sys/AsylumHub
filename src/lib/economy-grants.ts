@@ -6,4 +6,10 @@ export const ECONOMY_GRANTS: Array<{ id: string; playerId: string; amount: numbe
     amount: 500_000,
     note: "Admin credit 500k",
   },
+  {
+    id: "grant-500k-949399942542295040",
+    playerId: "949399942542295040",
+    amount: 500_000,
+    note: "Admin credit 500k",
+  },
 ];
