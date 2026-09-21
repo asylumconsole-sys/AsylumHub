@@ -1,8 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { GlassPanel } from "@/components/ui-custom/GlassPanel";
 import { IconBolt, IconChart, IconWorkspace, IconImport, IconAudience, IconCampaign } from "@/components/ui-custom/CustomIcon";
 import { getEconomyBalance } from "@/lib/economy.functions";
@@ -12,7 +10,6 @@ import { getMyLinkedPlayernames } from "@/lib/account-links.functions";
 import { DAYZ_SERVERS } from "@/lib/dayz/servers";
 import { BRAND } from "@/lib/brand";
 import { PsnLinkCard } from "@/components/app/PsnLinkCard";
-import { DONATION_TIERS, hexColor } from "@/lib/donation-tiers";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const Route = createFileRoute("/_app/dashboard")({
@@ -29,20 +26,6 @@ const QUICK = [
   { to: "/war-room", label: "War Room", desc: "Factions", Icon: IconWorkspace },
 ] as const;
 
-const PAY_METHODS = [
-  { id: "auto", label: "Card / Apple Pay / Google Pay" },
-  { id: "paypal", label: "PayPal" },
-  { id: "cashapp", label: "Cash App" },
-  { id: "venmo", label: "Venmo" },
-] as const;
-
-async function startDonate(usd: number, method: string) {
-  const res = await fetch("/api/stripe/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ usd, method }) });
-  const data = (await res.json()) as { url?: string; error?: string };
-  if (!res.ok || !data.url) { toast.error(data.error || "Stripe is not configured yet"); return; }
-  window.location.href = data.url;
-}
-
 function PlayerLink({ name, tone }: { name: string; tone: "kill" | "death" }) {
   return (
     <Link to="/stats" search={{ player: name } as never} className={`font-medium underline-offset-2 hover:underline ${tone === "kill" ? "text-emerald-300" : "text-red-300"}`}>
@@ -54,9 +37,6 @@ function PlayerLink({ name, tone }: { name: string; tone: "kill" | "death" }) {
 function Dashboard() {
   const { user } = useAuth();
   const playerId = user?.id || "";
-  const [donateOpen, setDonateOpen] = useState(false);
-  const [method, setMethod] = useState<string>("auto");
-  const [busy, setBusy] = useState<number | null>(null);
   const balanceQ = useQuery({
     queryKey: ["economy-balance", playerId],
     queryFn: () => getEconomyBalance({ data: { playerId } }),
@@ -80,9 +60,6 @@ function Dashboard() {
     <div className="mx-auto w-full max-w-6xl space-y-4 px-3 pb-4 pt-2 sm:px-4 sm:py-8">
       <section className="relative overflow-hidden rounded-2xl border border-primary/30 bg-black px-4 py-5 sm:rounded-[2rem] sm:px-10 sm:py-10">
         <motion.div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-primary/20 blur-3xl" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 4, repeat: Infinity }} />
-        <button type="button" onClick={() => { setDonateOpen(true); void fetch("/api/discord/donation-roles", { method: "POST" }); }} className="absolute right-3 top-3 z-20 sm:right-6 sm:top-6">
-          <motion.span className="relative inline-flex overflow-hidden rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-black" animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>Donate</motion.span>
-        </button>
         <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary">Command hall</div>
         <h1 className="mt-1 font-display text-3xl leading-none text-primary sm:text-6xl">{BRAND.name}</h1>
         <p className="mt-2 pr-24 text-sm text-zinc-400">{BRAND.tagline}</p>
@@ -112,20 +89,6 @@ function Dashboard() {
           </Link>
         ))}
       </div>
-      <AnimatePresence>
-        {donateOpen && (
-          <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-emerald-400/30 bg-black p-4">
-            <div className="mb-3 flex justify-between"><h2 className="font-display text-2xl">Donate</h2><button type="button" onClick={() => setDonateOpen(false)}>Close</button></div>
-            <div className="mb-3 flex flex-wrap gap-2">{PAY_METHODS.map((m) => <button key={m.id} type="button" onClick={() => setMethod(m.id)} className={`rounded-full px-3 py-1.5 text-[11px] uppercase ${method === m.id ? "bg-emerald-400 text-black" : "border border-white/15"}`}>{m.label}</button>)}</div>
-            <div className="grid gap-3 sm:grid-cols-3">{DONATION_TIERS.map((tier) => (
-              <div key={tier.name} className="rounded-2xl border p-4" style={{ borderColor: `${hexColor(tier.color)}66` }}>
-                <div className="font-display text-2xl" style={{ color: hexColor(tier.color) }}>{tier.name}</div>
-                <button type="button" disabled={busy === tier.usd} onClick={async () => { setBusy(tier.usd); await startDonate(tier.usd, method); setBusy(null); }} className="mt-3 w-full rounded-full px-3 py-2 text-xs text-black" style={{ background: hexColor(tier.color) }}>Pay {tier.name}</button>
-              </div>
-            ))}</div>
-          </motion.section>
-        )}
-      </AnimatePresence>
       <GlassPanel className="p-4 sm:p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-medium">Killfeed · last 5 days</h2>
