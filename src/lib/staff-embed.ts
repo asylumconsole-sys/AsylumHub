@@ -1,6 +1,7 @@
 import { STAFF_RULES } from "@/lib/staff-allowance";
 
 const API = "https://discord.com/api/v10";
+export const STAFF_CHANNEL_ID = process.env.DISCORD_STAFF_CHANNEL_ID || "1371740737707966585";
 
 function headers() {
   const token = process.env.DISCORD_TOKEN?.replace(/^Bot\s+/i, "");
@@ -40,25 +41,7 @@ export function staffBoardPayload() {
 }
 
 export async function resolveStaffChannel(override?: string | null) {
-  if (override) return override;
-  if (process.env.DISCORD_STAFF_CHANNEL_ID) return process.env.DISCORD_STAFF_CHANNEL_ID;
-  const h = headers();
-  if (!h) return null;
-  const guildIds = [process.env.DISCORD_GUILD_ID].filter(Boolean) as string[];
-  if (!guildIds.length) {
-    const guilds = (await (await fetch(`${API}/users/@me/guilds`, { headers: h })).json()) as Array<{ id: string }>;
-    if (Array.isArray(guilds)) guildIds.push(...guilds.map((g) => g.id));
-  }
-  for (const guild of guildIds) {
-    const channels = (await (await fetch(`${API}/guilds/${guild}/channels`, { headers: h })).json()) as Array<{ id: string; name?: string }>;
-    if (!Array.isArray(channels)) continue;
-    const hit =
-      channels.find((c) => /staff[-_ ]?(intro|info|hub)/i.test(c.name || "")) ||
-      channels.find((c) => /^staff$/i.test(c.name || "")) ||
-      channels.find((c) => /staff/i.test(c.name || ""));
-    if (hit) return hit.id;
-  }
-  return null;
+  return override || STAFF_CHANNEL_ID;
 }
 
 export async function publishStaffBoard(override?: string | null) {
@@ -66,11 +49,8 @@ export async function publishStaffBoard(override?: string | null) {
   const channelId = await resolveStaffChannel(override);
   if (!h || !channelId) return { ok: false, error: "no staff channel or token", channelId };
   const body = staffBoardPayload();
-  const recent = (await (await fetch(`${API}/channels/${channelId}/messages?limit=30`, { headers: h })).json()) as Array<{
-    id: string;
-    author?: { bot?: boolean };
-    embeds?: Array<{ title?: string }>;
-  }>;
+  const recentRes = await fetch(`${API}/channels/${channelId}/messages?limit=30`, { headers: h });
+  const recent = (await recentRes.json()) as Array<{ id: string; author?: { bot?: boolean }; embeds?: Array<{ title?: string }> }>;
   const existing = Array.isArray(recent)
     ? recent.find((m) => m.author?.bot && m.embeds?.some((e) => /staff/i.test(e.title || "")))
     : null;
@@ -80,7 +60,7 @@ export async function publishStaffBoard(override?: string | null) {
       headers: h,
       body: JSON.stringify(body),
     });
-    return { ok: edit.ok, action: "edited", messageId: existing.id, channelId };
+    return { ok: edit.ok, action: "edited", messageId: existing.id, channelId, status: edit.status };
   }
   const created = await fetch(`${API}/channels/${channelId}/messages`, {
     method: "POST",
@@ -88,7 +68,7 @@ export async function publishStaffBoard(override?: string | null) {
     body: JSON.stringify(body),
   });
   const msg = (await created.json()) as { id?: string; message?: string };
-  return { ok: created.ok, action: "posted", messageId: msg.id, channelId, error: msg.message };
+  return { ok: created.ok, action: "posted", messageId: msg.id, channelId, error: msg.message, status: created.status };
 }
 
 export async function discordGet(path: string) {
