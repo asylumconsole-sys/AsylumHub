@@ -15,10 +15,10 @@ const RAIN_PATTERNS = [
 ] as const;
 
 const NIGHT_PATTERNS = [
-  { id: "black", hour: 0 },
-  { id: "late", hour: 22 },
-  { id: "predawn", hour: 3 },
-  { id: "midnight", hour: 1 },
+  { id: "black", overcast: 0.98, storm: 0.35 },
+  { id: "late", overcast: 0.9, storm: 0.15 },
+  { id: "predawn", overcast: 0.86, storm: 0.05 },
+  { id: "midnight", overcast: 0.95, storm: 0.25 },
 ] as const;
 
 type Schedule = {
@@ -38,8 +38,11 @@ function pick<T extends { id: string }>(pool: readonly T[], used: string[], last
     used.length = 0;
     available = pool.filter((p) => p.id !== last);
   }
-  const hit = available[Math.floor(Math.random() * available.length)] ?? pool[0];
+  const scored = available.map((p) => ({ p, score: Math.random() }));
+  scored.sort((a, b) => b.score - a.score);
+  const hit = scored[0]?.p ?? pool[0];
   used.push(hit.id);
+  if (used.length > 5) used.splice(0, used.length - 5);
   return hit;
 }
 
@@ -48,8 +51,8 @@ function empty(): Schedule {
   return {
     rainStart: now,
     rainEnd: now + BURST_MS,
-    nightStart: now + 40 * 60 * 1000,
-    nightEnd: now + 40 * 60 * 1000 + BURST_MS,
+    nightStart: now + 50 * 60 * 1000,
+    nightEnd: now + 50 * 60 * 1000 + BURST_MS,
     lastRainId: "sheet",
     lastNightId: "black",
     usedRain: ["sheet"],
@@ -76,21 +79,24 @@ export async function advanceWeatherSchedule(now = Date.now(), forceRain = false
     s.lastRainId = pat.id;
     s.rainStart = now;
     s.rainEnd = now + BURST_MS;
-  } else if (now >= s.rainEnd) {
-    const next = now + RAIN_EVERY_MS + Math.floor(Math.random() * 15 * 60 * 1000);
-    s.rainStart = next;
-    s.rainEnd = next + BURST_MS;
-    const pat = pick(RAIN_PATTERNS, s.usedRain, s.lastRainId);
-    s.lastRainId = pat.id;
+  } else if (now >= s.rainEnd && now >= s.rainStart) {
+    if (now < s.rainStart) {
+      /* waiting for next burst */
+    } else if (now >= s.rainEnd) {
+      const jitter = Math.floor(Math.random() * 20 * 60 * 1000) - 10 * 60 * 1000;
+      const next = now + RAIN_EVERY_MS + jitter;
+      s.rainStart = next;
+      s.rainEnd = next + BURST_MS;
+      const pat = pick(RAIN_PATTERNS, s.usedRain, s.lastRainId);
+      s.lastRainId = pat.id;
+    }
   }
   if (now >= s.nightEnd) {
-    const next = now + RAIN_EVERY_MS + Math.floor(Math.random() * 25 * 60 * 1000);
-    if (Math.abs(next - s.rainStart) < 40 * 60 * 1000) {
-      s.nightStart = s.rainEnd + 45 * 60 * 1000;
-    } else {
-      s.nightStart = next;
-    }
-    s.nightEnd = s.nightStart + BURST_MS;
+    const jitter = Math.floor(Math.random() * 40 * 60 * 1000) - 20 * 60 * 1000;
+    let next = now + RAIN_EVERY_MS + jitter;
+    if (Math.abs(next - s.rainStart) < 40 * 60 * 1000) next = s.rainEnd + 45 * 60 * 1000;
+    s.nightStart = next;
+    s.nightEnd = next + BURST_MS;
     const pat = pick(NIGHT_PATTERNS, s.usedNight, s.lastNightId);
     s.lastNightId = pat.id;
   }
@@ -100,19 +106,20 @@ export async function advanceWeatherSchedule(now = Date.now(), forceRain = false
 
 export function buildCfgWeather(s: Schedule, now = Date.now()) {
   const raining = inWindow(s.rainStart, s.rainEnd, now);
-  const pat = RAIN_PATTERNS.find((p) => p.id === s.lastRainId) ?? RAIN_PATTERNS[0];
-  const overcast = raining ? pat.overcast : 0.22;
-  const rain = raining ? pat.rain : 0;
-  const storm = raining ? pat.storm : 0;
-  const remain = raining ? Math.max(60, Math.round((s.rainEnd - now) / 1000)) : 900;
-  // reset=1 is required or DayZ loads the last stored weather (fog) and ignores this file.
+  const night = inWindow(s.nightStart, s.nightEnd, now);
+  const rainPat = RAIN_PATTERNS.find((p) => p.id === s.lastRainId) ?? RAIN_PATTERNS[0];
+  const nightPat = NIGHT_PATTERNS.find((p) => p.id === s.lastNightId) ?? NIGHT_PATTERNS[0];
+  const overcast = raining ? rainPat.overcast : night ? nightPat.overcast : 0.18;
+  const rain = raining ? rainPat.rain : 0;
+  const storm = raining ? rainPat.storm : night ? nightPat.storm : 0;
+  const remain = raining || night ? Math.max(60, Math.round(((raining ? s.rainEnd : s.nightEnd) - now) / 1000)) : 1800;
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <weather reset="1" enable="1">
   <overcast>
-    <current actual="${overcast.toFixed(2)}" time="15" duration="${remain}" />
-    <limits min="${raining ? "0.65" : "0.05"}" max="${raining ? "1.0" : "0.45"}" />
+    <current actual="${overcast.toFixed(2)}" time="20" duration="${remain}" />
+    <limits min="${raining || night ? "0.7" : "0.05"}" max="${raining || night ? "1.0" : "0.4"}" />
     <timelimits min="600" max="1800" />
-    <changelimits min="0.0" max="${raining ? "0.15" : "0.25"}" />
+    <changelimits min="0.0" max="0.2" />
   </overcast>
   <fog>
     <current actual="0.0" time="5" duration="99999" />
@@ -121,14 +128,14 @@ export function buildCfgWeather(s: Schedule, now = Date.now()) {
     <changelimits min="0.0" max="0.0" />
   </fog>
   <rain>
-    <current actual="${rain.toFixed(2)}" time="15" duration="${remain}" />
+    <current actual="${rain.toFixed(2)}" time="20" duration="${remain}" />
     <limits min="0.0" max="${raining ? "1.0" : "0.0"}" />
     <timelimits min="1500" max="1500" />
     <changelimits min="0.0" max="${raining ? "0.2" : "0.0"}" />
     <thresholds min="${raining ? "0.35" : "1.0"}" max="1.0" end="60" />
   </rain>
   <windMagnitude>
-    <current actual="${raining ? "11" : "4"}" time="30" duration="${remain}" />
+    <current actual="${raining ? "12" : night ? "7" : "3"}" time="30" duration="${remain}" />
     <limits min="2" max="${raining ? "16" : "8"}" />
     <timelimits min="300" max="900" />
     <changelimits min="0" max="4" />
@@ -144,7 +151,7 @@ export function buildCfgWeather(s: Schedule, now = Date.now()) {
 `;
 }
 
-export async function applyWeatherToNitrado(forceRain = true) {
+export async function applyWeatherToNitrado(forceRain = false) {
   const s = await advanceWeatherSchedule(Date.now(), forceRain);
   const xml = buildCfgWeather(s);
   const uploaded: string[] = [];
