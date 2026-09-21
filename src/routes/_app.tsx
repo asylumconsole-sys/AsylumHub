@@ -59,7 +59,7 @@ const NAV_GROUPS = [
     id: "market",
     label: "Market",
     items: [
-      { to: "/tools", label: "Server shop", Icon: GoldShop },
+      { to: "/tools", label: "Shop", Icon: GoldShop },
       { to: "/rewards", label: "Rewards", Icon: GoldRewards },
       { to: "/battlepass", label: "Battlepass", Icon: GoldBattlepass },
     ],
