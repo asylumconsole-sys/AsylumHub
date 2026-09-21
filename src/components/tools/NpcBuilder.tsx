@@ -1,241 +1,283 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { getEconomyBalance } from "@/lib/economy.functions";
+import { useQuery } from "@tanstack/react-query";
 import {
   CATALOG,
-  GEAR_SLOTS,
   SURVIVOR_SKINS,
   emptyDraft,
+  itemImage,
   survivorPortrait,
   type BuilderDraft,
   type Equipped,
   type GearSlot,
 } from "@/lib/npc/builder-catalog";
 
-const gold = "#d4a84b";
+const STEPS = ["Character", "Weapons", "Head", "Body", "Legs", "Gear", "Export"] as const;
+type Step = (typeof STEPS)[number];
 
-function slotItems(slot: GearSlot) {
-  return CATALOG.filter((i) => i.slot === slot || (slot === "hands" && i.slot === "hands") || (slot === "shoulder" && i.slot === "shoulder"));
+function itemsFor(slot: string) {
+  return CATALOG.filter((i) => i.slot === slot || (slot === "shoulder" && (i.slot === "hands" || i.slot === "shoulder" || i.slot === "melee")));
+}
+
+function Picker({
+  title,
+  slot,
+  onPick,
+  onClose,
+}: {
+  title: string;
+  slot: string;
+  onPick: (item: Equipped | undefined) => void;
+  onClose: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const list = itemsFor(slot).filter((i) => i.name.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
+      <div className="max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[#d4a84b]/30 bg-[#0a0a0a] p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <div className="font-display text-2xl text-[#e8c56a]">{title}</div>
+            <div className="text-xs text-zinc-500">{list.length} items</div>
+          </div>
+          <button type="button" className="text-zinc-500" onClick={onClose}>Close</button>
+        </div>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="mb-3 w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-[#f5e6c0] outline-none" />
+        <button type="button" onClick={() => { onPick(undefined); onClose(); }} className="mb-3 w-full rounded-lg border border-white/10 px-3 py-2 text-left text-sm text-zinc-400">None · clear this slot</button>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {list.map((it) => (
+            <button key={it.classname} type="button" onClick={() => { onPick({ classname: it.classname, name: it.name, attachments: [], cargo: [] }); onClose(); }} className="rounded-xl border border-white/10 bg-black/50 p-2 text-left hover:border-[#d4a84b]/50">
+              <img src={itemImage(it.classname)} alt="" className="mx-auto h-20 w-20 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+              <div className="mt-1 text-center text-xs text-[#f5e6c0]">{it.name}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SlotCard({
+  label,
+  item,
+  onOpen,
+  onClear,
+}: {
+  label: string;
+  item?: Equipped;
+  onOpen: () => void;
+  onClear?: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-[#d4a84b]/20 bg-black/40 p-3">
+      <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <div className="flex size-12 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-zinc-950">
+          {item ? <img src={itemImage(item.classname)} alt="" className="h-10 w-10 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : <span className="text-[#d4a84b]">+</span>}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-[#d4a84b]">{label}</div>
+          <div className="truncate text-sm text-[#f5e6c0]">{item?.name ?? "Tap to select"}</div>
+        </div>
+      </button>
+      {item && onClear ? (
+        <button type="button" onClick={onClear} className="ml-2 text-zinc-500">×</button>
+      ) : null}
+    </div>
+  );
 }
 
 export function NpcBuilder() {
-  const [step, setStep] = useState<1 | 2>(1);
+  const { user } = useAuth();
+  const playerId = user?.id || "demo-user";
+  const [step, setStep] = useState<Step>("Character");
   const [draft, setDraft] = useState<BuilderDraft>(emptyDraft());
-  const [editSlot, setEditSlot] = useState<GearSlot | null>(null);
-  const [sub, setSub] = useState<"attach" | "cargo" | null>(null);
+  const [picker, setPicker] = useState<{ title: string; slot: GearSlot | "shoulder2" } | null>(null);
+  const [shoulder2, setShoulder2] = useState<Equipped | undefined>();
+  const [handMode, setHandMode] = useState<"free" | "cuffed" | "hold">("free");
   const skin = SURVIVOR_SKINS.find((s) => s.id === draft.skinId) ?? SURVIVOR_SKINS[0];
-
-  const equippedCount = useMemo(() => Object.keys(draft.slots).length, [draft.slots]);
+  const balanceQ = useQuery({
+    queryKey: ["economy-balance", playerId],
+    queryFn: () => getEconomyBalance({ data: { playerId } }),
+  });
+  const credits = balanceQ.data?.balance ?? 0;
+  const itemCount = useMemo(() => Object.values(draft.slots).filter(Boolean).length + (shoulder2 ? 1 : 0), [draft.slots, shoulder2]);
+  const idx = STEPS.indexOf(step);
+  const createCost = 10_000;
 
   function setSlot(slot: GearSlot, item: Equipped | undefined) {
     setDraft((d) => {
       const slots = { ...d.slots };
       if (!item) delete slots[slot];
       else slots[slot] = item;
-      return { ...d, slots };
+      return { ...d, slots, handcuffed: handMode === "cuffed" };
     });
   }
 
-  function handcuff() {
-    const next = !draft.handcuffed;
-    setDraft((d) => {
-      const slots = { ...d.slots };
-      if (next) {
-        delete slots.hands;
-        slots.gloves = {
-          classname: "PrisonerCap",
-          name: "Restrained",
-          attachments: [],
-          cargo: ["Handcuffs", "HandcuffsLocked"],
-        };
-      }
-      return { ...d, handcuffed: next, slots };
-    });
-    toast.success(next ? "NPC restrained — hands locked, cuffs on" : "Cuffs off — NPC can hold weapons again");
+  function applyPick(item: Equipped | undefined) {
+    if (!picker) return;
+    if (picker.slot === "shoulder2") setShoulder2(item);
+    else setSlot(picker.slot, item);
   }
 
-  const editing = editSlot ? draft.slots[editSlot] : undefined;
+  function next() {
+    if (step === "Character" && !draft.name.trim()) return toast.error("Name your NPC");
+    const n = STEPS[Math.min(STEPS.length - 1, idx + 1)];
+    setStep(n);
+  }
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-[#d4a84b]/30 bg-[#070707]">
-      <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(135deg,transparent_0%,transparent_48%,rgba(212,168,75,0.16)_49%,transparent_50%)] [background-size:46px_46px]" />
-      <div className="relative space-y-5 p-4 sm:p-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.3em] text-[#d4a84b]">War room · NPC builder</div>
-            <h2 className="font-display mt-1 text-3xl text-[#e8c56a]">Build operator</h2>
-          </div>
-          <div className="flex gap-2 text-[11px] uppercase tracking-[0.2em]">
-            <button type="button" onClick={() => setStep(1)} className={`rounded-full border px-3 py-1 ${step === 1 ? "border-[#d4a84b] text-[#e8c56a]" : "border-white/10 text-zinc-500"}`}>
-              1 · Skin
+      <div className="pointer-events-none absolute inset-0 opacity-15 [background-image:linear-gradient(135deg,transparent_48%,rgba(212,168,75,0.16)_49%,transparent_50%)] [background-size:46px_46px]" />
+      <div className="relative space-y-6 p-4 sm:p-6">
+        <div className="flex flex-wrap gap-2">
+          {STEPS.map((s, i) => (
+            <button key={s} type="button" onClick={() => setStep(s)} className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.16em] ${step === s ? "border-[#d4a84b] text-[#e8c56a]" : i < idx ? "border-[#d4a84b]/40 text-[#d4a84b]/80" : "border-white/10 text-zinc-500"}`}>
+              {s}
             </button>
-            <button type="button" onClick={() => setStep(2)} className={`rounded-full border px-3 py-1 ${step === 2 ? "border-[#d4a84b] text-[#e8c56a]" : "border-white/10 text-zinc-500"}`}>
-              2 · Loadout
-            </button>
-          </div>
+          ))}
         </div>
 
-        {step === 1 && (
+        {step === "Character" && (
           <>
-            <label className="block text-[11px] uppercase tracking-[0.22em] text-[#d4a84b]">
-              Callsign
-              <input
-                value={draft.name}
-                onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value.slice(0, 24) }))}
-                placeholder="NPC name"
-                className="mt-2 w-full rounded-xl border border-[#d4a84b]/25 bg-black/60 px-3 py-2 text-sm text-[#f5e6c0] outline-none focus:border-[#d4a84b]"
-              />
+            <h2 className="font-display text-center text-4xl text-[#e8c56a]">Character</h2>
+            <p className="text-center text-sm text-zinc-500">Name & choose your survivor</p>
+            <label className="mx-auto block max-w-md text-center text-[11px] uppercase tracking-[0.2em] text-[#d4a84b]">
+              Name your NPC
+              <input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value.slice(0, 24) }))} placeholder="Enter a name…" className="mt-2 w-full rounded-xl border border-[#d4a84b]/40 bg-black px-4 py-3 text-center text-base text-[#f5e6c0] outline-none" />
             </label>
-            <p className="text-xs text-zinc-500">
-              Skins from{" "}
-              <a className="text-[#d4a84b] underline" href="https://dayz.fandom.com/wiki/Survivors" target="_blank" rel="noreferrer">
-                DayZ Fandom · Survivors
-              </a>
-            </p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-              {SURVIVOR_SKINS.map((s) => {
-                const on = draft.skinId === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setDraft((d) => ({ ...d, skinId: s.id }))}
-                    className={`overflow-hidden rounded-xl border text-left ${on ? "border-[#d4a84b] shadow-[0_0_18px_rgba(212,168,75,0.25)]" : "border-white/10"}`}
-                  >
-                    <img src={survivorPortrait(s)} alt={s.name} className="h-28 w-full object-cover bg-zinc-900" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.25"; }} />
-                    <div className="px-2 py-1.5">
-                      <div className="font-display text-[#e8c56a]">{s.name}</div>
-                      <div className="text-[10px] uppercase tracking-wider text-zinc-500">{s.sex === "M" ? "Male" : "Female"}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <button type="button" onClick={() => setStep(2)} className="rounded-xl border border-[#d4a84b] bg-[#d4a84b]/10 px-4 py-2 text-sm text-[#e8c56a]">
-              Continue to gear →
-            </button>
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <div className="flex items-center gap-4 rounded-xl border border-[#d4a84b]/20 bg-black/40 p-3">
-              <img src={survivorPortrait(skin)} alt="" className="h-16 w-16 rounded-lg object-cover" />
-              <div>
-                <div className="font-display text-xl text-[#e8c56a]">{draft.name || "Unnamed"}</div>
-                <div className="text-xs text-zinc-500">{skin.classname} · {equippedCount} slots</div>
-              </div>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {GEAR_SLOTS.map((slot) => {
-                const item = draft.slots[slot.id];
-                return (
-                  <button
-                    key={slot.id}
-                    type="button"
-                    onClick={() => { setEditSlot(slot.id); setSub(null); }}
-                    className="rounded-xl border border-white/10 bg-black/50 p-3 text-left hover:border-[#d4a84b]/50"
-                  >
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-[#d4a84b]">{slot.label}</div>
-                    <div className="mt-1 text-sm text-[#f5e6c0]">{item?.name ?? "Empty"}</div>
-                    {item && (
-                      <div className="mt-1 text-[10px] text-zinc-500">
-                        {item.attachments.length} attach · {item.cargo.length} cargo
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {editSlot && (
-          <div className="rounded-xl border border-[#d4a84b]/30 bg-black/70 p-3">
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] uppercase tracking-[0.22em] text-[#d4a84b]">Edit {editSlot}</div>
-              <button type="button" className="text-xs text-zinc-500" onClick={() => setEditSlot(null)}>Close</button>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button type="button" onClick={() => setSlot(editSlot, undefined)} className="rounded-lg border border-white/10 px-2 py-1 text-xs text-zinc-400">Clear</button>
-              {slotItems(editSlot).map((it) => (
-                <button
-                  key={it.classname}
-                  type="button"
-                  onClick={() => setSlot(editSlot, { classname: it.classname, name: it.name, attachments: [], cargo: [] })}
-                  className={`rounded-lg border px-2 py-1 text-xs ${editing?.classname === it.classname ? "border-[#d4a84b] text-[#e8c56a]" : "border-white/10 text-zinc-300"}`}
-                >
-                  {it.name}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {SURVIVOR_SKINS.map((s) => (
+                <button key={s.id} type="button" onClick={() => setDraft((d) => ({ ...d, skinId: s.id }))} className={`overflow-hidden rounded-xl border ${draft.skinId === s.id ? "border-[#d4a84b] shadow-[0_0_18px_rgba(212,168,75,0.3)]" : "border-white/10"}`}>
+                  <img src={survivorPortrait(s)} alt={s.name} className="h-36 w-full object-cover object-top bg-zinc-950" />
+                  <div className="py-1 text-center text-xs text-[#e8c56a]">{s.name}</div>
                 </button>
               ))}
             </div>
-            {editing && (editing.classname && (CATALOG.find((c) => c.classname === editing.classname)?.kind === "weapon" || CATALOG.find((c) => c.classname === editing.classname)?.kind === "clothing")) && (
-              <div className="mt-3 flex gap-2">
-                {CATALOG.find((c) => c.classname === editing.classname)?.kind === "weapon" && (
-                  <button type="button" onClick={() => setSub("attach")} className="rounded-lg border border-[#d4a84b]/40 px-2 py-1 text-xs text-[#e8c56a]">Attachments</button>
-                )}
-                {CATALOG.find((c) => c.classname === editing.classname)?.kind === "clothing" && (
-                  <button type="button" onClick={() => setSub("cargo")} className="rounded-lg border border-[#d4a84b]/40 px-2 py-1 text-xs text-[#e8c56a]">Inventory</button>
-                )}
-              </div>
-            )}
-            {sub === "attach" && editing && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {CATALOG.filter((c) => c.kind === "attach").map((it) => {
-                  const on = editing.attachments.includes(it.classname);
-                  return (
-                    <button
-                      key={it.classname}
-                      type="button"
-                      onClick={() => {
-                        const attachments = on ? editing.attachments.filter((x) => x !== it.classname) : [...editing.attachments, it.classname];
-                        setSlot(editSlot, { ...editing, attachments });
-                      }}
-                      className={`rounded-lg border px-2 py-1 text-xs ${on ? "border-[#d4a84b] text-[#e8c56a]" : "border-white/10 text-zinc-400"}`}
-                    >
-                      {it.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            {sub === "cargo" && editing && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {CATALOG.filter((c) => c.kind === "cargo").map((it) => {
-                  const on = editing.cargo.includes(it.classname);
-                  return (
-                    <button
-                      key={it.classname}
-                      type="button"
-                      onClick={() => {
-                        const cargo = on ? editing.cargo.filter((x) => x !== it.classname) : [...editing.cargo, it.classname];
-                        setSlot(editSlot, { ...editing, cargo });
-                      }}
-                      className={`rounded-lg border px-2 py-1 text-xs ${on ? "border-[#d4a84b] text-[#e8c56a]" : "border-white/10 text-zinc-400"}`}
-                    >
-                      {it.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          </>
         )}
 
-        <motion.button
-          type="button"
-          onClick={handcuff}
-          whileTap={{ scale: 0.98 }}
-          className={`relative w-full overflow-hidden rounded-xl border py-4 font-display text-xl tracking-wide ${
-            draft.handcuffed ? "border-red-500/70 bg-red-950/40 text-red-200" : "border-[#d4a84b] bg-[#d4a84b]/15 text-[#e8c56a]"
-          }`}
-        >
-          {draft.handcuffed ? "Cuffed — tap to release" : "Handcuff my NPC"}
-        </motion.button>
-        <p className="text-center text-[11px] text-zinc-500">
-          Same restrain flow as DayZ AI makers: strips hands, applies locked cuffs, NPC holds until released.
-        </p>
+        {step === "Weapons" && (
+          <>
+            <h2 className="font-display text-center text-4xl text-[#e8c56a]">Weapons</h2>
+            <p className="text-center text-sm text-zinc-500">Primary & secondary</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SlotCard label="Shoulder 1" item={draft.slots.shoulder ?? draft.slots.hands} onOpen={() => setPicker({ title: "Shoulder 1", slot: "shoulder" })} onClear={() => { setSlot("shoulder", undefined); setSlot("hands", undefined); }} />
+              <SlotCard label="Shoulder 2" item={shoulder2} onOpen={() => setPicker({ title: "Shoulder 2", slot: "shoulder2" })} onClear={() => setShoulder2(undefined)} />
+            </div>
+            {(draft.slots.shoulder || draft.slots.hands) && (
+              <div className="rounded-xl border border-[#d4a84b]/20 p-3">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-[#d4a84b]">Attachments</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {CATALOG.filter((c) => c.kind === "attach").map((it) => {
+                    const cur = draft.slots.shoulder ?? draft.slots.hands;
+                    const on = cur?.attachments.includes(it.classname);
+                    return (
+                      <button key={it.classname} type="button" onClick={() => {
+                        if (!cur) return;
+                        const attachments = on ? cur.attachments.filter((x) => x !== it.classname) : [...cur.attachments, it.classname];
+                        setSlot(draft.slots.shoulder ? "shoulder" : "hands", { ...cur, attachments });
+                      }} className={`rounded-lg border px-2 py-1 text-xs ${on ? "border-[#d4a84b] text-[#e8c56a]" : "border-white/10 text-zinc-400"}`}>{it.name}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {step === "Head" && (
+          <>
+            <h2 className="font-display text-center text-4xl text-[#e8c56a]">Head</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SlotCard label="Helmet" item={draft.slots.head} onOpen={() => setPicker({ title: "Helmet", slot: "head" })} onClear={() => setSlot("head", undefined)} />
+              <SlotCard label="Mask" item={draft.slots.mask} onOpen={() => setPicker({ title: "Mask", slot: "mask" })} onClear={() => setSlot("mask", undefined)} />
+              <SlotCard label="Eyewear" item={draft.slots.eyes} onOpen={() => setPicker({ title: "Eyewear", slot: "eyes" })} onClear={() => setSlot("eyes", undefined)} />
+              <SlotCard label="NVG headstrap" item={undefined} onOpen={() => toast.message("NVG uses the eyewear slot on console")} />
+            </div>
+          </>
+        )}
+
+        {step === "Body" && (
+          <>
+            <h2 className="font-display text-center text-4xl text-[#e8c56a]">Body</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SlotCard label="Vest" item={draft.slots.vest} onOpen={() => setPicker({ title: "Vest", slot: "vest" })} onClear={() => setSlot("vest", undefined)} />
+              <SlotCard label="Jacket" item={draft.slots.jacket} onOpen={() => setPicker({ title: "Jacket", slot: "jacket" })} onClear={() => setSlot("jacket", undefined)} />
+              <SlotCard label="Gloves" item={draft.slots.gloves} onOpen={() => setPicker({ title: "Gloves", slot: "gloves" })} onClear={() => setSlot("gloves", undefined)} />
+              <SlotCard label="Shirt" item={draft.slots.shirt} onOpen={() => setPicker({ title: "Shirt", slot: "shirt" })} onClear={() => setSlot("shirt", undefined)} />
+            </div>
+          </>
+        )}
+
+        {step === "Legs" && (
+          <>
+            <h2 className="font-display text-center text-4xl text-[#e8c56a]">Legs</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SlotCard label="Pants" item={draft.slots.pants} onOpen={() => setPicker({ title: "Pants", slot: "pants" })} onClear={() => setSlot("pants", undefined)} />
+              <SlotCard label="Shoes" item={draft.slots.shoes} onOpen={() => setPicker({ title: "Shoes", slot: "shoes" })} onClear={() => setSlot("shoes", undefined)} />
+            </div>
+          </>
+        )}
+
+        {step === "Gear" && (
+          <>
+            <h2 className="font-display text-center text-4xl text-[#e8c56a]">Gear</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SlotCard label="Backpack" item={draft.slots.backpack} onOpen={() => setPicker({ title: "Backpack", slot: "backpack" })} onClear={() => setSlot("backpack", undefined)} />
+              <SlotCard label="Armband" item={draft.slots.armband} onOpen={() => setPicker({ title: "Armband", slot: "armband" })} onClear={() => setSlot("armband", undefined)} />
+            </div>
+            <div className="text-center text-[11px] uppercase tracking-[0.2em] text-[#d4a84b]">Hands</div>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                ["free", "Free hands"],
+                ["cuffed", "Handcuffed"],
+                ["hold", "Holding item"],
+              ] as const).map(([id, label]) => (
+                <button key={id} type="button" onClick={() => {
+                  setHandMode(id);
+                  setDraft((d) => ({ ...d, handcuffed: id === "cuffed" }));
+                  if (id === "cuffed") setSlot("hands", { classname: "HandcuffsLocked", name: "Handcuffed", attachments: [], cargo: [] });
+                  if (id === "free") setSlot("hands", undefined);
+                  if (id === "hold") setPicker({ title: "Holding", slot: "hands" });
+                }} className={`rounded-xl border px-2 py-4 text-sm ${handMode === id ? "border-[#d4a84b] bg-[#d4a84b]/15 text-[#e8c56a]" : "border-white/10 text-zinc-400"}`}>{label}</button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {step === "Export" && (
+          <>
+            <h2 className="font-display text-center text-4xl text-[#e8c56a]">Export</h2>
+            <div className="rounded-xl border border-red-500/40 bg-red-950/20 px-4 py-3 text-sm text-red-200">
+              {createCost.toLocaleString()} credits charged to create this NPC. Balance {credits.toLocaleString()}.
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-xl border border-white/10 p-3 text-center"><div className="text-xs text-zinc-500">Items</div><div className="text-xl text-[#f5e6c0]">{itemCount}</div></div>
+              <div className="rounded-xl border border-white/10 p-3 text-center"><div className="text-xs text-zinc-500">Name</div><div className="text-xl text-[#f5e6c0]">{draft.name || "—"}</div></div>
+              <div className="rounded-xl border border-white/10 p-3 text-center"><div className="text-xs text-zinc-500">Skin</div><div className="text-xl text-[#f5e6c0]">{skin.name}</div></div>
+              <div className="rounded-xl border border-white/10 p-3 text-center"><div className="text-xs text-zinc-500">Hands</div><div className="text-xl text-[#f5e6c0]">{handMode}</div></div>
+            </div>
+            <motion.button type="button" whileTap={{ scale: 0.98 }} onClick={() => {
+              if (!draft.name.trim()) return toast.error("Name required");
+              if (credits < createCost) return toast.error("Need 10,000 cr to create");
+              toast.success(`${draft.name} saved as a custom operator draft`);
+            }} className="w-full rounded-xl bg-[#d4a84b] py-3 font-semibold text-[#1a1205]">
+              Create NPC
+            </motion.button>
+          </>
+        )}
+
+        <div className="flex justify-between">
+          <button type="button" disabled={idx === 0} onClick={() => setStep(STEPS[idx - 1])} className="rounded-full border border-white/15 px-4 py-2 text-sm text-zinc-300 disabled:opacity-30">Back</button>
+          {step !== "Export" && (
+            <button type="button" onClick={next} className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Next</button>
+          )}
+        </div>
       </div>
+      {picker && <Picker title={picker.title} slot={picker.slot === "shoulder2" ? "shoulder" : picker.slot} onPick={applyPick} onClose={() => setPicker(null)} />}
     </div>
   );
 }
