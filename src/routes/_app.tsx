@@ -44,16 +44,34 @@ export const Route = createFileRoute("/_app")({
   component: AppShell,
 });
 
-const PRIMARY_NAV = [
-  { to: "/dashboard", label: "Lobby", Icon: GoldLobby },
-  { to: "/servers", label: "Servers", Icon: GoldServers },
-  { to: "/operations", label: "Operations", Icon: GoldOperations },
-  { to: "/tools", label: "Server shop", Icon: GoldShop },
-  { to: "/war-room", label: "War Room", Icon: GoldWarRoom },
-  { to: "/challenges", label: "Challenges", Icon: GoldChallenges },
-  { to: "/rewards", label: "Rewards", Icon: GoldRewards },
-  { to: "/battlepass", label: "Battlepass", Icon: GoldBattlepass },
-  { to: "/templates", label: "Locker", Icon: GoldLocker },
+const NAV_GROUPS = [
+  {
+    id: "command",
+    label: "Command",
+    items: [
+      { to: "/dashboard", label: "Lobby", Icon: GoldLobby },
+      { to: "/servers", label: "Servers", Icon: GoldServers },
+      { to: "/operations", label: "Operations", Icon: GoldOperations },
+    ],
+  },
+  {
+    id: "market",
+    label: "Market",
+    items: [
+      { to: "/tools", label: "Server shop", Icon: GoldShop },
+      { to: "/rewards", label: "Rewards", Icon: GoldRewards },
+      { to: "/battlepass", label: "Battlepass", Icon: GoldBattlepass },
+    ],
+  },
+  {
+    id: "war",
+    label: "War",
+    items: [
+      { to: "/war-room", label: "War Room", Icon: GoldWarRoom },
+      { to: "/challenges", label: "Challenges", Icon: GoldChallenges },
+      { to: "/templates", label: "Locker", Icon: GoldLocker },
+    ],
+  },
 ] as const;
 
 type ToolChild = { to: string; label: string; Icon: typeof IconCampaign; search?: Record<string, string> };
@@ -67,6 +85,11 @@ const MARKETING_TOOLS: ToolItem[] = [
   { id: "perks", to: "/economy", label: "Credits Economy", Icon: IconChart, children: [] },
 ];
 
+function pathActive(pathname: string, to: string) {
+  if (to === "/tools") return pathname.startsWith("/tools") && !pathname.includes("base-map-clicker");
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
 function AppShell() {
   const { session, loading } = useAuth();
   const loc = useLocation();
@@ -74,6 +97,11 @@ function AppShell() {
   const pathnameRef = useRef(loc.pathname);
   useEffect(() => { pathnameRef.current = loc.pathname; }, [loc.pathname]);
   const [collapsed, setCollapsed] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string>("command");
+  useEffect(() => {
+    const hit = NAV_GROUPS.find((g) => g.items.some((i) => pathActive(loc.pathname, i.to)));
+    if (hit) setOpenGroup(hit.id);
+  }, [loc.pathname]);
   useEffect(() => { purgeExpiredDrafts(); }, []);
   useEffect(() => {
     if (!loading && !session) nav({ to: "/login", search: { redirect: pathnameRef.current, mode: "signin", error: undefined }, replace: true });
@@ -112,17 +140,39 @@ function AppShell() {
             </div>
           )}
           {!collapsed && <div className="px-3 pb-2"><SidebarSearch /></div>}
-          <nav className={`flex-1 space-y-1 ${collapsed ? "px-2" : "px-3"}`}>
-            {PRIMARY_NAV.map((n) => {
-              const active = n.to === "/tools" ? loc.pathname.startsWith("/tools") : loc.pathname.startsWith(n.to);
+          <nav className={`flex-1 space-y-2 ${collapsed ? "px-2" : "px-3"}`}>
+            {NAV_GROUPS.map((group) => {
+              const open = collapsed || openGroup === group.id;
+              const groupActive = group.items.some((i) => pathActive(loc.pathname, i.to));
               return (
-                <Link key={n.label} to={n.to} preload="intent" title={collapsed ? n.label : undefined} className={`relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-xl py-2.5 text-sm ${active ? "bg-glass text-foreground" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}>
-                  <n.Icon size={18} />
-                  {!collapsed && <span>{n.label}</span>}
-                </Link>
+                <div key={group.id} className="rounded-xl border border-white/5 bg-black/20">
+                  {!collapsed && (
+                    <button
+                      type="button"
+                      onClick={() => setOpenGroup((cur) => (cur === group.id ? "" : group.id))}
+                      className={`flex w-full items-center justify-between px-3 py-2 text-[10px] uppercase tracking-[0.22em] ${groupActive ? "text-[#e8c56a]" : "text-zinc-500"}`}
+                    >
+                      {group.label}
+                      <IconChevronRight size={12} className={`transition ${open ? "rotate-90" : ""}`} />
+                    </button>
+                  )}
+                  {open && (
+                    <div className="space-y-0.5 pb-1">
+                      {group.items.map((n) => {
+                        const active = pathActive(loc.pathname, n.to);
+                        return (
+                          <Link key={n.label} to={n.to} preload="intent" title={collapsed ? n.label : undefined} className={`relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-lg py-2 text-sm ${active ? "bg-[#d4a84b]/15 text-[#e8c56a]" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}>
+                            <n.Icon size={18} />
+                            {!collapsed && <span>{n.label}</span>}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
-            <div className="pt-4">
+            <div className="pt-2">
               <Link to="/settings" className={`flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-xl py-2.5 text-sm ${loc.pathname.startsWith("/settings") ? "bg-glass text-foreground" : "text-muted-foreground hover:bg-glass/50"}`}>
                 <GoldSettings size={18} />
                 {!collapsed && <span>Settings</span>}
@@ -149,19 +199,10 @@ function AppShell() {
           <div className="pointer-events-none fixed right-4 top-3 z-[60] flex items-center gap-2 md:right-5 md:top-4">
             {!isMap && <div className="pointer-events-auto hidden md:block"><AutosaveStatus /></div>}
             {isMap ? (
-              <Link
-                to="/dashboard"
-                className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/80 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a] hover:bg-[#d4a84b]/15"
-              >
-                Close map
-              </Link>
+              <Link to="/dashboard" className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/80 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a] hover:bg-[#d4a84b]/15">Close map</Link>
             ) : (
-              <Link
-                to="/tools/base-map-clicker"
-                className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/70 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a] hover:bg-[#d4a84b]/15"
-              >
-                <GoldMap size={14} />
-                Map
+              <Link to="/tools/base-map-clicker" className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/70 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a] hover:bg-[#d4a84b]/15">
+                <GoldMap size={14} /> Map
               </Link>
             )}
             <div className="pointer-events-auto"><UserMenu /></div>
@@ -211,7 +252,7 @@ function SidebarSearch() {
     <div className="relative">
       <div className="flex items-center gap-2 rounded-lg border border-glass-border bg-glass/40 px-2.5 py-1.5 text-sm text-muted-foreground">
         <IconSearch size={14} />
-        <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)} onKeyDown={(e) => { if (e.key === "Enter" && hits[0]) { e.preventDefault(); go(hits[0]); } }} placeholder="Search tools…" className="w-full bg-transparent outline-none" />
+        <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)} onKeyDown={(e) => { if (e.key === "Enter" && hits[0]) { e.preventDefault(); go(hits[0]); } }} placeholder="Search…" className="w-full bg-transparent outline-none" />
       </div>
       <AnimatePresence>
         {open && ql && (
