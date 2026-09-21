@@ -97,11 +97,6 @@ function AppShell() {
   const pathnameRef = useRef(loc.pathname);
   useEffect(() => { pathnameRef.current = loc.pathname; }, [loc.pathname]);
   const [collapsed, setCollapsed] = useState(false);
-  const [openGroup, setOpenGroup] = useState<string>("command");
-  useEffect(() => {
-    const hit = NAV_GROUPS.find((g) => g.items.some((i) => pathActive(loc.pathname, i.to)));
-    if (hit) setOpenGroup(hit.id);
-  }, [loc.pathname]);
   useEffect(() => { purgeExpiredDrafts(); }, []);
   useEffect(() => {
     if (!loading && !session) nav({ to: "/login", search: { redirect: pathnameRef.current, mode: "signin", error: undefined }, replace: true });
@@ -140,39 +135,26 @@ function AppShell() {
             </div>
           )}
           {!collapsed && <div className="px-3 pb-2"><SidebarSearch /></div>}
-          <nav className={`flex-1 space-y-2 ${collapsed ? "px-2" : "px-3"}`}>
-            {NAV_GROUPS.map((group) => {
-              const open = collapsed || openGroup === group.id;
-              const groupActive = group.items.some((i) => pathActive(loc.pathname, i.to));
-              return (
-                <div key={group.id} className="rounded-xl border border-white/5 bg-black/20">
-                  {!collapsed && (
-                    <button
-                      type="button"
-                      onClick={() => setOpenGroup((cur) => (cur === group.id ? "" : group.id))}
-                      className={`flex w-full items-center justify-between px-3 py-2 text-[10px] uppercase tracking-[0.22em] ${groupActive ? "text-[#e8c56a]" : "text-zinc-500"}`}
-                    >
-                      {group.label}
-                      <IconChevronRight size={12} className={`transition ${open ? "rotate-90" : ""}`} />
-                    </button>
-                  )}
-                  {open && (
-                    <div className="space-y-0.5 pb-1">
-                      {group.items.map((n) => {
-                        const active = pathActive(loc.pathname, n.to);
-                        return (
-                          <Link key={n.label} to={n.to} preload="intent" title={collapsed ? n.label : undefined} className={`relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-lg py-2 text-sm ${active ? "bg-[#d4a84b]/15 text-[#e8c56a]" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}>
-                            <n.Icon size={18} />
-                            {!collapsed && <span>{n.label}</span>}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
+          <nav className={`flex-1 space-y-4 ${collapsed ? "px-2" : "px-3"}`}>
+            {NAV_GROUPS.map((group) => (
+              <div key={group.id}>
+                {!collapsed && (
+                  <div className="px-3 pb-1 text-[10px] uppercase tracking-[0.22em] text-zinc-500">{group.label}</div>
+                )}
+                <div className="space-y-0.5">
+                  {group.items.map((n) => {
+                    const active = pathActive(loc.pathname, n.to);
+                    return (
+                      <Link key={n.label} to={n.to} preload="intent" title={collapsed ? n.label : undefined} className={`relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-lg py-2 text-sm ${active ? "bg-[#d4a84b]/15 text-[#e8c56a]" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}>
+                        <n.Icon size={18} />
+                        {!collapsed && <span>{n.label}</span>}
+                      </Link>
+                    );
+                  })}
                 </div>
-              );
-            })}
-            <div className="pt-2">
+              </div>
+            ))}
+            <div className="pt-1">
               <Link to="/settings" className={`flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-xl py-2.5 text-sm ${loc.pathname.startsWith("/settings") ? "bg-glass text-foreground" : "text-muted-foreground hover:bg-glass/50"}`}>
                 <GoldSettings size={18} />
                 {!collapsed && <span>Settings</span>}
