@@ -1,5 +1,6 @@
 import { readJsonFile, writeJsonFile } from "@/lib/dayz/store";
 import { uploadNitradoFile } from "@/lib/nitrado-files.functions";
+import { DAYZ_SERVERS, resolveMissionPath, resolveServiceId } from "@/lib/dayz/servers";
 
 const FILE = "weather-schedule.json";
 const RAIN_EVERY_MS = 3 * 60 * 60 * 1000;
@@ -104,29 +105,30 @@ export function buildCfgWeather(s: Schedule, now = Date.now()) {
   const rain = raining ? pat.rain : 0;
   const storm = raining ? pat.storm : 0;
   const remain = raining ? Math.max(60, Math.round((s.rainEnd - now) / 1000)) : 900;
+  // reset=1 is required or DayZ loads the last stored weather (fog) and ignores this file.
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
-<weather reset="0" enable="1">
+<weather reset="1" enable="1">
   <overcast>
-    <current actual="${overcast.toFixed(2)}" time="30" duration="${remain}" />
+    <current actual="${overcast.toFixed(2)}" time="15" duration="${remain}" />
     <limits min="${raining ? "0.65" : "0.05"}" max="${raining ? "1.0" : "0.45"}" />
     <timelimits min="600" max="1800" />
     <changelimits min="0.0" max="${raining ? "0.15" : "0.25"}" />
   </overcast>
   <fog>
-    <current actual="0.0" time="10" duration="99999" />
+    <current actual="0.0" time="5" duration="99999" />
     <limits min="0.0" max="0.0" />
     <timelimits min="900" max="1800" />
     <changelimits min="0.0" max="0.0" />
   </fog>
   <rain>
-    <current actual="${rain.toFixed(2)}" time="20" duration="${remain}" />
+    <current actual="${rain.toFixed(2)}" time="15" duration="${remain}" />
     <limits min="0.0" max="${raining ? "1.0" : "0.0"}" />
     <timelimits min="1500" max="1500" />
     <changelimits min="0.0" max="${raining ? "0.2" : "0.0"}" />
-    <thresholds min="${raining ? "0.4" : "1.0"}" max="1.0" end="60" />
+    <thresholds min="${raining ? "0.35" : "1.0"}" max="1.0" end="60" />
   </rain>
   <windMagnitude>
-    <current actual="${raining ? "11" : "4"}" time="60" duration="${remain}" />
+    <current actual="${raining ? "11" : "4"}" time="30" duration="${remain}" />
     <limits min="2" max="${raining ? "16" : "8"}" />
     <timelimits min="300" max="900" />
     <changelimits min="0" max="4" />
@@ -145,17 +147,15 @@ export function buildCfgWeather(s: Schedule, now = Date.now()) {
 export async function applyWeatherToNitrado(forceRain = true) {
   const s = await advanceWeatherSchedule(Date.now(), forceRain);
   const xml = buildCfgWeather(s);
-  const services = [
-    process.env.NITRADO_SERVICE_101X || process.env.NITRADO_SERVICE_101,
-    process.env.NITRADO_SERVICE_102X || process.env.NITRADO_SERVICE_102,
-  ].filter(Boolean) as string[];
   const uploaded: string[] = [];
-  for (const id of services) {
+  for (const server of DAYZ_SERVERS) {
+    const id = resolveServiceId(server);
+    const mission = resolveMissionPath(server);
     try {
-      await uploadNitradoFile(id, "cfgweather.xml", xml);
-      uploaded.push(id);
+      await uploadNitradoFile(id, "cfgweather.xml", xml, mission);
+      uploaded.push(`${server.id}:${id}:${mission}`);
     } catch (err) {
-      uploaded.push(`${id}: ${err instanceof Error ? err.message : String(err)}`);
+      uploaded.push(`${server.id}:${id}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
   return {
