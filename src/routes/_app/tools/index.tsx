@@ -78,6 +78,8 @@ function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => v
               onClick={() => {
                 if (group.name === "Combat & Intel") return onOpenFull("/tools/uav");
                 if (group.name === "Vehicle Shop") return onOpenFull("/tools/vehicle-shop");
+                if (group.name === "NPC Shop") return onOpenFull("/tools/npc-shop");
+                if (group.name === "NPC Maker") return onOpenFull("/tools/npc-maker");
                 if (group.name === "Boosts") return onOpen("boosts");
                 if (group.name === "Base Ops") return onOpen("campaign");
                 if (group.items[0]) onOpen(group.items[0].focus);
