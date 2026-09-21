@@ -12,6 +12,7 @@ import { runMonthlyRent } from "@/lib/custom-bases-rent";
 import { repostOnlineEmbed } from "@/lib/discord-online-embed";
 import { getOnlinePlayers } from "@/lib/online-players.functions";
 import { publishStaffBoard } from "@/lib/staff-embed";
+import { publishWipeAnnounce } from "@/lib/wipe-announce";
 import { handleStaffClaim, handleStaffPromo, handleStaffVote } from "@/lib/staff-actions";
 
 type Interaction = {
@@ -60,6 +61,7 @@ export const Route = createFileRoute("/api/discord/interactions")({
           const result = kind === "promo" ? await handleStaffPromo(userId) : await handleStaffClaim(userId);
           return page(String(result.content || "Done."));
         }
+        if (action === "announce" || action === "wipe_announce") return Response.json(await publishWipeAnnounce());
         if (action === "staff") return Response.json(await publishStaffBoard());
         if (action === "online") {
           const raw = await getOnlinePlayers({ data: { accessToken: "discord-access-token" } }).catch(() => ({ players: [] as Array<{ name: string }> }));
