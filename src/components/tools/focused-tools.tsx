@@ -49,10 +49,11 @@ function ZombieHordesContent() {
 }
 
 export const FOCUSED_TOOLS: Record<string, FocusedTool> = {
-  "zombie-hordes": { slug: "zombie-hordes", primaryId: "server-events", title: "Zombie Hordes", hue: 52, icon: <IconSpark size={22} />, fullRouteTo: "/tools", Component: ZombieHordesContent },
+  "zombie-hordes": { slug: "zombie-hordes", primaryId: "server-events", title: "Zombie Hordes", hue: 52, icon: <IconSpark size={22} />, fullRouteTo: "/tools/vehicle-shop", Component: ZombieHordesContent },
   "pro-build": { slug: "pro-build", primaryId: "campaign", title: "Pro Build", hue: 42, icon: <IconCampaign size={22} />, fullRouteTo: "/tools", Component: ProBuildContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
   "sleeping-bags": { slug: "sleeping-bags", primaryId: "campaign", title: "Sleeping Bags", hue: 168, icon: <IconScroll size={22} />, fullRouteTo: "/tools", Component: EventsContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
-  "vehicle-shop": { slug: "vehicle-shop", primaryId: "campaign", title: "Vehicle Shop", hue: 122, icon: <IconCampaign size={22} />, fullRouteTo: "/tools", Component: VehicleShopContent },
+  "vehicle-shop": { slug: "vehicle-shop", primaryId: "campaign", title: "Vehicle Shop", hue: 122, icon: <IconCampaign size={22} />, fullRouteTo: "/tools/vehicle-shop", Component: VehicleShopContent },
+  vehicles: { slug: "vehicles", primaryId: "campaign", title: "Vehicle Shop", hue: 122, icon: <IconCampaign size={22} />, fullRouteTo: "/tools/vehicle-shop", Component: VehicleShopContent },
   utm: { slug: "utm", primaryId: "utm", title: "Combat & Intel", hue: 275, icon: <IconUtm size={22} />, fullRouteTo: "/tools/utm", Component: UtmBuilderContent },
   "utm-campaign-name": { slug: "utm-campaign-name", primaryId: "utm", title: "Combat & Intel", hue: 275, icon: <IconUtm size={22} />, fullRouteTo: "/tools/utm", Component: UtmBuilderContent },
   "utm-taxonomy": { slug: "utm-taxonomy", primaryId: "utm", title: "Bounties", hue: 275, icon: <IconSpark size={22} />, fullRouteTo: "/tools/taxonomy", Component: TaxonomyContent, parentTitle: "Combat & Intel", parentHue: 275, parentIcon: <IconUtm size={22} /> },
@@ -72,6 +73,7 @@ export const FOCUSED_TOOLS: Record<string, FocusedTool> = {
 export function getFocusedTool(slug: string | undefined | null): FocusedTool | null {
   if (!slug) return null;
   if (slug === "campaign-hackathon") return FOCUSED_TOOLS["faction-hub"] ?? null;
+  if (slug === "vehicles" || slug === "vehicle" || slug === "custom-vehicles") return FOCUSED_TOOLS["vehicle-shop"] ?? null;
   return FOCUSED_TOOLS[slug] ?? null;
 }
 
@@ -92,6 +94,9 @@ export const SATELLITE_TO_FOCUS_SLUG: Record<string, string> = {
   "pro-build": "pro-build",
   "sleeping-bags": "sleeping-bags",
   "vehicle-shop": "vehicle-shop",
+  vehicles: "vehicle-shop",
+  vehicle: "vehicle-shop",
+  shop: "vehicle-shop",
 };
 
 export const FOCUSED_PRIMARY_IDS = new Set(Object.values(FOCUSED_TOOLS).map((t) => t.primaryId));
