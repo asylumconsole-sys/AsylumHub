@@ -45,12 +45,14 @@ function pick<T extends { id: string }>(pool: readonly T[], used: string[], last
 function empty(): Schedule {
   const now = Date.now();
   return {
-    rainStart: now + 20 * 60 * 1000,
-    rainEnd: now + 20 * 60 * 1000 + BURST_MS,
-    nightStart: now + 50 * 60 * 1000,
-    nightEnd: now + 50 * 60 * 1000 + BURST_MS,
-    usedRain: [],
-    usedNight: [],
+    rainStart: now,
+    rainEnd: now + BURST_MS,
+    nightStart: now + 40 * 60 * 1000,
+    nightEnd: now + 40 * 60 * 1000 + BURST_MS,
+    lastRainId: "sheet",
+    lastNightId: "black",
+    usedRain: ["sheet"],
+    usedNight: ["black"],
   };
 }
 
@@ -66,9 +68,14 @@ export function inWindow(start: number, end: number, now = Date.now()) {
   return now >= start && now < end;
 }
 
-export async function advanceWeatherSchedule(now = Date.now()) {
+export async function advanceWeatherSchedule(now = Date.now(), forceRain = false) {
   const s = await loadWeatherSchedule();
-  if (now >= s.rainEnd) {
+  if (forceRain || !s.lastRainId) {
+    const pat = pick(RAIN_PATTERNS, s.usedRain, s.lastRainId);
+    s.lastRainId = pat.id;
+    s.rainStart = now;
+    s.rainEnd = now + BURST_MS;
+  } else if (now >= s.rainEnd) {
     const next = now + RAIN_EVERY_MS + Math.floor(Math.random() * 15 * 60 * 1000);
     s.rainStart = next;
     s.rainEnd = next + BURST_MS;
@@ -92,7 +99,7 @@ export async function advanceWeatherSchedule(now = Date.now()) {
 
 export function buildCfgWeather(s: Schedule, now = Date.now()) {
   const raining = inWindow(s.rainStart, s.rainEnd, now);
-  const pat = RAIN_PATTERNS.find((p) => p.id === s.lastRainId) ?? RAIN_PATTERNS[1];
+  const pat = RAIN_PATTERNS.find((p) => p.id === s.lastRainId) ?? RAIN_PATTERNS[0];
   const overcast = raining ? pat.overcast : 0.22;
   const rain = raining ? pat.rain : 0;
   const storm = raining ? pat.storm : 0;
@@ -100,23 +107,23 @@ export function buildCfgWeather(s: Schedule, now = Date.now()) {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <weather reset="0" enable="1">
   <overcast>
-    <current actual="${overcast.toFixed(2)}" time="45" duration="${remain}" />
+    <current actual="${overcast.toFixed(2)}" time="30" duration="${remain}" />
     <limits min="${raining ? "0.65" : "0.05"}" max="${raining ? "1.0" : "0.45"}" />
     <timelimits min="600" max="1800" />
     <changelimits min="0.0" max="${raining ? "0.15" : "0.25"}" />
   </overcast>
   <fog>
-    <current actual="0.0" time="20" duration="99999" />
+    <current actual="0.0" time="10" duration="99999" />
     <limits min="0.0" max="0.0" />
     <timelimits min="900" max="1800" />
     <changelimits min="0.0" max="0.0" />
   </fog>
   <rain>
-    <current actual="${rain.toFixed(2)}" time="40" duration="${remain}" />
+    <current actual="${rain.toFixed(2)}" time="20" duration="${remain}" />
     <limits min="0.0" max="${raining ? "1.0" : "0.0"}" />
     <timelimits min="1500" max="1500" />
     <changelimits min="0.0" max="${raining ? "0.2" : "0.0"}" />
-    <thresholds min="${raining ? "0.55" : "1.0"}" max="1.0" end="60" />
+    <thresholds min="${raining ? "0.4" : "1.0"}" max="1.0" end="60" />
   </rain>
   <windMagnitude>
     <current actual="${raining ? "11" : "4"}" time="60" duration="${remain}" />
@@ -135,8 +142,8 @@ export function buildCfgWeather(s: Schedule, now = Date.now()) {
 `;
 }
 
-export async function applyWeatherToNitrado() {
-  const s = await advanceWeatherSchedule();
+export async function applyWeatherToNitrado(forceRain = true) {
+  const s = await advanceWeatherSchedule(Date.now(), forceRain);
   const xml = buildCfgWeather(s);
   const services = [
     process.env.NITRADO_SERVICE_101X || process.env.NITRADO_SERVICE_101,
