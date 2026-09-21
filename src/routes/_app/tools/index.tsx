@@ -51,7 +51,11 @@ function ToolsHub() {
       </header>
       <div className={tool ? "relative z-10 flex min-h-[calc(100vh-13rem)] flex-1 flex-col" : "relative z-10"}>
         {!tool && (shopTab === "server" ? (
-          <ServiceDirectory onOpen={(next) => navigate({ to: "/tools", search: { focus: next, workspace } })} onOpenFull={(path) => navigate({ to: path })} />
+          <ServiceDirectory
+            onOpen={(next) => navigate({ to: "/tools", search: { focus: next, workspace } })}
+            onOpenFull={(path) => navigate({ to: path })}
+            onNpcMaker={() => navigate({ to: "/tools/npc-shop", search: { maker: true } as never })}
+          />
         ) : (
           <ItemShop />
         ))}
@@ -61,7 +65,15 @@ function ToolsHub() {
   );
 }
 
-function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => void; onOpenFull: (path: string) => void }) {
+function ServiceDirectory({
+  onOpen,
+  onOpenFull,
+  onNpcMaker,
+}: {
+  onOpen: (focus: string) => void;
+  onOpenFull: (path: string) => void;
+  onNpcMaker: () => void;
+}) {
   return (
     <section className="shop-directory-wrap" aria-label="Server service directory">
       <div className="shop-directory-shell">
@@ -79,7 +91,7 @@ function ServiceDirectory({ onOpen, onOpenFull }: { onOpen: (focus: string) => v
                 if (group.name === "Combat & Intel") return onOpenFull("/tools/uav");
                 if (group.name === "Vehicle Shop") return onOpenFull("/tools/vehicle-shop");
                 if (group.name === "NPC Shop") return onOpenFull("/tools/npc-shop");
-                if (group.name === "NPC Maker") return onOpenFull("/tools/npc-maker");
+                if (group.name === "NPC Maker") return onNpcMaker();
                 if (group.name === "Boosts") return onOpen("boosts");
                 if (group.name === "Base Ops") return onOpen("campaign");
                 if (group.items[0]) onOpen(group.items[0].focus);
