@@ -16,6 +16,7 @@ import {
   itemPickPayload,
   npcPickPayload,
   publishShopBoard,
+  shopBalance,
 } from "@/lib/discord-shop-embed";
 import { getOnlinePlayers } from "@/lib/online-players.functions";
 import { publishStaffBoard } from "@/lib/staff-embed";
@@ -144,9 +145,10 @@ export const Route = createFileRoute("/api/discord/interactions")({
         const id = body.data?.custom_id ?? "";
         const who = actorId(body);
         const name = actorName(body);
-        if (id === "shop_npc_pick") return json(4, npcPickPayload(body.data?.values?.[0] || ""));
-        if (id === "shop_icat") return json(4, itemCategoryPayload(body.data?.values?.[0] || ""));
-        if (id === "shop_item") return json(4, itemPickPayload(body.data?.values?.[0] || ""));
+        if (id === "shop_npc_pick") return json(4, npcPickPayload(body.data?.values?.[0] || "") as Record<string, unknown>);
+        if (id === "shop_icat") return json(4, itemCategoryPayload(body.data?.values?.[0] || "") as Record<string, unknown>);
+        if (id === "shop_item") return json(4, itemPickPayload(body.data?.values?.[0] || "") as Record<string, unknown>);
+        if (id === "shop_bal") return json(4, (await shopBalance(who, name)) as Record<string, unknown>);
         if (id.startsWith("shop_nbuy:")) {
           const [, npcId, spawns, price] = id.split(":");
           const msg = await buyNpcPack(who, name, npcId, Number(spawns), Number(price));
