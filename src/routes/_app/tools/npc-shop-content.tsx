@@ -20,8 +20,6 @@ const ROSTER_SLOTS = 20;
 
 type PlacementMode = "map" | "zy" | "gamertag";
 
-const emptySlots = Math.max(0, ROSTER_SLOTS - NPCS.length);
-
 export function NPCShopContent() {
   const { session, user } = useAuth();
   const qc = useQueryClient();
@@ -32,6 +30,7 @@ export function NPCShopContent() {
   const [z, setZ] = useState(String(DEFAULT_SPAWN_POSITION.z));
   const [gamertag, setGamertag] = useState("");
   const [spawning, setSpawning] = useState(false);
+  const [waveCount, setWaveCount] = useState(1);
   const [packId, setPackId] = useState(SPAWN_PACKS[0]?.id ?? "pack_15");
   const [invOpen, setInvOpen] = useState(false);
   const selectedPack: SpawnPack = SPAWN_PACKS.find((p) => p.id === packId) ?? SPAWN_PACKS[0];
@@ -134,23 +133,18 @@ export function NPCShopContent() {
           serviceId,
           serverId: PRIMARY_SERVER_ID,
           npcId: selected.id,
+          npcName: selected.name,
           x: Math.round(position.x),
           z: Math.round(position.z),
           a: 0,
           playerId,
           playerName: displayName,
+          count: Math.max(1, Math.min(chargesLeft || 1, Number(waveCount) || 1)),
         }),
       });
       const result = (await res.json()) as { mode?: string; reason?: string; error?: string };
       if (!res.ok || result.error) throw new Error(result.error || "Deploy failed");
-      if (result.mode === "live") {
-        toast.success(`${selected.name} spawned on ${server.label} at ${gamertag || "Z/Y"}`, {
-          description: `Y ${Math.round(position.x)} / Z ${Math.round(position.z)}`,
-        });
-      } else {
-        toast.warning("Live spawn unavailable", { description: result.reason });
-        toast.success(`${selected.name} queued on ${server.label}`);
-      }
+      toast.success(`${selected.name} wave ${waveCount} queued`);
       qc.invalidateQueries({ queryKey: ["npc-inventory", playerId] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to queue spawn");
@@ -175,7 +169,7 @@ export function NPCShopContent() {
             </div>
             <h1 className="font-display mt-1 text-4xl text-[#e8c56a] sm:text-5xl">Operators</h1>
             <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-              Packs: 2,500 cr / 15 · 5,000 cr / 30 · 7,500 cr / 50. One charge burns per spawn.
+              Packs: 2,500 cr / 15 · 5,000 cr / 30 · 7,500 cr / 50. Pick how many to burn this wave.
             </p>
           </div>
           <div className="rounded-xl border border-[#d4a84b]/40 bg-[#d4a84b]/10 px-4 py-3 text-right">
@@ -240,9 +234,13 @@ export function NPCShopContent() {
                   </button>
                 ))}
               </div>
-              <div className="mt-4 border-t border-[#d4a84b]/20 pt-4">
+              <div className="mt-4 border-t border-[#d4a84b]/20 pt-4 space-y-3">
+                <label className="block text-[10px] uppercase tracking-wide text-[#e8c56a]">Spawn count
+                  <input type="number" min={1} max={Math.max(1, chargesLeft)} value={waveCount} onChange={(e) => setWaveCount(Math.max(1, Math.min(chargesLeft || 1, Number(e.target.value) || 1)))} className="mt-1 w-full rounded-lg border border-[#d4a84b]/25 bg-black px-3 py-2 font-mono text-sm text-[#f5e6c0] outline-none" />
+                </label>
+                <div className="text-[11px] text-zinc-500">{waveCount} of {chargesLeft} · one now, then every 30s</div>
                 {placementMode === "map" && (
-                  <button type="button" disabled={!canDeploy || !selected} onClick={() => selected && window.open(`/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}`, "_blank", "noopener,noreferrer")} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d4a84b]/50 px-4 py-2.5 text-sm uppercase tracking-[0.14em] text-[#e8c56a] disabled:opacity-40">Choose on map <IconArrowRight size={14} /></button>
+                  <button type="button" disabled={!canDeploy || !selected} onClick={() => selected && window.open(`/tools/npc-map-clicker?npcId=${encodeURIComponent(selected.id)}&count=${waveCount}`, "_blank", "noopener,noreferrer")} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d4a84b]/50 px-4 py-2.5 text-sm uppercase tracking-[0.14em] text-[#e8c56a] disabled:opacity-40">Choose on map <IconArrowRight size={14} /></button>
                 )}
                 {placementMode === "zy" && (
                   <div className="space-y-3">
