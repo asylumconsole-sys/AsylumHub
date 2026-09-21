@@ -33,7 +33,6 @@ import { CommanderAI } from "@/components/app/CommanderAI";
 const COMMANDER_ENABLED = import.meta.env.VITE_COMMANDER_ENABLED !== "false";
 import { BottomNav } from "@/components/app/BottomNav";
 import { UserMenu } from "@/components/app/UserMenu";
-import { OnboardingChecklist } from "@/components/app/OnboardingChecklist";
 import { GuidedTour } from "@/components/tour/GuidedTour";
 import { RouteProgressBar } from "@/components/app/RouteProgressBar";
 import { BrandHexLogo } from "@/components/app/BrandHexLogo";
@@ -49,7 +48,6 @@ const PRIMARY_NAV = [
   { to: "/dashboard", label: "Lobby", Icon: GoldLobby },
   { to: "/servers", label: "Servers", Icon: GoldServers },
   { to: "/operations", label: "Operations", Icon: GoldOperations },
-  { to: "/tools/base-map-clicker", label: "Map", Icon: GoldMap },
   { to: "/tools", label: "Server shop", Icon: GoldShop },
   { to: "/war-room", label: "War Room", Icon: GoldWarRoom },
   { to: "/challenges", label: "Challenges", Icon: GoldChallenges },
@@ -145,7 +143,13 @@ function AppShell() {
           </header>
           <div className="pointer-events-none fixed right-4 top-3 z-40 flex items-center gap-2 md:right-5 md:top-4">
             <div className="pointer-events-auto hidden md:block"><AutosaveStatus /></div>
-            <div className="pointer-events-auto"><OnboardingChecklist variant="pill" /></div>
+            <Link
+              to="/tools/base-map-clicker"
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/70 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a] hover:bg-[#d4a84b]/15"
+            >
+              <GoldMap size={14} />
+              Map
+            </Link>
             <div className="pointer-events-auto"><UserMenu /></div>
           </div>
           <div className={`mx-auto w-full pb-10 pt-6 md:pt-20 ${loc.pathname === "/tools" ? "max-w-full px-0" : "max-w-6xl px-4 sm:px-6"}`}>
