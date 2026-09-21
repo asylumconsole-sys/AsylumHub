@@ -96,3 +96,10 @@ export async function discordPost(path: string, body: unknown) {
   const res = await fetch(`${API}${path}`, { method: "POST", headers: h, body: JSON.stringify(body) });
   return res.json();
 }
+
+export async function discordPatch(path: string, body: unknown) {
+  const h = headers();
+  if (!h) return null;
+  const res = await fetch(`${API}${path}`, { method: "PATCH", headers: h, body: JSON.stringify(body) });
+  return res.json();
+}
