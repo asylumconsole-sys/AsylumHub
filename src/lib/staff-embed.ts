@@ -2,11 +2,29 @@ import { STAFF_RULES } from "@/lib/staff-allowance";
 
 const API = "https://discord.com/api/v10";
 export const STAFF_CHANNEL_ID = process.env.DISCORD_STAFF_CHANNEL_ID || "1371740737707966585";
+const HUB = "https://dayzpro.online";
 
 function headers() {
   const token = process.env.DISCORD_TOKEN?.replace(/^Bot\s+/i, "");
   if (!token) return null;
   return { Authorization: `Bot ${token}`, "Content-Type": "application/json" };
+}
+
+function oauthLink(kind: "claim" | "promo") {
+  const clientId = process.env.DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID || "";
+  const redirectUri = `${HUB}/api/discord/callback`;
+  const state = Buffer.from(
+    JSON.stringify({ redirect: `/api/discord/interactions?action=staff_done&kind=${kind}`, redirectUri }),
+  ).toString("base64");
+  if (!clientId) return `${HUB}/api/discord/interactions?action=staff_done&kind=${kind}`;
+  return `https://discord.com/oauth2/authorize?${new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: "identify",
+    state,
+    prompt: "none",
+  }).toString()}`;
 }
 
 export function staffBoardPayload() {
@@ -32,8 +50,8 @@ export function staffBoardPayload() {
       {
         type: 1,
         components: [
-          { type: 2, style: 3, label: "Claim monthly pay", custom_id: "staff_claim" },
-          { type: 2, style: 1, label: "Request higher role", custom_id: "staff_promo" },
+          { type: 2, style: 5, label: "Claim monthly pay", url: oauthLink("claim") },
+          { type: 2, style: 5, label: "Request higher role", url: oauthLink("promo") },
         ],
       },
     ],
