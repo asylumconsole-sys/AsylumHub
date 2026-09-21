@@ -4,12 +4,19 @@ import {
   firstOfNextMonth,
   loadBases,
   makeBaseCode,
-  mapLink,
   saveBases,
 } from "@/lib/custom-bases";
 import { baseDetailEmbed, dmOwner, listGuildMembers, publishBaseBoard } from "@/lib/custom-bases-discord";
 import { runMonthlyRent } from "@/lib/custom-bases-rent";
 import { repostOnlineEmbed } from "@/lib/discord-online-embed";
+import {
+  buyNpcPack,
+  buyShopItem,
+  itemCategoryPayload,
+  itemPickPayload,
+  npcPickPayload,
+  publishShopBoard,
+} from "@/lib/discord-shop-embed";
 import { getOnlinePlayers } from "@/lib/online-players.functions";
 import { publishStaffBoard } from "@/lib/staff-embed";
 import { publishWipeAnnounce } from "@/lib/wipe-announce";
@@ -18,8 +25,8 @@ import { handleStaffClaim, handleStaffPromo, handleStaffVote } from "@/lib/staff
 
 type Interaction = {
   type: number;
-  member?: { user?: { id: string } };
-  user?: { id: string };
+  member?: { user?: { id: string; username?: string; global_name?: string } };
+  user?: { id: string; username?: string; global_name?: string };
   data?: {
     custom_id?: string;
     name?: string;
@@ -34,6 +41,10 @@ function json(type: number, data: Record<string, unknown>) {
 
 function actorId(body: Interaction) {
   return body.member?.user?.id || body.user?.id || "";
+}
+
+function actorName(body: Interaction) {
+  return body.member?.user?.global_name || body.member?.user?.username || body.user?.global_name || body.user?.username || actorId(body);
 }
 
 function page(text: string) {
@@ -74,6 +85,7 @@ export const Route = createFileRoute("/api/discord/interactions")({
           return Response.json({ ok: true, store, reply: aioffReply(false) });
         }
         if (action === "staff") return Response.json(await publishStaffBoard());
+        if (action === "shop") return Response.json(await publishShopBoard());
         if (action === "online") {
           const raw = await getOnlinePlayers({ data: { accessToken: "discord-access-token" } }).catch(() => ({ players: [] as Array<{ name: string }> }));
           return Response.json(await repostOnlineEmbed(raw.players.map((p) => p.name)));
@@ -131,6 +143,19 @@ export const Route = createFileRoute("/api/discord/interactions")({
         }
         const id = body.data?.custom_id ?? "";
         const who = actorId(body);
+        const name = actorName(body);
+        if (id === "shop_npc_pick") return json(4, npcPickPayload(body.data?.values?.[0] || ""));
+        if (id === "shop_icat") return json(4, itemCategoryPayload(body.data?.values?.[0] || ""));
+        if (id === "shop_item") return json(4, itemPickPayload(body.data?.values?.[0] || ""));
+        if (id.startsWith("shop_nbuy:")) {
+          const [, npcId, spawns, price] = id.split(":");
+          const msg = await buyNpcPack(who, name, npcId, Number(spawns), Number(price));
+          return json(4, { flags: 64, content: msg });
+        }
+        if (id.startsWith("shop_ibuy:")) {
+          const msg = await buyShopItem(who, name, id.slice("shop_ibuy:".length));
+          return json(4, { flags: 64, content: msg });
+        }
         if (id === "staff_claim") return json(4, await handleStaffClaim(who));
         if (id === "staff_promo") return json(4, await handleStaffPromo(who));
         if (id.startsWith("staff_yes:")) {
