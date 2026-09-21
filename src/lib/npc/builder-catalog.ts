@@ -1,4 +1,4 @@
-/** Official survivor skins. Portraits resolve through DayZ Fandom FilePath. */
+/** Official survivor skins. Portraits from DayZ Fandom gallery File:Name.webp */
 export const FANDOM = "https://dayz.fandom.com/wiki/Special:FilePath";
 
 export type SurvivorSkin = {
@@ -10,34 +10,49 @@ export type SurvivorSkin = {
 };
 
 export const SURVIVOR_SKINS: SurvivorSkin[] = [
-  { id: "mirek", classname: "SurvivorM_Mirek", name: "Mirek", sex: "M", file: "DayZ_Survivor_Mirek.png" },
-  { id: "denis", classname: "SurvivorM_Denis", name: "Denis", sex: "M", file: "DayZ_Survivor_Denis.png" },
-  { id: "boris", classname: "SurvivorM_Boris", name: "Boris", sex: "M", file: "DayZ_Survivor_Boris.png" },
-  { id: "cyril", classname: "SurvivorM_Cyril", name: "Cyril", sex: "M", file: "DayZ_Survivor_Cyril.png" },
-  { id: "elias", classname: "SurvivorM_Elias", name: "Elias", sex: "M", file: "DayZ_Survivor_Elias.png" },
-  { id: "francis", classname: "SurvivorM_Francis", name: "Francis", sex: "M", file: "DayZ_Survivor_Francis.png" },
-  { id: "guo", classname: "SurvivorM_Guo", name: "Guo", sex: "M", file: "DayZ_Survivor_Guo.png" },
-  { id: "hassan", classname: "SurvivorM_Hassan", name: "Hassan", sex: "M", file: "DayZ_Survivor_Hassan.png" },
-  { id: "indar", classname: "SurvivorM_Indar", name: "Indar", sex: "M", file: "DayZ_Survivor_Indar.png" },
-  { id: "jose", classname: "SurvivorM_Jose", name: "Jose", sex: "M", file: "DayZ_Survivor_Jose.png" },
-  { id: "kaito", classname: "SurvivorM_Kaito", name: "Kaito", sex: "M", file: "DayZ_Survivor_Kaito.png" },
-  { id: "lewis", classname: "SurvivorM_Lewis", name: "Lewis", sex: "M", file: "DayZ_Survivor_Lewis.png" },
-  { id: "oliver", classname: "SurvivorM_Oliver", name: "Oliver", sex: "M", file: "DayZ_Survivor_Oliver.png" },
-  { id: "peter", classname: "SurvivorM_Peter", name: "Peter", sex: "M", file: "DayZ_Survivor_Peter.png" },
-  { id: "eva", classname: "SurvivorF_Eva", name: "Eva", sex: "F", file: "DayZ_Survivor_Eva.png" },
-  { id: "frida", classname: "SurvivorF_Frida", name: "Frida", sex: "F", file: "DayZ_Survivor_Frida.png" },
-  { id: "gabi", classname: "SurvivorF_Gabi", name: "Gabi", sex: "F", file: "DayZ_Survivor_Gabi.png" },
-  { id: "helga", classname: "SurvivorF_Helga", name: "Helga", sex: "F", file: "DayZ_Survivor_Helga.png" },
-  { id: "irena", classname: "SurvivorF_Irena", name: "Irena", sex: "F", file: "DayZ_Survivor_Irena.png" },
-  { id: "judy", classname: "SurvivorF_Judy", name: "Judy", sex: "F", file: "DayZ_Survivor_Judy.png" },
-  { id: "keiko", classname: "SurvivorF_Keiko", name: "Keiko", sex: "F", file: "DayZ_Survivor_Keiko.png" },
-  { id: "linda", classname: "SurvivorF_Linda", name: "Linda", sex: "F", file: "DayZ_Survivor_Linda.png" },
-  { id: "maria", classname: "SurvivorF_Maria", name: "Maria", sex: "F", file: "DayZ_Survivor_Maria.png" },
-  { id: "naomi", classname: "SurvivorF_Naomi", name: "Naomi", sex: "F", file: "DayZ_Survivor_Naomi.png" },
+  { id: "baty", classname: "SurvivorF_Baty", name: "Baty", sex: "F", file: "Baty.webp" },
+  { id: "boris", classname: "SurvivorM_Boris", name: "Boris", sex: "M", file: "Boris.webp" },
+  { id: "cyril", classname: "SurvivorM_Cyril", name: "Cyril", sex: "M", file: "Cyril.webp" },
+  { id: "denis", classname: "SurvivorM_Denis", name: "Denis", sex: "M", file: "Denis.webp" },
+  { id: "elias", classname: "SurvivorM_Elias", name: "Elias", sex: "M", file: "Elias.webp" },
+  { id: "eva", classname: "SurvivorF_Eva", name: "Eva", sex: "F", file: "Eva.webp" },
+  { id: "francis", classname: "SurvivorM_Francis", name: "Francis", sex: "M", file: "Francis.webp" },
+  { id: "frida", classname: "SurvivorF_Frida", name: "Frida", sex: "F", file: "Frida.webp" },
+  { id: "gabi", classname: "SurvivorF_Gabi", name: "Gabi", sex: "F", file: "Gabi.webp" },
+  { id: "guo", classname: "SurvivorM_Guo", name: "Guo", sex: "M", file: "Guo.webp" },
+  { id: "hassan", classname: "SurvivorM_Hassan", name: "Hassan", sex: "M", file: "Hassan.webp" },
+  { id: "helga", classname: "SurvivorF_Helga", name: "Helga", sex: "F", file: "Helga.webp" },
+  { id: "indar", classname: "SurvivorM_Indar", name: "Indar", sex: "M", file: "Indar.webp" },
+  { id: "irena", classname: "SurvivorF_Irena", name: "Irena", sex: "F", file: "Irena.webp" },
+  { id: "jose", classname: "SurvivorM_Jose", name: "Jose", sex: "M", file: "Jose.webp" },
+  { id: "judy", classname: "SurvivorF_Judy", name: "Judy", sex: "F", file: "Judy.webp" },
+  { id: "kaito", classname: "SurvivorM_Kaito", name: "Kaito", sex: "M", file: "Kaito.webp" },
+  { id: "keiko", classname: "SurvivorF_Keiko", name: "Keiko", sex: "F", file: "Keiko.webp" },
+  { id: "lewis", classname: "SurvivorM_Lewis", name: "Lewis", sex: "M", file: "Lewis.webp" },
+  { id: "linda", classname: "SurvivorF_Linda", name: "Linda", sex: "F", file: "Linda.webp" },
+  { id: "manua", classname: "SurvivorM_Manua", name: "Manua", sex: "M", file: "Manua.webp" },
+  { id: "maria", classname: "SurvivorF_Maria", name: "Maria", sex: "F", file: "Maria.webp" },
+  { id: "mirek", classname: "SurvivorM_Mirek", name: "Mirek", sex: "M", file: "Mirek.webp" },
+  { id: "naomi", classname: "SurvivorF_Naomi", name: "Naomi", sex: "F", file: "Naomi.webp" },
+  { id: "niki", classname: "SurvivorM_Niki", name: "Niki", sex: "M", file: "Niki.webp" },
+  { id: "oliver", classname: "SurvivorM_Oliver", name: "Oliver", sex: "M", file: "Oliver.webp" },
+  { id: "peter", classname: "SurvivorM_Peter", name: "Peter", sex: "M", file: "peter.webp" },
+  { id: "quinn", classname: "SurvivorM_Quinn", name: "Quinn", sex: "M", file: "Quinn.webp" },
+  { id: "rolf", classname: "SurvivorM_Rolf", name: "Rolf", sex: "M", file: "Rolf.webp" },
+  { id: "seth", classname: "SurvivorM_Seth", name: "Seth", sex: "M", file: "Seth.webp" },
+  { id: "taiki", classname: "SurvivorM_Taiki", name: "Taiki", sex: "M", file: "Taiki.webp" },
 ];
 
+export function fandomFile(file: string) {
+  return `${FANDOM}/${encodeURIComponent(file)}`;
+}
+
 export function survivorPortrait(skin: SurvivorSkin) {
-  return `${FANDOM}/${encodeURIComponent(skin.file)}`;
+  return fandomFile(skin.file);
+}
+
+export function itemImage(classname: string) {
+  return fandomFile(`${classname}.png`);
 }
 
 export type GearSlot =
@@ -88,7 +103,7 @@ export const CATALOG: CatalogItem[] = [
   { classname: "MP5K", name: "MP5-K", slot: "hands", kind: "weapon" },
   { classname: "SVD", name: "SVD", slot: "shoulder", kind: "weapon" },
   { classname: "SKS", name: "SKS", slot: "shoulder", kind: "weapon" },
-  { classname: "Mosim9130", name: "Mosin 91/30", slot: "shoulder", kind: "weapon" },
+  { classname: "Mosin9130", name: "Mosin 91/30", slot: "shoulder", kind: "weapon" },
   { classname: "FirefighterAxe", name: "Fire axe", slot: "melee", kind: "weapon" },
   { classname: "CombatKnife", name: "Combat knife", slot: "melee", kind: "weapon" },
   { classname: "BallisticHelmet_Black", name: "Ballistic helmet", slot: "head", kind: "clothing" },
@@ -119,8 +134,8 @@ export const CATALOG: CatalogItem[] = [
   { classname: "Mag_AKM_30Rnd", name: "AKM 30", slot: "attach", kind: "attach" },
   { classname: "BandageDressing", name: "Bandage", slot: "cargo", kind: "cargo" },
   { classname: "Canteen", name: "Canteen", slot: "cargo", kind: "cargo" },
-  { classname: "AmmoBox_556x45_20Rnd", name: "5.56 box", slot: "cargo", kind: "cargo" },
-  { classname: "AmmoBox_762x39_20Rnd", name: "7.62 box", slot: "cargo", kind: "cargo" },
+  { classname: "Ammo_556x45", name: "5.56 ammo", slot: "cargo", kind: "cargo" },
+  { classname: "Ammo_762x39", name: "7.62 ammo", slot: "cargo", kind: "cargo" },
   { classname: "TacticalBaconCan", name: "Tactical bacon", slot: "cargo", kind: "cargo" },
   { classname: "Morphine", name: "Morphine", slot: "cargo", kind: "cargo" },
   { classname: "Handcuffs", name: "Handcuffs", slot: "cargo", kind: "cargo" },
