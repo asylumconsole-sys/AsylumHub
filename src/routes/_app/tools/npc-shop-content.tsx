@@ -14,6 +14,7 @@ import { SPAWN_PACKS, type SpawnPack } from "@/lib/npc/spawn-packs";
 import { NpcInventoryModal } from "@/lib/npc/beamer-inventory-modal";
 import { NPCS, loadoutFor, type ShopNpc } from "@/lib/npc/roster";
 import { priceForSpawnCount } from "@/lib/npc/buy-count";
+import { NpcBuilder } from "@/components/tools/NpcBuilder";
 
 const PRIMARY_SERVER_ID = "101x";
 const DEFAULT_SPAWN_POSITION = { x: 7500, z: 7500, a: 0 };
@@ -24,6 +25,7 @@ type PlacementMode = "map" | "zy" | "gamertag";
 export function NPCShopContent() {
   const { session, user } = useAuth();
   const qc = useQueryClient();
+  const [shopTab, setShopTab] = useState<"shop" | "builder">("shop");
   const [selectedId, setSelectedId] = useState(NPCS[0]?.id ?? "");
   const selected = NPCS.find((npc) => npc.id === selectedId) ?? NPCS[0];
   const [placementMode, setPlacementMode] = useState<PlacementMode>("gamertag");
@@ -169,13 +171,19 @@ export function NPCShopContent() {
               <IconCampaign size={14} /> {BRAND.name} · Gold bay
             </div>
             <h1 className="font-display mt-1 text-4xl text-[#e8c56a] sm:text-5xl">Operators</h1>
-            <p className="mt-2 max-w-2xl text-sm text-zinc-400">Type how many spawn this restart. 167 cr each (2,500 / 15).</p>
+            <div className="mt-3 flex gap-2">
+              <button type="button" onClick={() => setShopTab("shop")} className={`rounded-full border px-4 py-1.5 text-[11px] uppercase tracking-[0.18em] ${shopTab === "shop" ? "border-[#d4a84b] text-[#e8c56a]" : "border-white/10 text-zinc-500"}`}>Shop</button>
+              <button type="button" onClick={() => setShopTab("builder")} className={`rounded-full border px-4 py-1.5 text-[11px] uppercase tracking-[0.18em] ${shopTab === "builder" ? "border-[#d4a84b] text-[#e8c56a]" : "border-white/10 text-zinc-500"}`}>NPC Builder</button>
+            </div>
           </div>
           <div className="rounded-xl border border-[#d4a84b]/40 bg-[#d4a84b]/10 px-4 py-3 text-right">
             <div className="text-[10px] uppercase tracking-[0.2em] text-[#d4a84b]/80">Credits</div>
             <div className="mt-1 font-mono text-2xl text-[#f5e6c0]">{balanceQ.isLoading ? "…" : credits.toLocaleString()}</div>
           </div>
         </header>
+        {shopTab === "builder" ? (
+          <NpcBuilder />
+        ) : (
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
           <section className="space-y-4">
             <div className="text-[10px] uppercase tracking-[0.22em] text-[#d4a84b]/80">Roster · {NPCS.length}/{ROSTER_SLOTS}</div>
@@ -252,6 +260,7 @@ export function NPCShopContent() {
             </div>
           </aside>
         </div>
+        )}
       </div>
       {invOpen && selected && selectedLoadout ? (
         <NpcInventoryModal title={`${selected.name} loadout`} loadout={selectedLoadout} onClose={() => setInvOpen(false)} />
