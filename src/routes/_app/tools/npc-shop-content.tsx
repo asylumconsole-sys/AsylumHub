@@ -22,10 +22,10 @@ const ROSTER_SLOTS = 20;
 
 type PlacementMode = "map" | "zy" | "gamertag";
 
-export function NPCShopContent() {
+export function NPCShopContent({ startOnBuilder = false }: { startOnBuilder?: boolean }) {
   const { session, user } = useAuth();
   const qc = useQueryClient();
-  const [shopTab, setShopTab] = useState<"shop" | "builder">("shop");
+  const [shopTab, setShopTab] = useState<"shop" | "builder">(startOnBuilder ? "builder" : "shop");
   const [selectedId, setSelectedId] = useState(NPCS[0]?.id ?? "");
   const selected = NPCS.find((npc) => npc.id === selectedId) ?? NPCS[0];
   const [placementMode, setPlacementMode] = useState<PlacementMode>("gamertag");
@@ -56,6 +56,10 @@ export function NPCShopContent() {
     const linked = linksQ.data?.psn?.trim();
     if (linked) setGamertag(linked);
   }, [linksQ.data?.psn]);
+
+  useEffect(() => {
+    if (startOnBuilder) setShopTab("builder");
+  }, [startOnBuilder]);
 
   const balanceQ = useQuery({
     queryKey: ["economy-balance", playerId],
@@ -170,7 +174,7 @@ export function NPCShopContent() {
             <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[#d4a84b]">
               <IconCampaign size={14} /> {BRAND.name} · Gold bay
             </div>
-            <h1 className="font-display mt-1 text-4xl text-[#e8c56a] sm:text-5xl">Operators</h1>
+            <h1 className="font-display mt-1 text-4xl text-[#e8c56a] sm:text-5xl">{startOnBuilder ? "NPC Maker" : "Operators"}</h1>
             <div className="mt-3 flex gap-2">
               <button type="button" onClick={() => setShopTab("shop")} className={`rounded-full border px-4 py-1.5 text-[11px] uppercase tracking-[0.18em] ${shopTab === "shop" ? "border-[#d4a84b] text-[#e8c56a]" : "border-white/10 text-zinc-500"}`}>Shop</button>
               <button type="button" onClick={() => setShopTab("builder")} className={`rounded-full border px-4 py-1.5 text-[11px] uppercase tracking-[0.18em] ${shopTab === "builder" ? "border-[#d4a84b] text-[#e8c56a]" : "border-white/10 text-zinc-500"}`}>NPC Builder</button>
