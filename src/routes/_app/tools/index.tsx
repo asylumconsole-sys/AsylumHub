@@ -11,6 +11,7 @@ import { FadeInUp } from "@/components/motion/WordStagger";
 import { BRAND } from "@/lib/brand";
 import { SERVICE_GROUPS } from "@/lib/shop-service-groups";
 import { ItemShop } from "@/routes/_app/tools/ItemShop";
+import { DonatorShop } from "@/routes/_app/tools/DonatorShop";
 import { getFocusedTool } from "@/components/tools/focused-tools";
 
 const searchSchema = z.object({
@@ -24,10 +25,12 @@ export const Route = createFileRoute("/_app/tools/")({
   head: () => ({ meta: [{ title: `Server shop — ${BRAND.name}` }] }),
 });
 
+type ShopTab = "server" | "items" | "donator";
+
 function ToolsHub() {
   const { focus, workspace } = Route.useSearch();
   const navigate = useNavigate();
-  const [shopTab, setShopTab] = useState<"server" | "items">("server");
+  const [shopTab, setShopTab] = useState<ShopTab>("server");
   const tool = getFocusedTool(focus);
   const handleClose = useCallback(() => {
     navigate({ to: "/tools", search: { focus: undefined, workspace }, replace: false });
@@ -41,10 +44,16 @@ function ToolsHub() {
             <PageHexBadge hue={88} size={26} icon={<IconBolt size={22} />} aria-label="Server shop" />
             <h1 className="font-display text-3xl sm:text-5xl">Server shop</h1>
           </div>
-          <div className="mt-4 inline-flex rounded-full border border-glass-border p-1">
-            {(["server", "items"] as const).map((id) => (
+          <div className="mt-4 inline-flex flex-wrap rounded-full border border-glass-border p-1">
+            {(
+              [
+                ["server", "Server Shop"],
+                ["items", "Item Shop"],
+                ["donator", "Donator Shop"],
+              ] as const
+            ).map(([id, label]) => (
               <button key={id} type="button" onClick={() => setShopTab(id)} className={`rounded-full px-5 py-2 text-xs uppercase tracking-[0.18em] ${shopTab === id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-                {id === "server" ? "Server Shop" : "Item Shop"}
+                {label}
               </button>
             ))}
           </div>
@@ -56,8 +65,10 @@ function ToolsHub() {
             onOpen={(next) => navigate({ to: "/tools", search: { focus: next, workspace } })}
             onOpenFull={(path) => navigate({ to: path })}
           />
-        ) : (
+        ) : shopTab === "items" ? (
           <ItemShop />
+        ) : (
+          <DonatorShop />
         ))}
         <FocusedToolPanel tool={tool} onClose={handleClose} />
       </div>
