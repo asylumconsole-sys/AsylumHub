@@ -83,7 +83,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: `${BRAND.tagline} — ${BRAND.name}` },
       { name: "twitter:description", content: BRAND.description },
-
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -116,6 +115,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function shellKey(pathname: string) {
+  if (pathname.startsWith("/login") || pathname === "/") return pathname;
+  return "hub";
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const location = useLocation();
@@ -126,11 +130,11 @@ function RootComponent() {
         <EmberField />
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            key={shellKey(location.pathname)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
           >
             <Outlet />
           </motion.div>
