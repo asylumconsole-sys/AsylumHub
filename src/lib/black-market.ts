@@ -1,6 +1,8 @@
 import { readJsonFile, writeJsonFile } from "@/lib/dayz/store";
+import { DONATION_TIERS } from "@/lib/donation-tiers";
 
 export const BLACK_MARKET_ROLE = "1551745699421622313";
+const PLUS_NAMES = new Set(DONATION_TIERS.filter((t) => t.usd >= 30).map((t) => t.name));
 
 export type MarketListing = {
   id: string;
@@ -30,13 +32,14 @@ export async function memberHasDonorRole(discordUserId: string) {
   const token = process.env.DISCORD_TOKEN?.replace(/^Bot\s+/i, "");
   const guild = process.env.DISCORD_GUILD_ID;
   if (!token || !guild || !discordUserId) return false;
-  const res = await fetch(`https://discord.com/api/v10/guilds/${guild}/members/${discordUserId}`, {
-    headers: { Authorization: `Bot ${token}` },
-  });
-  if (!res.ok) return false;
-  const member = (await res.json()) as { roles?: string[] };
-  const roles = member.roles ?? [];
-  if (roles.includes(BLACK_MARKET_ROLE)) return true;
-  // $30 and every higher dollar-named role also counts if present by id later; role id is the lock.
-  return false;
+  const headers = { Authorization: `Bot ${token}` };
+  const memberRes = await fetch(`https://discord.com/api/v10/guilds/${guild}/members/${discordUserId}`, { headers });
+  if (!memberRes.ok) return false;
+  const member = (await memberRes.json()) as { roles?: string[] };
+  const ids = member.roles ?? [];
+  if (ids.includes(BLACK_MARKET_ROLE)) return true;
+  const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guild}/roles`, { headers });
+  if (!rolesRes.ok) return false;
+  const roles = (await rolesRes.json()) as Array<{ id: string; name: string }>;
+  return roles.some((r) => ids.includes(r.id) && PLUS_NAMES.has(r.name));
 }
