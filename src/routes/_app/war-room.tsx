@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FactionHubContent } from "@/routes/_app/tools/event-intake";
+import { FactionHubContent } from "@/components/dayz/FactionHubContent";
 import { FactionLeaderboard } from "@/components/dayz/FactionLeaderboard";
 import { IconCampaign, IconArrowRight } from "@/components/ui-custom/CustomIcon";
 import { BRAND } from "@/lib/brand";
