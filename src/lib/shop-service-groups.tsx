@@ -16,14 +16,38 @@ function tile(label: string, a: string, b: string) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-export const SERVICE_GROUPS: {
+export type ShopGroup = {
   name: string;
   description: string;
   hue: number;
   image: string;
   icon: ReactNode;
   items: { label: string; focus: string; icon: ReactNode }[];
-}[] = [
+};
+
+export const ADDON_GROUPS: ShopGroup[] = [
+  {
+    name: "Priority Queue",
+    description: "Skip the line and keep your faction ahead of the pack.",
+    hue: 48,
+    image: tile("PRIORITY", "#3a2a10", "#d4a84b"),
+    icon: <IconBolt size={20} />,
+    items: [{ label: "Priority Queue", focus: "priority-queue", icon: <IconBolt size={16} /> }],
+  },
+  {
+    name: "Boosts",
+    description: "Faction-only boosts: double XP, double CR, and double reputation.",
+    hue: 318,
+    image: tile("BOOSTS", "#4a1230", "#d45a8c"),
+    icon: <IconSpark size={20} />,
+    items: [
+      { label: "Double XP", focus: "boosts", icon: <IconSpark size={16} /> },
+      { label: "Double CR", focus: "boosts", icon: <IconUtm size={16} /> },
+    ],
+  },
+];
+
+export const SERVICE_GROUPS: ShopGroup[] = [
   {
     name: "Combat & Intel",
     description: "Track movement, bounties, killfeed, and server intelligence.",
@@ -81,25 +105,6 @@ export const SERVICE_GROUPS: {
     image: tile("VEHICLES", "#c4a032", "#3d4a1a"),
     icon: <IconCampaign size={20} />,
     items: [{ label: "Vehicles", focus: "vehicle-shop", icon: <IconCampaign size={16} /> }],
-  },
-  {
-    name: "Priority Queue",
-    description: "Skip the line and keep your faction ahead of the pack.",
-    hue: 48,
-    image: tile("PRIORITY", "#3a2a10", "#d4a84b"),
-    icon: <IconBolt size={20} />,
-    items: [{ label: "Priority Queue", focus: "campaign-events", icon: <IconBolt size={16} /> }],
-  },
-  {
-    name: "Boosts",
-    description: "Faction-only boosts: double XP, double CR, and double reputation.",
-    hue: 318,
-    image: tile("BOOSTS", "#4a1230", "#d45a8c"),
-    icon: <IconSpark size={20} />,
-    items: [
-      { label: "Double XP", focus: "boosts", icon: <IconSpark size={16} /> },
-      { label: "Double CR", focus: "boosts", icon: <IconUtm size={16} /> },
-    ],
   },
   {
     name: "Zombie Hordes",
