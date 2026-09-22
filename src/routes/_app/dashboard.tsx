@@ -58,25 +58,42 @@ function Dashboard() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 px-3 pb-4 pt-2 sm:px-4 sm:py-8">
-      <section className="relative overflow-hidden rounded-2xl border border-primary/30 bg-black px-4 py-5 sm:rounded-[2rem] sm:px-10 sm:py-10">
-        <motion.div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-primary/20 blur-3xl" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 4, repeat: Infinity }} />
-        <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary">Command hall</div>
-        <h1 className="mt-1 font-display text-3xl leading-none text-primary sm:text-6xl">{BRAND.name}</h1>
-        <p className="mt-2 pr-24 text-sm text-zinc-400">{BRAND.tagline}</p>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <Link to="/economy" className="rounded-xl border border-glass-border bg-glass/30 p-3 transition hover:border-primary/50">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Credits</div>
-            <div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{credits}</div>
-          </Link>
-          <Link to="/servers" className="rounded-xl border border-glass-border bg-glass/30 p-3 transition hover:border-primary/50">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Online</div>
-            <div className="mt-0.5 truncate font-display text-lg text-primary sm:text-2xl">{serverLine}</div>
-          </Link>
-          <Link to="/account" className="rounded-xl border border-glass-border bg-glass/30 p-3 transition hover:border-primary/50">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Gamertag</div>
-            <div className="mt-0.5 truncate font-display text-sm text-primary sm:text-xl">{tagLine}</div>
-            <div className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-zinc-500">Faction · War Room</div>
-          </Link>
+      <section className="relative overflow-hidden rounded-2xl border border-[#d4a84b]/35 bg-black px-4 py-5 sm:rounded-[2rem] sm:px-10 sm:py-10">
+        <style>{`
+          @keyframes hall-scan { 0% { transform: translateY(-120%); } 100% { transform: translateY(220%); } }
+          @keyframes hall-flicker { 0%,100%{opacity:1} 41%{opacity:1} 42%{opacity:.72} 43%{opacity:1} 72%{opacity:1} 73%{opacity:.82} 74%{opacity:1} }
+          @keyframes hall-grid { 0% { background-position: 0 0; } 100% { background-position: 46px 46px; } }
+        `}</style>
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.22]"
+          style={{
+            backgroundImage: "linear-gradient(135deg, transparent 0%, transparent 48%, rgba(212,168,75,0.22) 49%, transparent 50%)",
+            backgroundSize: "46px 46px",
+            animation: "hall-grid 18s linear infinite",
+          }}
+        />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 opacity-[0.12]" style={{ background: "linear-gradient(180deg, transparent, rgba(212,168,75,0.95), transparent)", animation: "hall-scan 5.5s linear infinite" }} />
+        <motion.div className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-[#d4a84b]/20 blur-3xl" animate={{ opacity: [0.25, 0.55, 0.25], scale: [1, 1.08, 1] }} transition={{ duration: 5, repeat: Infinity }} />
+        <motion.div className="pointer-events-none absolute -bottom-20 -left-10 size-48 rounded-full bg-[#d4a84b]/10 blur-3xl" animate={{ opacity: [0.15, 0.4, 0.15] }} transition={{ duration: 6.5, repeat: Infinity }} />
+        <div className="relative">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#d4a84b]">Command hall</div>
+          <h1 className="mt-1 font-display text-3xl leading-none text-[#e8c56a] sm:text-6xl" style={{ animation: "hall-flicker 5s infinite" }}>{BRAND.name}</h1>
+          <p className="mt-2 pr-24 text-sm text-zinc-400">{BRAND.tagline}</p>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <Link to="/economy" className="rounded-xl border border-[#d4a84b]/20 bg-black/50 p-3 transition hover:border-[#d4a84b]/60 hover:shadow-[0_0_24px_rgba(212,168,75,0.15)]">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Credits</div>
+              <div className="mt-0.5 truncate font-display text-lg text-[#e8c56a] sm:text-2xl">{credits}</div>
+            </Link>
+            <Link to="/servers" className="rounded-xl border border-[#d4a84b]/20 bg-black/50 p-3 transition hover:border-[#d4a84b]/60 hover:shadow-[0_0_24px_rgba(212,168,75,0.15)]">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Online</div>
+              <div className="mt-0.5 truncate font-display text-lg text-[#e8c56a] sm:text-2xl">{serverLine}</div>
+            </Link>
+            <Link to="/account" className="rounded-xl border border-[#d4a84b]/20 bg-black/50 p-3 transition hover:border-[#d4a84b]/60 hover:shadow-[0_0_24px_rgba(212,168,75,0.15)]">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Gamertag</div>
+              <div className="mt-0.5 truncate font-display text-sm text-[#e8c56a] sm:text-xl">{tagLine}</div>
+              <div className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-zinc-500">Faction · War Room</div>
+            </Link>
+          </div>
         </div>
       </section>
       <div className="md:hidden"><PsnLinkCard /></div>
