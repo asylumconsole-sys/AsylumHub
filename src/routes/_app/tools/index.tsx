@@ -9,7 +9,7 @@ import { PageHexBadge } from "@/components/app/PageHexBadge";
 import { FocusedToolPanel } from "@/components/tools/FocusedToolPanel";
 import { FadeInUp } from "@/components/motion/WordStagger";
 import { BRAND } from "@/lib/brand";
-import { SERVICE_GROUPS } from "@/lib/shop-service-groups";
+import { ADDON_GROUPS, SERVICE_GROUPS, type ShopGroup } from "@/lib/shop-service-groups";
 import { ItemShop } from "@/routes/_app/tools/ItemShop";
 import { DonatorShop } from "@/routes/_app/tools/DonatorShop";
 import { getFocusedTool } from "@/components/tools/focused-tools";
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_app/tools/")({
   head: () => ({ meta: [{ title: `Shop — ${BRAND.name}` }] }),
 });
 
-type ShopTab = "server" | "items" | "donator";
+type ShopTab = "server" | "items" | "donator" | "addons";
 
 function ToolsHub() {
   const { focus, workspace } = Route.useSearch();
@@ -51,6 +51,7 @@ function ToolsHub() {
                   ["server", "Services"],
                   ["items", "Item Shop"],
                   ["donator", "Donator Shop"],
+                  ["addons", "Addons"],
                 ] as const
               ).map(([id, label]) => (
                 <button key={id} type="button" onClick={() => setShopTab(id)} className={`rounded-full px-5 py-2 text-xs uppercase tracking-[0.18em] ${shopTab === id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
@@ -64,11 +65,18 @@ function ToolsHub() {
       <div className={tool ? "relative z-10 flex min-h-[calc(100vh-13rem)] flex-1 flex-col" : "relative z-10"}>
         {!tool && (shopTab === "server" ? (
           <ServiceDirectory
+            groups={SERVICE_GROUPS}
             onOpen={(next) => navigate({ to: "/tools", search: { focus: next, workspace } })}
             onOpenFull={(path) => navigate({ to: path })}
           />
         ) : shopTab === "items" ? (
           <ItemShop />
+        ) : shopTab === "addons" ? (
+          <ServiceDirectory
+            groups={ADDON_GROUPS}
+            onOpen={(next) => navigate({ to: "/tools", search: { focus: next, workspace } })}
+            onOpenFull={(path) => navigate({ to: path })}
+          />
         ) : (
           <DonatorShop />
         ))}
@@ -79,9 +87,11 @@ function ToolsHub() {
 }
 
 function ServiceDirectory({
+  groups,
   onOpen,
   onOpenFull,
 }: {
+  groups: ShopGroup[];
   onOpen: (focus: string) => void;
   onOpenFull: (path: string) => void;
 }) {
@@ -89,7 +99,7 @@ function ServiceDirectory({
     <section className="shop-directory-wrap" aria-label="Shop services">
       <div className="shop-directory-shell">
         <div className="shop-directory-grid">
-          {SERVICE_GROUPS.map((group, index) => (
+          {groups.map((group, index) => (
             <motion.button
               key={group.name}
               type="button"
@@ -107,6 +117,7 @@ function ServiceDirectory({
                 if (group.name === "Vehicle Shop") return onOpenFull("/tools/vehicle-shop");
                 if (group.name === "NPC Shop") return onOpenFull("/tools/npc-shop");
                 if (group.name === "Boosts") return onOpen("boosts");
+                if (group.name === "Priority Queue") return onOpen(group.items[0]?.focus ?? "priority-queue");
                 if (group.name === "Base Ops") return onOpen("campaign");
                 if (group.items[0]) onOpen(group.items[0].focus);
               }}
