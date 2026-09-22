@@ -36,8 +36,11 @@ export function PsnLinkCard() {
     setMsg(null);
     try {
       const res = await linkMyPsn({ data: { discordId, username: draft, serverId } });
-      setPsn(res.psn ?? draft.trim());
-      setMsg(`Linked ${res.psn}. NPC shop will spawn on this tag.`);
+      const tag = res.psn ?? draft.trim();
+      setPsn(tag);
+      setMsg(
+        `Linked ${tag}. You now get auto NPC spawns on this tag, the correct credit wallet, killfeed stats, shop drops, and faction intel. Your Discord nickname will change to ${tag}. You can change that later in Settings for 1,000 CR.`,
+      );
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not save PSN");
     } finally {
@@ -62,11 +65,11 @@ export function PsnLinkCard() {
   };
 
   return (
-    <section className="rounded-2xl border border-glass-border bg-glass/40 p-4 sm:p-6">
+    <section data-tour="psn-link" className="rounded-2xl border border-glass-border bg-glass/40 p-4 sm:p-6">
       <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">PlayStation / Xbox</div>
       <h2 className="mt-1 font-display text-xl sm:text-2xl">Linked gamertag</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        This tag is used when you spawn an NPC. Link it once — the shop fills it automatically.
+        Link once for NPC spawns, credits, killfeed, and shop drops on the right character. Linking sets your Discord nickname to this tag. Change the nickname later in Settings for 1,000 CR.
       </p>
 
       {psn ? (
@@ -116,12 +119,7 @@ export function PsnLinkCard() {
           {busy ? "Saving…" : psn ? "Update link" : "Link gamertag"}
         </button>
         {psn ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={unlink}
-            className="rounded-xl border border-glass-border px-4 py-3 text-sm text-muted-foreground"
-          >
+          <button type="button" disabled={busy} onClick={unlink} className="rounded-xl border border-glass-border px-4 py-3 text-sm text-muted-foreground">
             Unlink
           </button>
         ) : null}
