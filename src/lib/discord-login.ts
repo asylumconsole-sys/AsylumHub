@@ -64,7 +64,7 @@ export async function buildDiscordAuthUrl(redirect = "/dashboard") {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "identify email guilds",
+    scope: "identify email guilds guilds.members.read",
     state,
     prompt: "consent",
   });
