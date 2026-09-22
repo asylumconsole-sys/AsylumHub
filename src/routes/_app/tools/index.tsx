@@ -27,6 +27,13 @@ export const Route = createFileRoute("/_app/tools/")({
 
 type ShopTab = "server" | "items" | "donator" | "addons";
 
+const TABS: Array<[ShopTab, string]> = [
+  ["server", "Services"],
+  ["items", "Item Shop"],
+  ["donator", "Donator Shop"],
+  ["addons", "Addons"],
+];
+
 function ToolsHub() {
   const { focus, workspace } = Route.useSearch();
   const navigate = useNavigate();
@@ -38,6 +45,10 @@ function ToolsHub() {
 
   return (
     <div className="relative flex min-h-[calc(100vh-3rem)] flex-col overflow-x-hidden pb-10">
+      <style>{`
+        @keyframes shop-tab-shine { 0% { transform: translateX(-130%) skewX(-18deg); } 100% { transform: translateX(230%) skewX(-18deg); } }
+        @keyframes shop-tab-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(212,168,75,0.35); } 50% { box-shadow: 0 0 22px 2px rgba(212,168,75,0.45); } }
+      `}</style>
       <header className="relative z-10 px-4 pb-4 pt-2 sm:px-6">
         <FadeInUp>
           <div className="flex flex-col items-center text-center">
@@ -45,19 +56,28 @@ function ToolsHub() {
               <PageHexBadge hue={88} size={26} icon={<IconBolt size={22} />} aria-label="Shop" />
               <h1 className="font-display text-3xl sm:text-5xl">Shop</h1>
             </div>
-            <div className="mt-5 inline-flex flex-wrap justify-center rounded-full border border-glass-border p-1">
-              {(
-                [
-                  ["server", "Services"],
-                  ["items", "Item Shop"],
-                  ["donator", "Donator Shop"],
-                  ["addons", "Addons"],
-                ] as const
-              ).map(([id, label]) => (
-                <button key={id} type="button" onClick={() => setShopTab(id)} className={`rounded-full px-5 py-2 text-xs uppercase tracking-[0.18em] ${shopTab === id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-                  {label}
-                </button>
-              ))}
+            <div className="relative mt-5 inline-flex flex-wrap justify-center gap-1 rounded-full border border-[#d4a84b]/35 bg-black/70 p-1.5 shadow-[0_0_30px_rgba(212,168,75,0.12)]">
+              {TABS.map(([id, label]) => {
+                const on = shopTab === id;
+                return (
+                  <motion.button
+                    key={id}
+                    type="button"
+                    onClick={() => setShopTab(id)}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    className={`relative overflow-hidden rounded-full px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                      on ? "bg-[#d4a84b] text-black" : "text-zinc-400 hover:text-[#e8c56a]"
+                    }`}
+                    style={on ? { animation: "shop-tab-pulse 2.4s ease-in-out infinite" } : undefined}
+                  >
+                    {on ? (
+                      <span className="pointer-events-none absolute inset-y-0 w-10 bg-white/35" style={{ animation: "shop-tab-shine 2.2s linear infinite" }} />
+                    ) : null}
+                    <span className="relative">{label}</span>
+                  </motion.button>
+                );
+              })}
             </div>
           </div>
         </FadeInUp>
