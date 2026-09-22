@@ -50,32 +50,73 @@ function allowed(ids: string[], names: Map<string, string>) {
   return ids.some((id) => PLUS_NAMES.has(names.get(id) || ""));
 }
 
-export async function memberHasDonorRole(discordUserId: string, userAccessToken?: string) {
-  if (discordUserId && BYPASS_IDS.has(discordUserId)) return true;
+async function searchMember(query: string, headers: Record<string, string>) {
+  const guild = guildId();
+  if (!query.trim()) return null;
+  const res = await fetch(
+    `https://discord.com/api/v10/guilds/${guild}/members/search?query=${encodeURIComponent(query.trim())}&limit=5`,
+    { headers },
+  );
+  if (!res.ok) return null;
+  const rows = (await res.json()) as Array<{ user?: { id?: string; username?: string; global_name?: string }; roles?: string[] }>;
+  return rows[0] || null;
+}
+
+export async function memberHasDonorRole(discordUserId: string, userAccessToken?: string, username?: string) {
+  const id = String(discordUserId || "").trim();
+  if (id && BYPASS_IDS.has(id)) return true;
   const guild = guildId();
   const bot = botToken();
-  if (!guild) return false;
+  const botHeaders = bot ? { Authorization: `Bot ${bot}` } : null;
 
-  if (userAccessToken && !userAccessToken.startsWith("demo-") && !userAccessToken.startsWith("discord-access")) {
+  if (userAccessToken && guild && !userAccessToken.startsWith("demo-") && !userAccessToken.startsWith("discord-access")) {
     const me = await fetch(`https://discord.com/api/v10/users/@me/guilds/${guild}/member`, {
       headers: { Authorization: `Bearer ${userAccessToken}` },
     });
     if (me.ok) {
       const member = (await me.json()) as { roles?: string[]; user?: { id?: string } };
       if (member.user?.id && BYPASS_IDS.has(member.user.id)) return true;
-      const names = bot ? await roleNamesById({ Authorization: `Bot ${bot}` }) : new Map<string, string>();
+      const names = botHeaders ? await roleNamesById(botHeaders) : new Map<string, string>();
       if (allowed(member.roles ?? [], names)) return true;
+    }
+    const who = await fetch("https://discord.com/api/v10/users/@me", {
+      headers: { Authorization: `Bearer ${userAccessToken}` },
+    });
+    if (who.ok) {
+      const u = (await who.json()) as { id?: string; username?: string };
+      if (u.id && BYPASS_IDS.has(u.id)) return true;
+      if (botHeaders && u.username) {
+        const hit = await searchMember(u.username, botHeaders);
+        if (hit?.user?.id && BYPASS_IDS.has(hit.user.id)) return true;
+        if (hit && botHeaders) {
+          const names = await roleNamesById(botHeaders);
+          if (allowed(hit.roles ?? [], names)) return true;
+        }
+      }
     }
   }
 
-  if (bot && discordUserId) {
-    const memberRes = await fetch(`https://discord.com/api/v10/guilds/${guild}/members/${discordUserId}`, {
-      headers: { Authorization: `Bot ${bot}` },
-    });
+  if (botHeaders && id) {
+    const memberRes = await fetch(`https://discord.com/api/v10/guilds/${guild}/members/${id}`, { headers: botHeaders });
     if (memberRes.ok) {
       const member = (await memberRes.json()) as { roles?: string[] };
-      const names = await roleNamesById({ Authorization: `Bot ${bot}` });
+      const names = await roleNamesById(botHeaders);
       if (allowed(member.roles ?? [], names)) return true;
+    }
+    const hit = await searchMember(id.length < 20 ? id : username || "", botHeaders);
+    if (hit?.user?.id && BYPASS_IDS.has(hit.user.id)) return true;
+    if (hit) {
+      const names = await roleNamesById(botHeaders);
+      if (allowed(hit.roles ?? [], names)) return true;
+    }
+  }
+
+  if (botHeaders && username) {
+    const hit = await searchMember(username, botHeaders);
+    if (hit?.user?.id && BYPASS_IDS.has(hit.user.id)) return true;
+    if (hit) {
+      const names = await roleNamesById(botHeaders);
+      if (allowed(hit.roles ?? [], names)) return true;
     }
   }
   return false;
