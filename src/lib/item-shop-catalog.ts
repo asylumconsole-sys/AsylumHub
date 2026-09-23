@@ -3,7 +3,7 @@ import { getItemImageUrls } from "@/lib/item-shop-images";
 export type ItemCategory = "Handgun" | "Rifle" | "Sniper Rifle" | "SMG" | "Shotgun" | "Ammo" | "Medical" | "Food" | "Clothing" | "Backpack" | "Attachments" | "Explosives" | "Tools" | "Vehicle" | "Survival" | "Base Building";
 export type ShopItem = { id: string; name: string; category: ItemCategory; price: number; detail: string; image: string };
 
-const wikiImage = (file: string) => `https://dayz.wiki.gg/wiki/Special:FilePath/${encodeURIComponent(file)}`;
+const wikiImage = (file: string) => `/api/wiki-image?file=${encodeURIComponent(file)}`;
 
 const RAW = `glock19|Glock 19|Handgun|1800|Glock 19.png
 deagle|Desert Eagle|Handgun|4200|Desert Eagle.png
