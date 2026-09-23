@@ -52,14 +52,12 @@ function Dashboard() {
           @keyframes hall-scan { 0% { transform: translateY(-120%); } 100% { transform: translateY(220%); } }
           @keyframes hall-flicker { 0%,100%{opacity:1} 41%{opacity:1} 42%{opacity:.72} 43%{opacity:1} 72%{opacity:1} 73%{opacity:.82} 74%{opacity:1} }
           @keyframes hall-grid { 0% { background-position: 0 0; } 100% { background-position: 46px 46px; } }
-          @keyframes casino-marquee { 0% { transform: translateX(-40%); } 100% { transform: translateX(40%); } }
-          @keyframes casino-bulb { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
           @keyframes casino-shine { 0% { transform: translateX(-140%) skewX(-18deg); } 100% { transform: translateX(240%) skewX(-18deg); } }
+          @keyframes casino-glow { 0%,100% { box-shadow: 0 0 0 0 rgba(243,210,122,0.25); } 50% { box-shadow: 0 0 28px 4px rgba(243,210,122,0.35); } }
         `}</style>
-        <div className="pointer-events-none absolute inset-0 opacity-[0.22]" style={{ backgroundImage: "linear-gradient(135deg, transparent 0%, transparent 48%, rgba(212,168,75,0.22) 49%, transparent 50%)", backgroundSize: "46px 46px", animation: "hall-grid 18s linear infinite" }} />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 opacity-[0.12]" style={{ background: "linear-gradient(180deg, transparent, rgba(212,168,75,0.95), transparent)", animation: "hall-scan 5.5s linear infinite" }} />
-        <div className="relative grid items-center gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <div>
+        <div className="pointer-events-none absolute inset-0 opacity-[0.18]" style={{ backgroundImage: "linear-gradient(135deg, transparent 0%, transparent 48%, rgba(212,168,75,0.22) 49%, transparent 50%)", backgroundSize: "46px 46px", animation: "hall-grid 18s linear infinite" }} />
+        <div className="relative grid items-stretch gap-5 lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="flex flex-col justify-center">
             <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#d4a84b]">Command hall</div>
             <h1 className="mt-1 font-display text-3xl leading-none text-[#e8c56a] sm:text-6xl" style={{ animation: "hall-flicker 5s infinite" }}>{BRAND.name}</h1>
             <p className="mt-2 text-sm text-zinc-400">{BRAND.tagline}</p>
@@ -67,31 +65,23 @@ function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-2xl border border-[#d4a84b]/40 bg-[#120c04] p-4 sm:p-5"
+            className="relative min-h-[180px] overflow-hidden rounded-2xl border border-[#d4a84b]/50 sm:min-h-[220px]"
+            style={{ animation: "casino-glow 3s ease-in-out infinite" }}
           >
-            <div className="pointer-events-none absolute inset-x-3 top-2 flex justify-between">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <span key={i} className="size-1.5 rounded-full bg-[#f3d27a]" style={{ animation: `casino-bulb 1.2s ease-in-out ${i * 0.08}s infinite` }} />
-              ))}
+            <img src="/pro-casino.jpg" alt="PRO CASINO" className="absolute inset-0 size-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
+            <div className="relative flex h-full min-h-[180px] flex-col items-center justify-end p-4 sm:min-h-[220px] sm:p-5">
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => toast.message("PRO CASINO — doors opening soon")}
+                className="relative overflow-hidden rounded-full bg-[#d4a84b] px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-black"
+              >
+                <span className="pointer-events-none absolute inset-y-0 w-12 bg-white/40" style={{ animation: "casino-shine 2s linear infinite" }} />
+                <span className="relative">Enter Casino</span>
+              </motion.button>
             </div>
-            <div className="mt-3 text-center text-[10px] uppercase tracking-[0.32em] text-[#d4a84b]/80">Live floor</div>
-            <div className="font-display text-center text-3xl text-[#f3d27a] sm:text-4xl" style={{ animation: "hall-flicker 3.4s infinite", textShadow: "0 0 18px rgba(243,210,122,0.55)" }}>
-              PRO CASINO
-            </div>
-            <p className="mt-1 text-center text-xs text-zinc-400">Survive the jackpot. Credits on the table.</p>
-            <div className="pointer-events-none relative mt-2 h-px overflow-hidden bg-[#d4a84b]/20">
-              <span className="absolute inset-y-0 w-1/2 bg-[#f3d27a]" style={{ animation: "casino-marquee 2.4s linear infinite" }} />
-            </div>
-            <motion.button
-              type="button"
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => toast.message("PRO CASINO — doors opening soon")}
-              className="relative mt-4 w-full overflow-hidden rounded-full bg-[#d4a84b] py-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-black shadow-[0_0_24px_rgba(212,168,75,0.35)]"
-            >
-              <span className="pointer-events-none absolute inset-y-0 w-12 bg-white/40" style={{ animation: "casino-shine 2s linear infinite" }} />
-              <span className="relative">Enter Casino</span>
-            </motion.button>
           </motion.div>
         </div>
         <div className="relative mt-4 grid grid-cols-3 gap-2">
