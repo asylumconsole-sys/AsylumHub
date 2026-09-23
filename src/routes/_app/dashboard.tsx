@@ -10,6 +10,7 @@ import { DAYZ_SERVERS } from "@/lib/dayz/servers";
 import { BRAND } from "@/lib/brand";
 import { PsnLinkCard } from "@/components/app/PsnLinkCard";
 import { useAuth } from "@/contexts/AuthContext";
+import { PRO_CASINO_IMG } from "@/lib/pro-casino";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
@@ -24,31 +25,6 @@ const QUICK = [
   { to: "/stats", label: "Ranks", desc: "Leaderboards", Icon: IconChart },
   { to: "/war-room", label: "War Room", desc: "Factions", Icon: IconWorkspace },
 ] as const;
-
-const CASINO_ART =
-  "data:image/svg+xml;charset=utf-8," +
-  encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid slice">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2a1608"/>
-      <stop offset="1" stop-color="#070400"/>
-    </linearGradient>
-    <filter id="glow"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-  </defs>
-  <rect width="900" height="420" fill="url(#g)"/>
-  <g opacity=".35" fill="#d4a84b">
-    <rect x="40" y="210" width="70" height="180" rx="8"/>
-    <rect x="130" y="230" width="70" height="160" rx="8"/>
-    <rect x="700" y="210" width="70" height="180" rx="8"/>
-    <rect x="790" y="230" width="70" height="160" rx="8"/>
-  </g>
-  <ellipse cx="450" cy="330" rx="160" ry="46" fill="#14532d"/>
-  <ellipse cx="450" cy="330" rx="118" ry="28" fill="#0b3b1e" stroke="#d4a84b" stroke-width="3"/>
-  <path d="M160 210 Q450 20 740 210" fill="none" stroke="#f3d27a" stroke-width="18" filter="url(#glow)"/>
-  <path d="M180 210 Q450 50 720 210" fill="none" stroke="#7a4e10" stroke-width="8"/>
-  <text x="450" y="150" text-anchor="middle" font-family="Georgia,serif" font-size="64" fill="#f8e7a8" filter="url(#glow)">PRO CASINO</text>
-  <text x="450" y="188" text-anchor="middle" font-family="sans-serif" font-size="16" letter-spacing="6" fill="#d4a84b">SURVIVE THE JACKPOT</text>
-  </svg>`);
 
 function Dashboard() {
   const { user } = useAuth();
@@ -89,12 +65,12 @@ function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative min-h-[180px] overflow-hidden rounded-2xl border border-[#d4a84b]/50 sm:min-h-[220px]"
+            className="relative min-h-[200px] overflow-hidden rounded-2xl border border-[#d4a84b]/50 sm:min-h-[240px]"
             style={{ animation: "casino-glow 3s ease-in-out infinite" }}
           >
-            <img src={CASINO_ART} alt="PRO CASINO" className="absolute inset-0 size-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
-            <div className="relative flex h-full min-h-[180px] flex-col items-center justify-end p-4 sm:min-h-[220px] sm:p-5">
+            <img src={PRO_CASINO_IMG} alt="PRO CASINO" className="absolute inset-0 size-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" />
+            <div className="relative flex h-full min-h-[200px] flex-col items-center justify-end p-4 sm:min-h-[240px] sm:p-5">
               <motion.button
                 type="button"
                 whileHover={{ scale: 1.05 }}
