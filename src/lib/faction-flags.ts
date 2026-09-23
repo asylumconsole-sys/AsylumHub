@@ -37,10 +37,14 @@ export const FACTION_FLAGS = [
 
 export type FactionFlagId = (typeof FACTION_FLAGS)[number][0];
 
+export function wikiFile(file: string) {
+  return `/api/wiki-image?file=${encodeURIComponent(file)}`;
+}
+
 export function flagImage(file: string) {
-  return `https://dayz.wiki.gg/wiki/Special:FilePath/${encodeURIComponent(file)}`;
+  return wikiFile(file);
 }
 
 export function flagImageFallback(file: string) {
-  return `https://dayz.fandom.com/wiki/Special:FilePath/${encodeURIComponent(file)}`;
+  return wikiFile(file);
 }
