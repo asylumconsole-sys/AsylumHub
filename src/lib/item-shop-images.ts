@@ -1,4 +1,4 @@
-/** DayZ item icons — wiki.gg first, then fandom, then name variants. */
+/** DayZ item icons — served via /api/wiki-image so hotlink blocks do not blank the shop. */
 
 export type ShopImageItem = { id: string; name: string; image: string };
 
@@ -127,12 +127,8 @@ const FILES: Record<string, string[]> = {
   handdrill: ["Hand Drill.png", "Hand Saw.png"],
 };
 
-function filePath(host: "gg" | "fandom", file: string) {
-  const base =
-    host === "gg"
-      ? "https://dayz.wiki.gg/wiki/Special:FilePath/"
-      : "https://dayz.fandom.com/wiki/Special:FilePath/";
-  return `${base}${encodeURIComponent(file)}`;
+function filePath(file: string) {
+  return `/api/wiki-image?file=${encodeURIComponent(file)}`;
 }
 
 export function getItemImageUrls(entry: ShopImageItem): string[] {
@@ -142,10 +138,5 @@ export function getItemImageUrls(entry: ShopImageItem): string[] {
   for (const n of [raw, entry.name, entry.name.replace(/-/g, ""), entry.name.replace(/-/g, " ")]) {
     if (n) files.add(`${n}.png`);
   }
-  const urls: string[] = [];
-  for (const file of files) {
-    urls.push(filePath("gg", file));
-    urls.push(filePath("fandom", file));
-  }
-  return urls;
+  return [...files].map(filePath);
 }
