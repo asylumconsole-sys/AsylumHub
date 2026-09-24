@@ -10,7 +10,7 @@ import { DAYZ_SERVERS } from "@/lib/dayz/servers";
 import { BRAND } from "@/lib/brand";
 import { PsnLinkCard } from "@/components/app/PsnLinkCard";
 import { useAuth } from "@/contexts/AuthContext";
-import { PRO_CASINO_IMG } from "@/lib/pro-casino";
+import { PRO_CASINO_FALLBACK, PRO_CASINO_IMG } from "@/lib/pro-casino";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
@@ -65,11 +65,23 @@ function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative min-h-[200px] overflow-hidden rounded-2xl border border-[#d4a84b]/50 sm:min-h-[240px]"
-            style={{ animation: "casino-glow 3s ease-in-out infinite" }}
+            className="relative min-h-[200px] overflow-hidden rounded-2xl border border-[#d4a84b]/50 bg-black sm:min-h-[240px]"
+            style={{
+              animation: "casino-glow 3s ease-in-out infinite",
+              backgroundImage: `url('${PRO_CASINO_IMG}'), url('${PRO_CASINO_FALLBACK}')`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
           >
-            <img src={PRO_CASINO_IMG} alt="PRO CASINO" className="absolute inset-0 size-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" />
+            <img
+              src={PRO_CASINO_IMG}
+              alt="PRO CASINO"
+              className="absolute inset-0 size-full object-cover"
+              onError={(e) => {
+                e.currentTarget.src = PRO_CASINO_FALLBACK;
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
             <div className="relative flex h-full min-h-[200px] flex-col items-center justify-end p-4 sm:min-h-[240px] sm:p-5">
               <motion.button
                 type="button"
