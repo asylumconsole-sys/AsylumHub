@@ -1,7 +1,7 @@
 import { getNpcSpawnPreset } from "@/lib/npc-presets";
 import { buildEventXmlNode, buildSpawnPosXmlNode, upsertEventBlock } from "@/lib/dayz-event-xml";
 import { downloadNitradoFile, uploadNitradoFile } from "@/lib/nitrado-files.functions";
-import { DAYZ_SERVERS, resolveMissionPath } from "@/lib/dayz/servers";
+import { DAYZ_SERVERS, resolveMissionPath, resolveServiceId } from "@/lib/dayz/servers";
 import { readJsonFile, writeJsonFile } from "@/lib/dayz/store";
 import { emitHubEvent } from "@/lib/hub-events";
 import { dmOwner } from "@/lib/custom-bases-discord";
@@ -26,6 +26,23 @@ type Wave = {
   nextAt: number;
 };
 
+function serverFor(id?: string) {
+  const raw = String(id || "101x").toLowerCase();
+  return DAYZ_SERVERS.find((s) => raw.includes(s.id.replace("x", "")) || raw === s.id) ?? DAYZ_SERVERS[0];
+}
+
+function nitradoServiceId(hint?: string) {
+  const server = serverFor(hint);
+  if (hint && /^\d+$/.test(hint)) return hint;
+  return resolveServiceId(server);
+}
+
+function profileRoot(serverId?: string) {
+  const server = serverFor(serverId);
+  const mission = resolveMissionPath(server);
+  return mission.replace(/\/dayzOffline\.[^/]+$/, "").replace(/\/dayzps_missions$/, "") || mission;
+}
+
 export async function consumeCharge(playerId: string, npcId: string) {
   const inv = await readJsonFile<Inv>("npc-inventory.json", { charges: {} });
   if (!inv.charges[playerId]) inv.charges[playerId] = {};
@@ -34,6 +51,22 @@ export async function consumeCharge(playerId: string, npcId: string) {
   inv.charges[playerId][npcId] = left - 1;
   await writeJsonFile("npc-inventory.json", inv);
   return inv.charges[playerId][npcId];
+}
+
+async function writeLiveCommand(serviceId: string, serverHint: string, cmd: Record<string, unknown>) {
+  const root = profileRoot(serverHint);
+  const body = JSON.stringify({ commands: [cmd] }, null, 2);
+  try {
+    await uploadNitradoFile(serviceId, "LiveSpawner/commands.json", body, root);
+    return true;
+  } catch {
+    try {
+      await uploadNitradoFile(serviceId, "commands.json", body, `${root}/LiveSpawner`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 export async function executeQueueNpcSpawn(data: {
@@ -45,10 +78,18 @@ export async function executeQueueNpcSpawn(data: {
   a?: number;
 }) {
   const preset = getNpcSpawnPreset(data.npcId);
-  const serverId = String(data.serverId || data.serviceId || "101x").toLowerCase().includes("102") ? "102x" : "101x";
-  const server = DAYZ_SERVERS.find((s) => s.id === serverId) ?? DAYZ_SERVERS[0];
+  const server = serverFor(data.serverId || data.serviceId);
+  const serviceId = nitradoServiceId(data.serviceId || data.serverId);
   const missionPath = resolveMissionPath(server);
   const eventName = `ItemAsylum_${data.npcId}_${Math.round(data.x)}_${Math.round(data.z)}`;
+  const live = await writeLiveCommand(serviceId, server.id, {
+    type: "spawn_infected",
+    classname: preset.classname,
+    x: Math.round(data.x),
+    y: 0,
+    z: Math.round(data.z),
+    count: 1,
+  });
   const params = {
     eventName,
     classname: preset.classname,
@@ -58,31 +99,31 @@ export async function executeQueueNpcSpawn(data: {
     z: data.z,
     a: data.a || 0,
   };
-  const [eventsXml, spawnsXml, spawnableTypesXml, typesXml] = await Promise.all([
-    downloadNitradoFile(data.serviceId, EVENTS_FILE, missionPath),
-    downloadNitradoFile(data.serviceId, SPAWNS_FILE, missionPath),
-    downloadNitradoFile(data.serviceId, SPAWNABLE_TYPES_FILE, missionPath),
-    downloadNitradoFile(data.serviceId, TYPES_FILE, missionPath),
-  ]);
-  const nextEventsXml = upsertEventBlock(eventsXml, eventName, buildEventXmlNode(params), "events");
-  const nextSpawnsXml = upsertEventBlock(spawnsXml, eventName, buildSpawnPosXmlNode(params), "eventposdef");
-  const unchanged = nextEventsXml === eventsXml && nextSpawnsXml === spawnsXml;
-  if (!unchanged) {
-    await Promise.all([
-      uploadNitradoFile(data.serviceId, EVENTS_FILE, nextEventsXml, missionPath),
-      uploadNitradoFile(data.serviceId, SPAWNS_FILE, nextSpawnsXml, missionPath),
-      uploadNitradoFile(data.serviceId, SPAWNABLE_TYPES_FILE, spawnableTypesXml, missionPath),
-      uploadNitradoFile(data.serviceId, TYPES_FILE, typesXml, missionPath),
+  try {
+    const [eventsXml, spawnsXml, spawnableTypesXml, typesXml] = await Promise.all([
+      downloadNitradoFile(serviceId, EVENTS_FILE, missionPath),
+      downloadNitradoFile(serviceId, SPAWNS_FILE, missionPath),
+      downloadNitradoFile(serviceId, SPAWNABLE_TYPES_FILE, missionPath),
+      downloadNitradoFile(serviceId, TYPES_FILE, missionPath),
     ]);
-    const token = process.env.NITRADO_API_TOKEN;
-    if (token) {
-      await fetch(`https://api.nitrado.net/services/${data.serviceId}/gameservers/restart`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => null);
+    const nextEventsXml = upsertEventBlock(eventsXml, eventName, buildEventXmlNode(params), "events");
+    const nextSpawnsXml = upsertEventBlock(spawnsXml, eventName, buildSpawnPosXmlNode(params), "eventposdef");
+    const unchanged = nextEventsXml === eventsXml && nextSpawnsXml === spawnsXml;
+    if (!unchanged) {
+      await Promise.all([
+        uploadNitradoFile(serviceId, EVENTS_FILE, nextEventsXml, missionPath),
+        uploadNitradoFile(serviceId, SPAWNS_FILE, nextSpawnsXml, missionPath),
+        uploadNitradoFile(serviceId, SPAWNABLE_TYPES_FILE, spawnableTypesXml, missionPath),
+        uploadNitradoFile(serviceId, TYPES_FILE, typesXml, missionPath),
+      ]);
     }
+    return { eventName, restockSeconds: preset.restock, restarted: false, entity: preset.classname, live };
+  } catch (error) {
+    if (live) {
+      return { eventName, restockSeconds: preset.restock, restarted: false, entity: preset.classname, live: true };
+    }
+    throw error;
   }
-  return { eventName, restockSeconds: preset.restock, restarted: !unchanged, entity: preset.classname };
 }
 
 export async function executeNpcSpawn(data: {
@@ -101,14 +142,14 @@ export async function executeNpcSpawn(data: {
   const playerName = data.playerName?.trim() || playerId;
   const count = Math.max(1, Math.min(50, Number(data.count) || 1));
   const remainingAfterFirst = await consumeCharge(playerId, data.npcId);
-  const queued = await executeQueueNpcSpawn(data);
+  const queued = await executeQueueNpcSpawn({ ...data, serviceId: nitradoServiceId(data.serviceId || data.serverId) });
   emitHubEvent({
     type: "npc.spawn",
     playerId,
     playerName,
     serverId: "101",
     ts: Date.now(),
-    meta: { npcId: data.npcId, x: data.x, z: data.z, wave: count },
+    meta: { npcId: data.npcId, x: data.x, z: data.z, wave: count, live: queued.live },
   });
   const extra = count - 1;
   if (extra > 0) {
@@ -120,7 +161,7 @@ export async function executeNpcSpawn(data: {
       playerName,
       npcId: data.npcId,
       npcName: data.npcName || data.npcId,
-      serviceId: data.serviceId,
+      serviceId: nitradoServiceId(data.serviceId || data.serverId),
       x: data.x,
       z: data.z,
       remaining: Math.min(extra, remainingAfterFirst),
@@ -130,13 +171,19 @@ export async function executeNpcSpawn(data: {
     await writeJsonFile("npc-waves.json", waves);
   }
   return {
-    mode: "restart_required" as const,
-    reason: extra > 0 ? `Spawned 1 now. ${extra} more will respawn 30s after each death/timer.` : queued.eventName,
+    mode: queued.live ? ("live" as const) : ("restart_required" as const),
+    reason: queued.live
+      ? "Live spawn command written. NPC should appear within a few seconds if LiveSpawner is on the box."
+      : extra > 0
+        ? `Queued 1 now. ${extra} more on a 30s timer after restart.`
+        : queued.eventName,
     eventName: queued.eventName,
     restockSeconds: queued.restockSeconds,
     restarted: queued.restarted,
     remaining: remainingAfterFirst,
     waveLeft: extra,
+    adapter: queued.live ? "livespawner" : "ce-xml",
+    entity: queued.entity,
   };
 }
 
@@ -173,7 +220,7 @@ export async function tickNpcWaves() {
   }
   await writeJsonFile("npc-waves.json", { waves: keep });
   for (const wave of done) {
-    const text = `${wave.npcName} wave finished. All requested spawns were used.` ;
+    const text = `${wave.npcName} wave finished. All requested spawns were used.`;
     await dmOwner(wave.playerId, `DAYZ PRO\n${text}`);
     emitHubEvent({
       type: "npc.wave_done",
