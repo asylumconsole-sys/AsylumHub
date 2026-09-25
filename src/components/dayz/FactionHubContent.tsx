@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { FACTION_FLAGS, flagImage, flagImageFallback, type FactionFlagId } from "@/lib/faction-flags";
+import { getMyFaction, saveMyFaction } from "@/lib/faction-profile.functions";
+import { useAuth } from "@/contexts/AuthContext";
 
 const STORAGE = "asylumhub:faction-profile";
 
@@ -31,10 +33,13 @@ function flagOf(id: string) {
 }
 
 export function FactionHubContent() {
+  const { user } = useAuth();
+  const playerId = user?.id || "";
   const [faction, setFaction] = useState<Profile | null>(null);
   const [name, setName] = useState("");
   const [flag, setFlag] = useState<FactionFlagId>(FACTION_FLAGS[0][0]);
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     try {
@@ -43,11 +48,29 @@ export function FactionHubContent() {
     } catch {
       /* ignore */
     }
-  }, []);
+    if (!playerId) return;
+    getMyFaction({ data: { playerId } })
+      .then((row) => {
+        if (!row) return;
+        const next = { name: row.name, flag: row.flag, map: row.map, members: row.members };
+        setFaction(next);
+        localStorage.setItem(STORAGE, JSON.stringify(next));
+      })
+      .catch(() => null);
+  }, [playerId]);
 
-  const save = (next: Profile) => {
+  const save = async (next: Profile) => {
     setFaction(next);
     localStorage.setItem(STORAGE, JSON.stringify(next));
+    if (!playerId) return;
+    setSaving(true);
+    try {
+      await saveMyFaction({ data: { playerId, name: next.name, flag: next.flag, map: next.map } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save faction to Hub");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const selected = flagOf(flag);
@@ -92,15 +115,15 @@ export function FactionHubContent() {
             <FlagImg file={selected[2]} alt={selected[1]} className="size-16 object-contain" />
             <button
               type="button"
-              disabled={!name.trim()}
+              disabled={!name.trim() || saving}
               onClick={() => {
-                save({ name: name.trim(), flag, map: "102x", members: [] });
+                void save({ name: name.trim(), flag, map: "102x", members: [] });
                 setOpen(false);
-                toast.success(`Faction ${name.trim()} founded`);
+                toast.success(`Faction ${name.trim()} founded — linked to your Hub login`);
               }}
               className="rounded-full bg-[#d4a84b] px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.16em] text-black disabled:opacity-50"
             >
-              Found · 10,000 CR
+              {saving ? "Saving…" : "Found · 10,000 CR"}
             </button>
           </div>
         </div>
@@ -111,7 +134,7 @@ export function FactionHubContent() {
           <div className="flex flex-col items-center gap-2">
             <FlagImg file={flagOf(faction.flag)[2]} alt={flagOf(faction.flag)[1]} className="size-14 object-contain" />
             <div className="font-display text-2xl text-[#e8c56a]">{faction.name}</div>
-            <div className="text-xs uppercase tracking-wider text-zinc-500">{flagOf(faction.flag)[1]}</div>
+            <div className="text-xs uppercase tracking-wider text-zinc-500">{flagOf(faction.flag)[1]} · owner</div>
             <button type="button" onClick={() => setOpen(true)} className="text-xs uppercase tracking-[0.16em] text-[#d4a84b]">
               Change flag
             </button>
