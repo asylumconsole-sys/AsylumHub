@@ -45,7 +45,7 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
   const [activePanel, setActivePanel] = useState<"base" | "radar" | null>(null);
   const [radarRange, setRadarRange] = useState("500m");
   const zoneQ = useQuery({
-    queryKey: ["detect-zone", playerId],
+    queryKey: ["detect-zone-v4", playerId],
     queryFn: () => detectPlayerZone({ data: { playerId } }),
     enabled: activePanel === "radar" && Boolean(playerId),
   });
@@ -88,7 +88,7 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
           <div className="text-xs uppercase tracking-[0.16em] text-[#d4a84b]">Linked PSN · {psn || (zoneQ.isLoading ? "loading…" : "none")}</div>
           {zoneQ.data ? (
             <div className="font-mono text-xs text-zinc-500">
-              flags {zoneQ.data.flagsFound} · builds {zoneQ.data.buildsFound} · pins {zoneQ.data.positionsFound} · cluster {zoneQ.data.clusterNearLastFlag}
+              files {zoneQ.data.filesScanned ?? 0} · flags {zoneQ.data.flagsFound} · builds {zoneQ.data.buildsFound} · pins {zoneQ.data.positionsFound}
             </div>
           ) : null}
           {pin ? (
@@ -107,10 +107,10 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
             </>
           ) : !zoneQ.isLoading ? (
             <div className="rounded-xl border border-dashed border-glass-border p-5 text-sm text-muted-foreground">
-              Scanned ADM/RPT/LOG on 101x and 102x. No coordinate cluster for this tag in those files yet.
+              Nitrado walk finished. If files is 0 the API could not list logs. If files > 0 but pins is 0, those files have your tag without X/Z on the same line. Paste one raw ADM line and the matcher will be locked to that format.
             </div>
           ) : (
-            <div className="text-sm text-zinc-500">Reading every log file…</div>
+            <div className="text-sm text-zinc-500">Walking Nitrado ftproot…</div>
           )}
           <select value={radarRange} onChange={(e) => setRadarRange(e.target.value)} className="h-11 w-full rounded-lg border border-glass-border bg-black/40 px-3 text-sm">
             <option>250m</option><option>500m</option><option>750m</option><option>1000m</option>
