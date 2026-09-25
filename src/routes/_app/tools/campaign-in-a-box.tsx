@@ -20,6 +20,15 @@ const SAT = {
   chernarus: "https://static.xam.nu/dayz/maps/chernarusplus/1.27/satellite/0/0/0.webp",
 } as const;
 
+function linkedPsn() {
+  if (typeof window === "undefined") return "";
+  return (
+    window.localStorage.getItem("asylumhub:psn-name") ||
+    window.localStorage.getItem("asylumhub:psn-id") ||
+    ""
+  ).trim();
+}
+
 function FlagMap({ x, z, map }: { x: number; z: number; map: "livonia" | "chernarus" }) {
   const size = WORLD[map];
   const left = Math.min(96, Math.max(4, (x / size) * 100));
@@ -27,7 +36,6 @@ function FlagMap({ x, z, map }: { x: number; z: number; map: "livonia" | "cherna
   return (
     <div className="relative overflow-hidden rounded-2xl border border-[#d4a84b]/40 bg-black">
       <img src={SAT[map]} alt={`${map} map`} className="aspect-square w-full object-cover opacity-90" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_40%,rgba(0,0,0,0.55))]" />
       <div className="absolute" style={{ left: `${left}%`, top: `${top}%`, transform: "translate(-50%, -50%)" }}>
         <div className="size-4 animate-ping rounded-full bg-[#d4a84b]/70" />
         <div className="absolute left-1/2 top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#d4a84b] shadow-[0_0_16px_#d4a84b]" />
@@ -45,10 +53,11 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
   const playerId = user?.id || "demo-user";
   const [activePanel, setActivePanel] = useState<"base" | "radar" | null>(null);
   const [radarRange, setRadarRange] = useState("500m");
+  const psn = linkedPsn();
 
   const zoneQ = useQuery({
-    queryKey: ["detect-zone", playerId],
-    queryFn: () => detectPlayerZone({ data: { playerId } }),
+    queryKey: ["detect-zone", playerId, psn],
+    queryFn: () => detectPlayerZone({ data: { playerId, psnName: psn } }),
     enabled: activePanel === "radar",
   });
 
@@ -57,7 +66,16 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
   const claimMut = useMutation({
     mutationFn: () =>
       claimZoneRadar({
-        data: { playerId, baseCode: pin?.code || "", range: radarRange, confirmed: true, factionName: pin?.faction },
+        data: {
+          playerId,
+          baseCode: pin?.code || "",
+          range: radarRange,
+          confirmed: true,
+          factionName: pin?.faction,
+          x: pin?.x,
+          z: pin?.z,
+          map: pin?.map,
+        },
       }),
     onSuccess: () => toast.success(`Zone radar locked on ${pin?.name}`),
     onError: (err) => toast.error(err instanceof Error ? err.message : "Claim failed"),
@@ -75,7 +93,7 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
           <PageHexBadge hue={150} icon={<IconCampaign size={26} />} aria-label="Base Ops" />
           <div>
             <h1 className="font-display text-3xl md:text-4xl">Base Ops</h1>
-            <p className="mt-2 max-w-2xl text-muted-foreground">Last flag pole + build cluster. We only ask if we are sure.</p>
+            <p className="mt-2 max-w-2xl text-muted-foreground">Last flag pole + build cluster from your linked PSN logs.</p>
           </div>
         </header>
       )}
@@ -100,28 +118,33 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
         <GlassPanel className="space-y-5 border-cyan-400/30 p-6">
           <button type="button" onClick={() => setActivePanel(null)} className="text-xs text-muted-foreground">← Back to Base Ops</button>
           <h2 className="font-display text-2xl">Track your zone</h2>
-          <p className="text-sm text-muted-foreground">
-            1. Last flag pole. 2. Same pin must sit on a dense build cluster. 3. Only then we ask <span className="text-[#e8c56a]">Is this your base?</span> and drop the pin on the map.
-          </p>
-          {zoneQ.isLoading ? <div className="text-sm text-zinc-500">Reading last flag pole…</div> : null}
+          <div className="text-xs uppercase tracking-[0.16em] text-[#d4a84b]">Linked PSN · {psn || "not stored on this device"}</div>
+          {zoneQ.isLoading ? <div className="text-sm text-zinc-500">Reading ADM flag + build lines…</div> : null}
+          {zoneQ.data ? (
+            <div className="font-mono text-xs text-zinc-500">
+              flags {zoneQ.data.flagsFound} · builds {zoneQ.data.buildsFound} · cluster {zoneQ.data.clusterNearLastFlag}
+            </div>
+          ) : null}
           {pin ? (
             <>
               <FlagMap x={pin.x} z={pin.z} map={pin.map} />
               <div className="rounded-xl border border-[#d4a84b]/40 bg-[#d4a84b]/10 p-4">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-[#d4a84b]">High confidence · flag + cluster match</div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-[#d4a84b]">High confidence · flag + cluster</div>
                 <div className="mt-1 font-display text-2xl text-[#e8c56a]">{pin.name}</div>
                 <div className="font-mono text-sm text-[#f5e6c0]">X {pin.x} · Z {pin.z} · {pin.map}</div>
                 <div className="mt-2 text-sm text-zinc-400">{pin.reason}</div>
                 <div className="mt-4 font-display text-xl text-[#e8c56a]">Is this your base?</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button type="button" onClick={() => claimMut.mutate()} className="rounded-full bg-[#d4a84b] px-5 py-2 text-sm font-semibold text-black">Yes · lock radar {radarRange}</button>
-                  <button type="button" onClick={() => toast.message("Ignored — not sure enough")} className="rounded-full border border-white/15 px-5 py-2 text-sm">No</button>
+                  <button type="button" onClick={() => toast.message("Ignored")} className="rounded-full border border-white/15 px-5 py-2 text-sm">No</button>
                 </div>
               </div>
             </>
           ) : !zoneQ.isLoading ? (
             <div className="rounded-xl border border-dashed border-glass-border p-5 text-sm text-muted-foreground">
-              No high-confidence pin. Last flag pole was not on a dense build cluster, or that flag has no X/Z yet. We will not ask until we are sure.
+              {!psn
+                ? "No PSN name saved on this browser. Link PSN on the account page, then reopen Track your zone."
+                : "Logs for this PSN did not have a last flag pole with 8+ nearby builds (and coords). We only ask when that match is sure."}
             </div>
           ) : null}
           <select value={radarRange} onChange={(e) => setRadarRange(e.target.value)} className="h-11 w-full rounded-lg border border-glass-border bg-black/40 px-3 text-sm">
@@ -130,10 +153,7 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
         </GlassPanel>
       )}
       {activePanel === "base" && (
-        <>
-          <button type="button" onClick={() => setActivePanel(null)} className="text-xs text-muted-foreground">← Back</button>
-          <GlassPanel className="p-5 text-sm text-muted-foreground">Custom base request stays on the map clicker for coords.</GlassPanel>
-        </>
+        <button type="button" onClick={() => setActivePanel(null)} className="text-xs text-muted-foreground">← Back</button>
       )}
     </div>
   );
