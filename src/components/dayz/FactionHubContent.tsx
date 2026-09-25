@@ -42,19 +42,28 @@ export function FactionHubContent() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    let local: Profile | null = null;
     try {
       const raw = localStorage.getItem(STORAGE);
-      if (raw) setFaction(JSON.parse(raw) as Profile);
+      if (raw) {
+        local = JSON.parse(raw) as Profile;
+        setFaction(local);
+      }
     } catch {
       /* ignore */
     }
     if (!playerId) return;
     getMyFaction({ data: { playerId } })
-      .then((row) => {
-        if (!row) return;
-        const next = { name: row.name, flag: row.flag, map: row.map, members: row.members };
-        setFaction(next);
-        localStorage.setItem(STORAGE, JSON.stringify(next));
+      .then(async (row) => {
+        if (row) {
+          const next = { name: row.name, flag: row.flag, map: row.map, members: row.members };
+          setFaction(next);
+          localStorage.setItem(STORAGE, JSON.stringify(next));
+          return;
+        }
+        if (local?.name) {
+          await saveMyFaction({ data: { playerId, name: local.name, flag: local.flag, map: local.map } });
+        }
       })
       .catch(() => null);
   }, [playerId]);
