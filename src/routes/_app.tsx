@@ -33,6 +33,7 @@ import { CommanderAI } from "@/components/app/CommanderAI";
 const COMMANDER_ENABLED = import.meta.env.VITE_COMMANDER_ENABLED !== "false";
 import { BottomNav } from "@/components/app/BottomNav";
 import { UserMenu } from "@/components/app/UserMenu";
+import { NotificationBell } from "@/components/app/NotificationBell";
 import { DonateDock } from "@/components/app/DonateDock";
 import { GuidedTour } from "@/components/tour/GuidedTour";
 import { RouteProgressBar } from "@/components/app/RouteProgressBar";
@@ -69,6 +70,7 @@ const NAV_GROUPS = [
     label: "War",
     items: [
       { to: "/war-room", label: "War Room", Icon: GoldWarRoom },
+      { to: "/intel", label: "Intel", Icon: GoldOperations },
       { to: "/challenges", label: "Challenges", Icon: GoldChallenges },
       { to: "/templates", label: "Locker", Icon: GoldLocker },
     ],
@@ -189,6 +191,7 @@ function AppShell() {
                 <GoldMap size={14} /> Map
               </Link>
             )}
+            <div className="pointer-events-auto"><NotificationBell /></div>
             <div className="pointer-events-auto"><UserMenu /></div>
           </div>
           {isMap ? (
