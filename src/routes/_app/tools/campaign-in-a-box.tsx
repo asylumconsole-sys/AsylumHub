@@ -107,7 +107,7 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
             </>
           ) : !zoneQ.isLoading ? (
             <div className="rounded-xl border border-dashed border-glass-border p-5 text-sm text-muted-foreground">
-              Nitrado walk finished. If files is 0 the API could not list logs. If files > 0 but pins is 0, those files have your tag without X/Z on the same line. Paste one raw ADM line and the matcher will be locked to that format.
+              {"Nitrado walk finished. If files is 0 the API could not list logs. If files are present but pins is 0, those files have your tag without X/Z on the same line. Paste one raw ADM line and the matcher will be locked to that format."}
             </div>
           ) : (
             <div className="text-sm text-zinc-500">Walking Nitrado ftproot…</div>
