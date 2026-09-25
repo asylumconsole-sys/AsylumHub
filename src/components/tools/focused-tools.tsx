@@ -10,7 +10,8 @@ import { NPCShopContent } from "@/routes/_app/tools/npc-shop-content";
 import { VehicleShopContent } from "@/routes/_app/tools/vehicle-shop-content";
 import { CampaignPerformanceContent, CampaignPerformanceSummary } from "@/routes/_app/tools/campaign-performance";
 import { EventsContent } from "@/routes/_app/tools/events";
-import { FactionHubContent } from "@/routes/_app/tools/event-intake";
+import { FactionHubContent } from "@/components/dayz/FactionHubContent";
+import { FactionLeaderboard } from "@/components/dayz/FactionLeaderboard";
 import { ListCleanerContent } from "@/routes/_app/tools/list-cleaner";
 import { ProBuildContent } from "@/routes/_app/tools/pro-build-content";
 import {
@@ -48,6 +49,15 @@ function ZombieHordesContent() {
   );
 }
 
+function WarRoomFactionContent() {
+  return (
+    <div className="space-y-8">
+      <FactionHubContent />
+      <FactionLeaderboard />
+    </div>
+  );
+}
+
 export const FOCUSED_TOOLS: Record<string, FocusedTool> = {
   "zombie-hordes": { slug: "zombie-hordes", primaryId: "server-events", title: "Zombie Hordes", hue: 52, icon: <IconSpark size={22} />, fullRouteTo: "/tools/vehicle-shop", Component: ZombieHordesContent },
   "pro-build": { slug: "pro-build", primaryId: "campaign", title: "Pro Build", hue: 42, icon: <IconCampaign size={22} />, fullRouteTo: "/tools", Component: ProBuildContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
@@ -66,7 +76,7 @@ export const FOCUSED_TOOLS: Record<string, FocusedTool> = {
   "campaign-import": { slug: "campaign-import", primaryId: "campaign", title: "NPC Maker", hue: 150, icon: <IconImport size={22} />, fullRouteTo: "/tools/npc-shop", Component: NPCShopContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
   "campaign-events": { slug: "campaign-events", primaryId: "campaign", title: "Battlepass", hue: 150, icon: <IconCalendar size={22} />, fullRouteTo: "/tools/events", Component: EventsContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
   "campaign-performance": { slug: "campaign-performance", primaryId: "campaign", title: "Strafe Runs", hue: 150, icon: <IconChart size={22} />, fullRouteTo: "/tools/campaign-performance", Component: CampaignPerformanceContent, Summary: CampaignPerformanceSummary, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
-  "faction-hub": { slug: "faction-hub", primaryId: "campaign", title: "Faction Hub", hue: 145, icon: <IconCampaign size={22} />, fullRouteTo: "/tools/event-intake", Component: FactionHubContent },
+  "faction-hub": { slug: "faction-hub", primaryId: "campaign", title: "Faction Hub", hue: 145, icon: <IconCampaign size={22} />, fullRouteTo: "/tools/event-intake", Component: WarRoomFactionContent },
   "campaign-list-cleaner": { slug: "campaign-list-cleaner", primaryId: "campaign", title: "Counter-UAV", hue: 150, icon: <IconSpark size={22} />, fullRouteTo: "/tools/list-cleaner", Component: ListCleanerContent, parentTitle: "Base Ops", parentHue: 150, parentIcon: <IconCampaign size={22} /> },
 };
 
