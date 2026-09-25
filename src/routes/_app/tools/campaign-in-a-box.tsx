@@ -44,21 +44,15 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
   const playerId = user?.id || "";
   const [activePanel, setActivePanel] = useState<"base" | "radar" | null>(null);
   const [radarRange, setRadarRange] = useState("500m");
-
   const zoneQ = useQuery({
     queryKey: ["detect-zone", playerId],
     queryFn: () => detectPlayerZone({ data: { playerId } }),
     enabled: activePanel === "radar" && Boolean(playerId),
   });
-
   const pin = zoneQ.data?.prompt;
   const psn = zoneQ.data?.psnName;
-
   const claimMut = useMutation({
-    mutationFn: () =>
-      claimZoneRadar({
-        data: { playerId, baseCode: pin?.code || "", range: radarRange, confirmed: true, factionName: pin?.faction, x: pin?.x, z: pin?.z, map: pin?.map },
-      }),
+    mutationFn: () => claimZoneRadar({ data: { playerId, baseCode: pin?.code || "", range: radarRange, confirmed: true, x: pin?.x, z: pin?.z, map: pin?.map } }),
     onSuccess: () => toast.success(`Zone radar locked on ${pin?.name}`),
     onError: (err) => toast.error(err instanceof Error ? err.message : "Claim failed"),
   });
@@ -73,22 +67,14 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
       {!hideHeader && (
         <header className="flex items-start gap-4">
           <PageHexBadge hue={150} icon={<IconCampaign size={26} />} aria-label="Base Ops" />
-          <div>
-            <h1 className="font-display text-3xl md:text-4xl">Base Ops</h1>
-          </div>
+          <div><h1 className="font-display text-3xl md:text-4xl">Base Ops</h1></div>
         </header>
       )}
       {!activePanel && (
         <div className="grid gap-4 md:grid-cols-2">
-          <button type="button" onClick={() => navigate({ to: "/tools", search: { focus: "pro-build" } })} className="rounded-2xl border border-primary/40 bg-primary/10 p-6 text-left">
-            <h2 className="font-display text-2xl">Pro Build</h2>
-          </button>
-          <button type="button" onClick={() => navigate({ to: "/tools", search: { focus: "sleeping-bags" } })} className="rounded-2xl border border-glass-border bg-glass/25 p-6 text-left">
-            <h2 className="font-display text-2xl">Sleeping Bags</h2>
-          </button>
-          <button type="button" onClick={() => setActivePanel("base")} className="rounded-2xl border border-glass-border bg-glass/25 p-6 text-left">
-            <h2 className="font-display text-2xl">Request custom base</h2>
-          </button>
+          <button type="button" onClick={() => navigate({ to: "/tools", search: { focus: "pro-build" } })} className="rounded-2xl border border-primary/40 bg-primary/10 p-6 text-left"><h2 className="font-display text-2xl">Pro Build</h2></button>
+          <button type="button" onClick={() => navigate({ to: "/tools", search: { focus: "sleeping-bags" } })} className="rounded-2xl border border-glass-border bg-glass/25 p-6 text-left"><h2 className="font-display text-2xl">Sleeping Bags</h2></button>
+          <button type="button" onClick={() => setActivePanel("base")} className="rounded-2xl border border-glass-border bg-glass/25 p-6 text-left"><h2 className="font-display text-2xl">Request custom base</h2></button>
           <button type="button" onClick={() => setActivePanel("radar")} className="rounded-2xl border border-cyan-400/30 bg-cyan-400/5 p-6 text-left">
             <div className="text-xs uppercase tracking-[0.18em] text-cyan-200/70">Base Radar · 5,000 cr</div>
             <h2 className="mt-2 font-display text-2xl">Track your zone</h2>
@@ -99,12 +85,10 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
         <GlassPanel className="space-y-5 border-cyan-400/30 p-6">
           <button type="button" onClick={() => setActivePanel(null)} className="text-xs text-muted-foreground">← Back to Base Ops</button>
           <h2 className="font-display text-2xl">Track your zone</h2>
-          <div className="text-xs uppercase tracking-[0.16em] text-[#d4a84b]">
-            Linked PSN · {psn || (zoneQ.isLoading ? "loading account…" : "none on this Discord login")}
-          </div>
+          <div className="text-xs uppercase tracking-[0.16em] text-[#d4a84b]">Linked PSN · {psn || (zoneQ.isLoading ? "loading…" : "none")}</div>
           {zoneQ.data ? (
             <div className="font-mono text-xs text-zinc-500">
-              flags {zoneQ.data.flagsFound} · builds {zoneQ.data.buildsFound} · cluster {zoneQ.data.clusterNearLastFlag}
+              flags {zoneQ.data.flagsFound} · builds {zoneQ.data.buildsFound} · pins {zoneQ.data.positionsFound} · cluster {zoneQ.data.clusterNearLastFlag}
             </div>
           ) : null}
           {pin ? (
@@ -123,20 +107,15 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
             </>
           ) : !zoneQ.isLoading ? (
             <div className="rounded-xl border border-dashed border-glass-border p-5 text-sm text-muted-foreground">
-              {!psn
-                ? "This Discord login has no PSN in bot-account-links. Link the gamertag on the account page."
-                : "Linked tag found, but ADM logs did not have a last flag + 5 nearby builds with coords."}
+              Scanned ADM/RPT/LOG on 101x and 102x. No coordinate cluster for this tag in those files yet.
             </div>
           ) : (
-            <div className="text-sm text-zinc-500">Reading linked account + ADM logs…</div>
+            <div className="text-sm text-zinc-500">Reading every log file…</div>
           )}
           <select value={radarRange} onChange={(e) => setRadarRange(e.target.value)} className="h-11 w-full rounded-lg border border-glass-border bg-black/40 px-3 text-sm">
             <option>250m</option><option>500m</option><option>750m</option><option>1000m</option>
           </select>
         </GlassPanel>
-      )}
-      {activePanel === "base" && (
-        <button type="button" onClick={() => setActivePanel(null)} className="text-xs text-muted-foreground">← Back</button>
       )}
     </div>
   );
