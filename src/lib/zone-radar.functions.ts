@@ -24,12 +24,16 @@ type RadarStore = {
 };
 const EMPTY: RadarStore = { zones: {} };
 
+type LinkStore = {
+  byDiscordId: Record<string, { username?: string; links?: { username: string; serverId: string }[] }>;
+};
+
 const FTP = {
   "101x": { host: "FTP_101X_HOST", user: "FTP_101X_USER", pass: "FTP_101X_PASS", port: "FTP_101X_PORT", path: "FTP_101X_LOGS_PATH", map: "livonia" as const },
   "102x": { host: "FTP_102X_HOST", user: "FTP_102X_USER", pass: "FTP_102X_PASS", port: "FTP_102X_PORT", path: "FTP_102X_LOGS_PATH", map: "chernarus" as const },
 };
 
-type BuildHit = { x: number; z: number; kind: "flag" | "build"; map: "livonia" | "chernarus"; line: string };
+type BuildHit = { x: number; z: number; kind: "flag" | "build"; map: "livonia" | "chernarus" };
 
 function parseHits(text: string, psn: string, map: "livonia" | "chernarus"): BuildHit[] {
   const want = psn.trim().toLowerCase();
@@ -37,9 +41,9 @@ function parseHits(text: string, psn: string, map: "livonia" | "chernarus"): Bui
   const hits: BuildHit[] = [];
   for (const line of text.split(/\r?\n/)) {
     if (!line.toLowerCase().includes(want)) continue;
-    const pos = line.match(/pos=<\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*>/i)
-      || line.match(/\bpos\s*[:=]\s*\(?\s*(-?[\d.]+)\s*[, ]\s*(-?[\d.]+)\s*[, ]\s*(-?[\d.]+)/i)
-      || line.match(/\bx\s*[:=]\s*(-?[\d.]+).{0,24}z\s*[:=]\s*(-?[\d.]+)/i);
+    const pos =
+      line.match(/pos=<\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*>/i) ||
+      line.match(/\bpos\s*[:=]\s*\(?\s*(-?[\d.]+)\s*[, ]\s*(-?[\d.]+)\s*[, ]\s*(-?[\d.]+)/i);
     if (!pos) continue;
     const x = Number(pos[1]);
     const z = Number(pos[3] ?? pos[2]);
@@ -47,7 +51,7 @@ function parseHits(text: string, psn: string, map: "livonia" | "chernarus"): Bui
     const flag = /flag|territoryflag|flagpole|flag_base/i.test(line);
     const build = /built|placed|construct|fence|watchtower|wall|gate|kit|shelter|tent|barrel|storage/i.test(line);
     if (!flag && !build) continue;
-    hits.push({ x, z, kind: flag ? "flag" : "build", map, line: line.slice(0, 180) });
+    hits.push({ x, z, kind: flag ? "flag" : "build", map });
   }
   return hits;
 }
@@ -85,17 +89,12 @@ async function readServerHits(server: keyof typeof FTP, psn: string): Promise<Bu
 }
 
 function clusterScore(flag: BuildHit, builds: BuildHit[]) {
-  return builds.filter((b) => {
-    const dx = b.x - flag.x;
-    const dz = b.z - flag.z;
-    return Math.hypot(dx, dz) <= 90;
-  }).length;
+  return builds.filter((b) => Math.hypot(b.x - flag.x, b.z - flag.z) <= 90).length;
 }
 
 function fromCustom(base: CustomBase, userId: string): ZoneCandidate | null {
   if (!Number.isFinite(base.x) || !Number.isFinite(base.z)) return null;
-  let n = 0;
-  n += 40;
+  let n = 40;
   if ((base.amountPaid ?? 0) > 0) n += 25;
   if ((base.monthlyCost ?? 0) >= 25_000) n += 20;
   if (base.status === "active") n += 15;
@@ -115,21 +114,34 @@ function fromCustom(base: CustomBase, userId: string): ZoneCandidate | null {
   };
 }
 
+async function linkedNames(playerId: string) {
+  const store = await readJsonFile<LinkStore>("bot-account-links.json", { byDiscordId: {} });
+  const row =
+    store.byDiscordId[playerId] ??
+    Object.values(store.byDiscordId).find((item) => (item as { discordId?: string }).discordId === playerId);
+  const names = [
+    ...(row?.links ?? []).map((l) => l.username),
+    row?.username,
+  ].filter((n): n is string => Boolean(n && n.trim()));
+  return [...new Set(names.map((n) => n.trim()))];
+}
+
 export const detectPlayerZone = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { playerId?: string; factionName?: string; psnName?: string }) => data)
   .handler(async ({ data, context }) => {
     const playerId = data.playerId || context.userId || "";
-    const psn = (data.psnName || "").trim();
-    const logHits = psn
-      ? (await Promise.all([readServerHits("101x", psn), readServerHits("102x", psn)])).flat()
-      : [];
+    const names = [...new Set([data.psnName, ...(await linkedNames(playerId))].filter((n): n is string => Boolean(n?.trim())))];
+    const psn = names[0] || "";
+    const logHits = (
+      await Promise.all(names.flatMap((name) => [readServerHits("101x", name), readServerHits("102x", name)]))
+    ).flat();
     const flags = logHits.filter((h) => h.kind === "flag");
     const builds = logHits.filter((h) => h.kind === "build");
     const lastFlag = flags.at(-1) ?? null;
     const near = lastFlag ? clusterScore(lastFlag, builds) : 0;
     const logPrompt =
-      lastFlag && near >= 8
+      lastFlag && near >= 5
         ? ({
             code: `log-${Math.round(lastFlag.x)}-${Math.round(lastFlag.z)}`,
             name: `${psn} compound`,
@@ -153,6 +165,7 @@ export const detectPlayerZone = createServerFn({ method: "GET" })
     return {
       playerId,
       psnName: psn || null,
+      linkedNames: names,
       flagsFound: flags.length,
       buildsFound: builds.length,
       clusterNearLastFlag: near,
@@ -202,12 +215,7 @@ export const claimZoneRadar = createServerFn({ method: "POST" })
     });
     return {
       ok: true as const,
-      base: {
-        code: data.baseCode,
-        name: listed?.name || "Detected compound",
-        x: Math.round(x as number),
-        z: Math.round(z as number),
-      },
+      base: { code: data.baseCode, name: listed?.name || "Detected compound", x: Math.round(x as number), z: Math.round(z as number) },
       range: data.range || "500m",
     };
   });
