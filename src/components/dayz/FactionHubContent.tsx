@@ -31,7 +31,7 @@ function flagOf(id: string) {
   return FACTION_FLAGS.find(([fid]) => fid === id) ?? FACTION_FLAGS[0];
 }
 
-export function FactionHubContent() {
+export function FactionHubContent({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const [faction, setFaction] = useState<Profile | null>(null);
   const [name, setName] = useState("");
   const [flag, setFlag] = useState<FactionFlagId>(FACTION_FLAGS[0][0]);
@@ -72,10 +72,12 @@ export function FactionHubContent() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 text-center">
-      <div>
-        <div className="text-[10px] uppercase tracking-[0.28em] text-[#d4a84b]/80">War Room</div>
-        <h2 className="font-display text-3xl text-[#e8c56a]">{faction?.name || "Found a faction"}</h2>
-      </div>
+      {!hideHeader ? (
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.28em] text-[#d4a84b]/80">War Room</div>
+          <h2 className="font-display text-3xl text-[#e8c56a]">{faction?.name || "Found a faction"}</h2>
+        </div>
+      ) : null}
 
       {!faction && !open ? (
         <button type="button" onClick={() => setOpen(true)} className="rounded-full bg-[#d4a84b] px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.16em] text-black">
@@ -132,7 +134,7 @@ export function FactionHubContent() {
                 onClick={() => {
                   if (!renameDraft.trim()) return;
                   if (!spend(1000, "rename")) return;
-                  save({ ...faction, name: renameDraft.trim(), balance: (faction.balance ?? 0) - 1000 });
+                  save({ ...faction, name: renameDraft.trim(), balance: Math.max(0, (faction.balance ?? 0) - 1000) });
                   toast.success("Name changed");
                 }}
                 className="rounded-lg bg-[#d4a84b] px-3 text-sm font-semibold text-black"
@@ -141,7 +143,6 @@ export function FactionHubContent() {
               </button>
             </div>
           </div>
-
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-[#d4a84b]">Change flag · 2,000 CR</div>
             <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
@@ -155,7 +156,7 @@ export function FactionHubContent() {
               type="button"
               onClick={() => {
                 if (!spend(2000, "flag")) return;
-                save({ ...faction, flag, balance: (faction.balance ?? 0) - 2000 });
+                save({ ...faction, flag, balance: Math.max(0, (faction.balance ?? 0) - 2000) });
                 toast.success("Flag changed");
               }}
               className="mt-2 rounded-lg bg-[#d4a84b] px-3 py-2 text-sm font-semibold text-black"
@@ -163,7 +164,6 @@ export function FactionHubContent() {
               Apply flag
             </button>
           </div>
-
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-[#d4a84b]">Members</div>
             <div className="mt-2 flex gap-2">
@@ -188,21 +188,11 @@ export function FactionHubContent() {
               {faction.members.map((member) => (
                 <div key={member} className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-sm">
                   <span>{member}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      save({ ...faction, members: faction.members.filter((m) => m !== member) });
-                      toast.success(`Removed ${member}`);
-                    }}
-                    className="text-xs uppercase tracking-wider text-red-300"
-                  >
-                    Remove
-                  </button>
+                  <button type="button" onClick={() => { save({ ...faction, members: faction.members.filter((m) => m !== member) }); toast.success(`Removed ${member}`); }} className="text-xs uppercase tracking-wider text-red-300">Remove</button>
                 </div>
               ))}
             </div>
           </div>
-
           <button
             type="button"
             onClick={() => {
