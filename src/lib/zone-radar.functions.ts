@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadBases, type CustomBase } from "@/lib/custom-bases";
-import { loadFactionProfiles } from "@/lib/faction-profile.functions";
 import { readJsonFile, writeJsonFile } from "@/lib/dayz/store";
 import { emitHubEvent } from "@/lib/hub-events";
 
@@ -39,7 +38,6 @@ function toCandidate(base: CustomBase, userId: string, founderName?: string): Zo
   const buildScore = score(base);
   const high = buildScore >= 70;
   const sameFaction = Boolean(founderName && base.faction && base.faction.toLowerCase() === founderName.toLowerCase());
-  const isOwner = base.ownerDiscordId === userId || sameFaction;
   return {
     code: base.code,
     name: base.name,
@@ -50,10 +48,8 @@ function toCandidate(base: CustomBase, userId: string, founderName?: string): Zo
     map: base.map || "livonia",
     buildScore,
     confidence: high ? "high" : "low",
-    reason: high
-      ? "Last flag pole matches a dense build cluster."
-      : "Flag seen, but not enough nearby builds to be sure.",
-    isOwner,
+    reason: high ? "Last flag pole matches a dense build cluster." : "Flag seen, but not enough nearby builds to be sure.",
+    isOwner: base.ownerDiscordId === userId || sameFaction,
   };
 }
 
@@ -62,9 +58,7 @@ export const detectPlayerZone = createServerFn({ method: "GET" })
   .inputValidator((data: { playerId?: string; factionName?: string }) => data)
   .handler(async ({ data, context }) => {
     const playerId = data.playerId || context.userId || "";
-    const profiles = await loadFactionProfiles();
-    const founded = profiles.byOwner[playerId] || null;
-    const founderName = (data.factionName || founded?.name || "").trim();
+    const founderName = (data.factionName || "").trim();
     const store = await loadBases();
     const all = store.bases.filter((b) => b.status !== "despawned");
     const mine = all.filter(
@@ -72,16 +66,8 @@ export const detectPlayerZone = createServerFn({ method: "GET" })
         b.ownerDiscordId === playerId ||
         (founderName && b.faction && b.faction.toLowerCase() === founderName.toLowerCase()),
     );
-    const factions = Array.from(
-      new Set(
-        [...all.map((b) => b.faction), founderName].filter(Boolean) as string[],
-      ),
-    );
-    const ownedFactions = Array.from(
-      new Set(
-        [...mine.map((b) => b.faction), founderName].filter(Boolean) as string[],
-      ),
-    );
+    const factions = Array.from(new Set([...all.map((b) => b.faction), founderName].filter(Boolean) as string[]));
+    const ownedFactions = Array.from(new Set([...mine.map((b) => b.faction), founderName].filter(Boolean) as string[]));
     const candidates = (mine.length ? mine : all.filter((b) => founderName && b.faction?.toLowerCase() === founderName.toLowerCase()))
       .map((b) => toCandidate(b, playerId, founderName))
       .filter((c): c is ZoneCandidate => Boolean(c))
@@ -113,8 +99,7 @@ export const claimZoneRadar = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     if (!data.confirmed) throw new Error("Confirm the base first");
     const playerId = data.playerId || context.userId || "";
-    const profiles = await loadFactionProfiles();
-    const founderName = (data.factionName || profiles.byOwner[playerId]?.name || "").trim();
+    const founderName = (data.factionName || "").trim();
     const store = await loadBases();
     const base = store.bases.find((b) => b.code === data.baseCode);
     if (!base) throw new Error("Base not found");
@@ -122,18 +107,11 @@ export const claimZoneRadar = createServerFn({ method: "POST" })
       base.ownerDiscordId === playerId ||
       Boolean(founderName && base.faction && base.faction.toLowerCase() === founderName.toLowerCase());
     if (!owns && !founderName) throw new Error("Only the faction owner can claim this zone");
-    if (!owns && founderName) {
-      // Founder with no matching custom-base row may still lock radar on confirmation.
-    }
-    if (!owns && !founderName) throw new Error("Only the faction owner can claim this zone");
     if (!Number.isFinite(base.x) || !Number.isFinite(base.z)) {
       throw new Error("This base has no flag coordinates yet");
     }
-    if (!owns && founderName) {
-      // allow founder claim of their named faction base only
-      if (!base.faction || base.faction.toLowerCase() !== founderName.toLowerCase()) {
-        throw new Error("That base is not your faction's");
-      }
+    if (founderName && base.faction && base.faction.toLowerCase() !== founderName.toLowerCase() && base.ownerDiscordId !== playerId) {
+      throw new Error("That base is not your faction's");
     }
     const radar = await readJsonFile<RadarStore>("zone-radar.json", EMPTY);
     radar.zones[playerId] = {
