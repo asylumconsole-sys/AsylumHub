@@ -8,7 +8,6 @@ import { PageHexBadge } from "@/components/app/PageHexBadge";
 import { BRAND } from "@/lib/brand";
 import { useAuth } from "@/contexts/AuthContext";
 import { claimZoneRadar, detectPlayerZone } from "@/lib/zone-radar.functions";
-import { getMyFaction } from "@/lib/faction-profile.functions";
 
 export const Route = createFileRoute("/_app/tools/campaign-in-a-box")({
   component: () => <CampaignInABoxContent />,
@@ -32,7 +31,6 @@ function readFoundedFaction() {
       const parsed = JSON.parse(raw) as { name?: string; factionName?: string };
       const name = String(parsed.name || parsed.factionName || "").trim();
       if (name) return name;
-      if (typeof raw === "string" && raw.trim() && !raw.startsWith("{")) return raw.trim();
     } catch {
       /* ignore */
     }
@@ -53,16 +51,9 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
   const [pickedBase, setPickedBase] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const mineQ = useQuery({
-    queryKey: ["my-faction", playerId],
-    queryFn: () => getMyFaction({ data: { playerId } }),
-  });
-
   useEffect(() => {
-    const local = readFoundedFaction();
-    const server = mineQ.data?.name?.trim() || "";
-    setPickedFaction((cur) => cur || server || local);
-  }, [mineQ.data]);
+    setPickedFaction((cur) => cur || readFoundedFaction());
+  }, []);
 
   const zoneQ = useQuery({
     queryKey: ["detect-zone", playerId, pickedFaction],
@@ -146,7 +137,7 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
                   Faction owner · {pickedFaction}
                 </div>
               ) : (
-                <div className="text-sm text-zinc-400">Type your War Room faction name. That marks you as owner for zone radar.</div>
+                <div className="text-sm text-zinc-400">Type your War Room faction name. That marks you as owner.</div>
               )}
               {prompt ? (
                 <div className="rounded-xl border border-[#d4a84b]/40 bg-[#d4a84b]/10 p-4">
