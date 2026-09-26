@@ -3,16 +3,27 @@ import { discordGet, discordPost } from "@/lib/staff-embed";
 type Channel = { id: string; name?: string; type?: number };
 type Msg = {
   id: string;
-  author?: { bot?: boolean };
   embeds?: Array<{ title?: string; description?: string }>;
-  components?: Array<{ type: number; components?: Array<{ type: number; custom_id?: string; options?: Array<{ label?: string; value?: string; description?: string }> }> }>;
+  components?: Array<{ type: number; components?: Array<{ type: number; options?: Array<{ label?: string; value?: string }> }> }>;
+};
+
+export type PanelCopy = {
+  title: string;
+  description: string;
+  options: Array<{ label: string; value: string; description: string }>;
 };
 
 const API = "https://discord.com/api/v10";
-const ONLY = {
-  label: "AI Support",
-  value: "ai-support",
-  description: "Ask PRO AI about rules, raids, players, logs, shop, or status.",
+const DEFAULT_PANEL: PanelCopy = {
+  title: "DAYZ PRO \u00b7 Tickets",
+  description: "Open AI Support. PRO AI handles raids, shop, accounts, factions, and logs in one place.",
+  options: [
+    {
+      label: "AI Support",
+      value: "ai-support",
+      description: "Ask PRO AI about rules, raids, players, logs, shop, or status.",
+    },
+  ],
 };
 
 function botHeaders() {
@@ -21,16 +32,10 @@ function botHeaders() {
   return { Authorization: `Bot ${token}`, "Content-Type": "application/json" };
 }
 
-function panelPayload() {
+function panelPayload(copy: PanelCopy) {
   return {
     content: "",
-    embeds: [
-      {
-        title: "DAYZ PRO \u00b7 Tickets",
-        color: 0xd4a84b,
-        description: "Open **AI Support**. PRO AI handles raids, shop, accounts, factions, and logs in one place.",
-      },
-    ],
+    embeds: [{ title: copy.title, color: 0xd4a84b, description: copy.description }],
     components: [
       {
         type: 1,
@@ -38,8 +43,8 @@ function panelPayload() {
           {
             type: 3,
             custom_id: "ticket_topic",
-            placeholder: "AI Support",
-            options: [ONLY],
+            placeholder: copy.options[0]?.label || "AI Support",
+            options: copy.options.slice(0, 25),
           },
         ],
       },
@@ -50,11 +55,11 @@ function panelPayload() {
 function isOldPanel(msg: Msg) {
   const text = `${msg.embeds?.[0]?.title || ""} ${msg.embeds?.[0]?.description || ""}`;
   const opts = (msg.components || []).flatMap((r) => r.components || []).flatMap((c) => c.options || []);
-  if (opts.some((o) => /raid|shop \/ purchase|account audit|faction help|ai support/i.test(`${o.label} ${o.value}`))) return true;
+  if (opts.some((o) => /raid|shop \/ purchase|account audit|faction help|ai support|ticket/i.test(`${o.label} ${o.value}`))) return true;
   return /ai support|ticket/i.test(text) && Boolean(msg.components?.length);
 }
 
-export async function slimTicketPanel() {
+export async function slimTicketPanel(copy: PanelCopy = DEFAULT_PANEL) {
   const guild = process.env.DISCORD_GUILD_ID;
   const h = botHeaders();
   if (!guild || !h) return { ok: false, error: "no guild or token" };
@@ -77,6 +82,6 @@ export async function slimTicketPanel() {
     }
   }
   if (!postIn) return { ok: false, error: "no ticket channel", deleted };
-  const posted = await discordPost(`/channels/${postIn}/messages`, panelPayload());
-  return { ok: true, deleted, posted: (posted as { id?: string })?.id, channelId: postIn };
+  const posted = await discordPost(`/channels/${postIn}/messages`, panelPayload(copy));
+  return { ok: true, deleted, posted: (posted as { id?: string; message?: string }), channelId: postIn };
 }
