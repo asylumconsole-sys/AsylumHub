@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { draftTicketReply } from "@/lib/ticket-ai-reply";
+import { pollTicketChannels } from "@/lib/ticket-ai-poll";
 import { isTicketAiPaused, setTicketAiPaused } from "@/lib/ticket-ai-pause";
 import { shouldTicketAiReply } from "@/lib/ticket-ai";
 import { discordPost } from "@/lib/staff-embed";
@@ -19,8 +20,9 @@ export const Route = createFileRoute("/api/discord/ticket-gate")({
   server: {
     handlers: {
       GET: async () => {
-        const store = await setTicketAiPaused(false, "gate-get");
-        return Response.json({ ok: true, paused: store.paused, hint: "ticket AI on" });
+        await setTicketAiPaused(false, "gate-get");
+        const poll = await pollTicketChannels().catch((e) => ({ ok: false, error: String(e) }));
+        return Response.json({ ok: true, paused: false, poll });
       },
       POST: async ({ request }) => {
         const paused = await isTicketAiPaused().catch(() => false);
