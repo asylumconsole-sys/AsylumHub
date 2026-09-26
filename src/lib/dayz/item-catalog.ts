@@ -35,22 +35,34 @@ export type ShopCatalogItem = {
   category: string;
   price: number;
   image: string;
+  images: string[];
   description: string;
 };
 
 const SEP = "\u001f";
 
+function wiki(file: string) {
+  return `/api/wiki-image?file=${encodeURIComponent(file)}`;
+}
+
+function imageList(classname: string, name: string) {
+  const files = new Set<string>([`${name}.png`, `${classname}.png`, `${name.replace(/_/g, " ")}.png`]);
+  return [...files].map(wiki);
+}
+
 function parseCompact(block: string): ShopCatalogItem[] {
   return block.split("\n").filter(Boolean).map((line) => {
     const [classname, name, priceStr, catIdx] = line.split(SEP);
     const category = CATEGORY_BY_INDEX[Number(catIdx)] ?? "Misc";
+    const images = imageList(classname, name);
     return {
       id: classname,
       classname,
       name,
       category,
       price: Number(priceStr),
-      image: `https://dayz.wiki.gg/images/${classname}.png`,
+      image: images[0],
+      images,
       description: category,
     };
   });
