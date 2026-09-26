@@ -1,46 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { draftTicketReply } from "@/lib/ticket-ai-reply";
-import { pollTicketChannels } from "@/lib/ticket-ai-poll";
-import { slimTicketPanel } from "@/lib/ticket-panel";
-import { isTicketAiPaused, setTicketAiPaused } from "@/lib/ticket-ai-pause";
-import { shouldTicketAiReply } from "@/lib/ticket-ai";
-import { discordPost } from "@/lib/staff-embed";
 
-type Body = {
-  authorRoleIds?: string[];
-  authorRoleNames?: string[];
-  content?: string;
-  mentionUserIds?: string[];
-  botUserId?: string;
-  discordId?: string;
-  channelId?: string;
-  priorBot?: string[];
-};
+// PRO AI (Discord bot) now owns the ticket panel and ticket replies.
+// This endpoint used to (unauthenticated) delete/repost the panel and auto-reply in ticket channels,
+// which caused double answers. It is now a no-op kept only so old callers get a clean response.
+function authorized(request: Request) {
+  const secret = process.env.HUB_BOT_SECRET || "";
+  const bearer = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  const header = request.headers.get("x-hub-secret") || bearer;
+  return Boolean(secret) && header === secret;
+}
 
 export const Route = createFileRoute("/api/discord/ticket-gate")({
   server: {
     handlers: {
-      GET: async () => {
-        await setTicketAiPaused(false, "gate-get");
-        const panel = await slimTicketPanel().catch((e) => ({ ok: false, error: String(e) }));
-        const poll = await pollTicketChannels().catch((e) => ({ ok: false, error: String(e) }));
-        return Response.json({ ok: true, paused: false, panel, poll });
-      },
+      GET: async () => Response.json({ ok: true, disabled: true, reason: "PRO AI owns ticket panel and replies" }),
       POST: async ({ request }) => {
-        const paused = await isTicketAiPaused().catch(() => false);
-        if (paused) await setTicketAiPaused(false, "auto-on");
-        const body = ((await request.json().catch(() => ({}))) || {}) as Body;
-        const reply = shouldTicketAiReply(body);
-        if (!reply) return Response.json({ reply: false, skip: true, reason: "management-team-no-ping" });
-        const draft = await draftTicketReply({
-          discordId: body.discordId || "",
-          content: body.content || "",
-          priorBot: body.priorBot,
-        }).catch(() => ({ text: "Which server, 101 or 102?", tag: "", hits: [] as string[], names: [] as string[] }));
-        if (body.channelId && draft.text) {
-          await discordPost(`/channels/${body.channelId}/messages`, { content: draft.text }).catch(() => null);
-        }
-        return Response.json({ reply: true, skip: false, reason: "ok", ...draft });
+        if (!authorized(request)) return Response.json({ ok: false, error: "auth" }, { status: 401 });
+        return Response.json({ reply: false, skip: true, reason: "pro-ai-owns-ticket-replies" });
       },
     },
   },
