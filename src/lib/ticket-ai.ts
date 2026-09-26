@@ -19,6 +19,35 @@ DON'T
 - Don't dump a tutorial. One next step only.
 `;
 
+const EXTRA_MGMT_IDS = (process.env.MANAGEMENT_TEAM_ROLE_ID || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+export function isManagementTeam(roleIds: string[] = [], roleNames: string[] = []) {
+  if (roleIds.some((id) => EXTRA_MGMT_IDS.includes(id))) return true;
+  return roleNames.some((n) => /management\s*team/i.test(n || ""));
+}
+
+export function mentionedProAi(content: string, mentionUserIds: string[] = [], botUserId = "") {
+  const text = content || "";
+  if (botUserId && mentionUserIds.includes(botUserId)) return true;
+  if (/<@!?&?\d+>/.test(text) && /pro\s*ai|proai/i.test(text)) return true;
+  return /(?:^|\s)@?(?:pro\s*ai|proai)\b/i.test(text);
+}
+
+/** Management Team: stay silent unless they ping PRO AI. Everyone else: normal replies. */
+export function shouldTicketAiReply(input: {
+  authorRoleIds?: string[];
+  authorRoleNames?: string[];
+  content?: string;
+  mentionUserIds?: string[];
+  botUserId?: string;
+}) {
+  if (!isManagementTeam(input.authorRoleIds, input.authorRoleNames)) return true;
+  return mentionedProAi(input.content || "", input.mentionUserIds, input.botUserId);
+}
+
 export function shouldSkipRepeat(previousBotTexts: string[], next: string) {
   const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").slice(0, 160);
   const n = norm(next);
