@@ -13,6 +13,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { SmoothScroll } from "@/components/ui-custom/SmoothScroll";
 import { EmberField } from "@/components/ui-custom/EmberField";
 import { BRAND } from "@/lib/brand";
+import { SKULL } from "@/lib/skull";
 import { AuthProvider } from "@/contexts/AuthContext";
 
 import appCss from "../styles.css?url";
@@ -27,12 +28,7 @@ function NotFoundComponent() {
           That page isn't part of {BRAND.name}.
         </p>
         <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-          >
-            Back to base
-          </Link>
+          <Link to="/" className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90">Back to base</Link>
         </div>
       </div>
     </div>
@@ -48,21 +44,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <h1 className="font-display text-3xl text-foreground">Something snapped</h1>
         <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="rounded-full border border-glass-border bg-glass px-5 py-2.5 text-sm font-medium text-foreground hover:bg-glass-strong"
-          >
-            Home
-          </a>
+          <button onClick={() => { router.invalidate(); reset(); }} className="rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">Try again</button>
+          <a href="/" className="rounded-full border border-glass-border bg-glass px-5 py-2.5 text-sm font-medium text-foreground hover:bg-glass-strong">Home</a>
         </div>
       </div>
     </div>
@@ -86,14 +69,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/png", href: "/server-logo.png" },
-      { rel: "apple-touch-icon", href: "/server-logo.png" },
+      { rel: "icon", type: "image/png", href: SKULL },
+      { rel: "apple-touch-icon", href: SKULL },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Acme&family=Sora:wght@300;400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&family=Urbanist:wght@300;400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Geist+Mono:wght@400;500&display=swap",
-      },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Acme&family=Sora:wght@300;400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&family=Urbanist:wght@300;400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Geist+Mono:wght@400;500&display=swap" },
     ],
   }),
   shellComponent: RootShell,
@@ -130,22 +110,11 @@ function RootComponent() {
         <SmoothScroll />
         <EmberField />
         <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={shellKey(location.pathname)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
-          >
+          <motion.div key={shellKey(location.pathname)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
             <Outlet />
           </motion.div>
         </AnimatePresence>
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            className: "glass-strong text-foreground border-glass-border",
-          }}
-        />
+        <Toaster position="bottom-right" toastOptions={{ className: "glass-strong text-foreground border-glass-border" }} />
       </AuthProvider>
     </QueryClientProvider>
   );

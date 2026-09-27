@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { SKULL } from "@/lib/skull";
 
 export const Route = createFileRoute("/season")({
   component: SeasonPage,
@@ -141,9 +142,10 @@ function SeasonPage() {
       <style>{CSS}</style>
       {note && <p className="season-note" role="status">{note}</p>}
       <header className="season-hero">
-        <img src="/battlepass/banner.jpg" alt="" />
+        <img className="banner" src="/battlepass/banner.jpg" alt="" />
         <div className="season-shade" />
         <div className="season-copy">
+          <img className="season-logo" src={SKULL} alt="Asylum emblem" />
           <p className="kicker">Season 1</p>
           <h1>Dunes of Reckoning</h1>
         </div>
@@ -188,7 +190,7 @@ function SeasonPage() {
           </div>
         </article>
         <article className="season-hero short">
-          <img src="/battlepass/climb.jpg" alt="Survivor climbing the season path" />
+          <img className="banner" src="/battlepass/climb.jpg" alt="Survivor climbing the season path" />
           <div className="season-shade" />
           <div className="season-copy"><p className="kicker">Climb</p><h2>{xp.toLocaleString("en-US")} XP on the file</h2></div>
         </article>
@@ -244,8 +246,9 @@ const CSS = `
 .season-root h2{font-size:1.8rem;margin:.2rem 0}
 .kicker{letter-spacing:.18em;text-transform:uppercase;font-size:.72rem;color:#e0b15a;margin:0}
 .season-hero{position:relative;overflow:hidden;border-radius:16px;border:1px solid #3d3128;min-height:230px}
-.season-hero img{width:100%;height:250px;object-fit:cover;object-position:center 18%;animation:drift 22s ease-in-out infinite alternate}
-.season-hero.short img{height:100%;min-height:220px;object-position:center 30%}
+.season-hero img.banner{width:100%;height:250px;object-fit:cover;object-position:center 18%;animation:drift 22s ease-in-out infinite alternate}
+.season-logo{width:72px;height:72px;object-fit:contain;display:block;margin:0 0 8px;filter:drop-shadow(0 10px 18px rgba(0,0,0,.7))}
+.season-hero.short img.banner{height:100%;min-height:220px;object-position:center 30%}
 .season-shade{position:absolute;inset:0;background:linear-gradient(to top,#100c09 0%,#100c09 34%,rgba(16,12,9,.96) 46%,rgba(16,12,9,.4) 62%,transparent 80%)}
 .season-copy{position:absolute;left:16px;bottom:14px;right:16px}
 .clock{position:absolute;right:12px;top:12px;border:1px solid #3d3128;background:rgba(16,12,9,.8);border-radius:999px;padding:7px 10px;font-size:.8rem}
@@ -284,7 +287,7 @@ const CSS = `
 @keyframes drift{to{transform:scale(1.06)}}
 @keyframes shine{from{transform:translateX(-120%)}to{transform:translateX(220%)}}
 @keyframes sheet{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-@media(max-width:420px){.season-root{padding:12px 12px 48px}.meter .row{font-size:.78rem}.clock{font-size:.72rem;padding:6px 8px}}
-@media(min-width:800px){.meter{grid-template-columns:180px 1fr auto}.split{grid-template-columns:1.1fr .9fr}.cards{grid-template-columns:repeat(3,1fr)}.season-hero img{height:340px}.season-copy{left:24px;bottom:22px;right:24px}.clock{right:16px;top:16px;font-size:.95rem;padding:8px 12px}}
+@media(max-width:420px){.season-root{padding:12px 12px 48px}.season-logo{width:56px;height:56px}.meter .row{font-size:.78rem}.clock{font-size:.72rem;padding:6px 8px}}
+@media(min-width:800px){.meter{grid-template-columns:180px 1fr auto}.split{grid-template-columns:1.1fr .9fr}.cards{grid-template-columns:repeat(3,1fr)}.season-hero img.banner{height:340px}.season-copy{left:24px;bottom:22px;right:24px}.clock{right:16px;top:16px;font-size:.95rem;padding:8px 12px}}
 @media(prefers-reduced-motion:reduce){.season-hero img,.track>div:after,.sheet{animation:none}}
 `;
