@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 
 export const Route = createFileRoute("/season")({
   component: SeasonPage,
-  head: () => ({ meta: [{ title: "Dunes of Reckoning \u2014 Season 1" }] }),
+  head: () => ({ meta: [{ title: "Dunes of Reckoning - Season 1" }] }),
 });
 
 const XP = 1000;
@@ -132,7 +132,7 @@ function SeasonPage() {
     write({
       premium: id === "skip" ? save.premium : true,
       xp: Math.min(COUNT * XP, save.xp + item.skip * n * XP),
-    }, `Paid ${paid} \u00b7 ${item.name}`);
+    }, `Paid ${paid} - ${item.name}`);
     setPay(null);
   };
 
@@ -141,7 +141,7 @@ function SeasonPage() {
       <style>{CSS}</style>
       {note && <p className="season-note" role="status">{note}</p>}
       <header className="season-hero">
-        <img src="/battlepass/banner.jpg" alt="Dunes of Reckoning season banner" />
+        <img src="/battlepass/banner.jpg" alt="" />
         <div className="season-shade" />
         <div className="season-copy">
           <p className="kicker">Season 1</p>
@@ -184,7 +184,7 @@ function SeasonPage() {
           <p>{reward ? reward.blurb : "Free pass pays every fifth tier. Premium pays every tier."}</p>
           <div className="row">
             {reward && <button type="button" className="gold" disabled={!ready || save.claimed.includes(reward.id) || tier < selected.n || (reward.track === "premium" && !save.premium)} onClick={() => write({ claimed: [...save.claimed, reward.id], wallet: save.wallet + reward.credits }, reward.credits ? `Claimed +${reward.credits.toLocaleString("en-US")} cr` : "Reward claimed")}>{save.claimed.includes(reward.id) ? "Claimed" : "Claim tier"}</button>}
-            <button type="button" disabled={!ready || gap === 0} onClick={() => setPay({ id: "skip", times: gap })}>Skip to here \u00b7 {money(gap * 150)}</button>
+            <button type="button" disabled={!ready || gap === 0} onClick={() => setPay({ id: "skip", times: gap })}>Skip to here - {money(gap * 150)}</button>
           </div>
         </article>
         <article className="season-hero short">
@@ -215,7 +215,7 @@ function SeasonPage() {
       <section className="season-panel">
         <h2>Season board</h2>
         <ol>
-          {board.map((row, i) => <li key={row.name}><span>{i + 1}. {row.name}{row.you ? " \u00b7 you" : ""}</span><span>Tier {tierOf(row.xp)}</span></li>)}
+          {board.map((row, i) => <li key={row.name}><span>{i + 1}. {row.name}{row.you ? " - you" : ""}</span><span>Tier {tierOf(row.xp)}</span></li>)}
         </ol>
       </section>
 
@@ -240,15 +240,15 @@ function SeasonPage() {
 const CSS = `
 .season-root{min-height:100vh;background:#100c09;color:#f4ead8;padding:16px 16px 64px;font-family:Manrope,Sora,sans-serif}
 .season-root h1,.season-root h2,.big{font-family:"Instrument Serif",Georgia,serif;font-weight:400}
-.season-root h1{font-size:clamp(2.4rem,6vw,4.6rem);line-height:.95;margin:0}
+.season-root h1{font-size:clamp(1.85rem,7.4vw,4.6rem);line-height:.95;margin:0;text-shadow:0 10px 28px rgba(0,0,0,.55)}
 .season-root h2{font-size:1.8rem;margin:.2rem 0}
 .kicker{letter-spacing:.18em;text-transform:uppercase;font-size:.72rem;color:#e0b15a;margin:0}
-.season-hero{position:relative;overflow:hidden;border-radius:16px;border:1px solid #3d3128;min-height:280px}
-.season-hero img{width:100%;height:320px;object-fit:cover;animation:drift 22s ease-in-out infinite alternate}
-.season-hero.short img{height:100%;min-height:220px}
-.season-shade{position:absolute;inset:0;background:linear-gradient(to top,#100c09,transparent 55%)}
-.season-copy{position:absolute;left:20px;bottom:20px;right:20px}
-.clock{position:absolute;right:16px;top:16px;border:1px solid #3d3128;background:rgba(16,12,9,.8);border-radius:999px;padding:8px 12px}
+.season-hero{position:relative;overflow:hidden;border-radius:16px;border:1px solid #3d3128;min-height:230px}
+.season-hero img{width:100%;height:250px;object-fit:cover;object-position:center 18%;animation:drift 22s ease-in-out infinite alternate}
+.season-hero.short img{height:100%;min-height:220px;object-position:center 30%}
+.season-shade{position:absolute;inset:0;background:linear-gradient(to top,#100c09 0%,#100c09 34%,rgba(16,12,9,.96) 46%,rgba(16,12,9,.4) 62%,transparent 80%)}
+.season-copy{position:absolute;left:16px;bottom:14px;right:16px}
+.clock{position:absolute;right:12px;top:12px;border:1px solid #3d3128;background:rgba(16,12,9,.8);border-radius:999px;padding:7px 10px;font-size:.8rem}
 .season-panel{margin-top:14px;border:1px solid #3d3128;background:#241c16;border-radius:16px;padding:16px}
 .meter{display:grid;gap:12px}
 .big{font-size:2.4rem;color:#e0b15a;margin:0}
@@ -269,7 +269,7 @@ const CSS = `
 .rail em,.rail small{font-style:normal;color:#e0b15a;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase}
 .rail small{color:#b7a792}
 .split{display:grid;gap:14px}
-.showcase{display:block;width:100%;height:220px;object-fit:cover;border-radius:16px;border:1px solid #3d3128;margin-top:16px}
+.showcase{display:block;width:100%;height:220px;object-fit:cover;object-position:center;border-radius:16px;border:1px solid #3d3128;margin-top:16px}
 .offers{margin-top:18px}
 .cards{display:grid;gap:12px;margin-top:12px}
 .cards article{border:1px solid #3d3128;background:#1c1612;border-radius:16px;padding:16px}
@@ -284,6 +284,7 @@ const CSS = `
 @keyframes drift{to{transform:scale(1.06)}}
 @keyframes shine{from{transform:translateX(-120%)}to{transform:translateX(220%)}}
 @keyframes sheet{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-@media(min-width:800px){.meter{grid-template-columns:180px 1fr auto}.split{grid-template-columns:1.1fr .9fr}.cards{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:420px){.season-root{padding:12px 12px 48px}.meter .row{font-size:.78rem}.clock{font-size:.72rem;padding:6px 8px}}
+@media(min-width:800px){.meter{grid-template-columns:180px 1fr auto}.split{grid-template-columns:1.1fr .9fr}.cards{grid-template-columns:repeat(3,1fr)}.season-hero img{height:340px}.season-copy{left:24px;bottom:22px;right:24px}.clock{right:16px;top:16px;font-size:.95rem;padding:8px 12px}}
 @media(prefers-reduced-motion:reduce){.season-hero img,.track>div:after,.sheet{animation:none}}
 `;
