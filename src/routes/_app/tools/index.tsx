@@ -11,6 +11,7 @@ import { FadeInUp } from "@/components/motion/WordStagger";
 import { BRAND } from "@/lib/brand";
 import { ADDON_GROUPS, SERVICE_GROUPS, type ShopGroup } from "@/lib/shop-service-groups";
 import { ItemShop } from "@/routes/_app/tools/ItemShop";
+import { VehicleShopContent } from "@/routes/_app/tools/vehicle-shop-content";
 import { DonatorShop } from "@/routes/_app/tools/DonatorShop";
 import { getFocusedTool } from "@/components/tools/focused-tools";
 
@@ -25,11 +26,12 @@ export const Route = createFileRoute("/_app/tools/")({
   head: () => ({ meta: [{ title: `Shop — ${BRAND.name}` }] }),
 });
 
-type ShopTab = "server" | "items" | "donator" | "addons";
+type ShopTab = "server" | "items" | "vehicles" | "donator" | "addons";
 
 const TABS: Array<[ShopTab, string]> = [
   ["server", "Services"],
   ["items", "Item Shop"],
+  ["vehicles", "Vehicles"],
   ["donator", "Donator Shop"],
   ["addons", "Addons"],
 ];
@@ -91,6 +93,8 @@ function ToolsHub() {
           />
         ) : shopTab === "items" ? (
           <ItemShop />
+        ) : shopTab === "vehicles" ? (
+          <VehicleShopContent />
         ) : shopTab === "addons" ? (
           <ServiceDirectory
             groups={ADDON_GROUPS}

@@ -12,6 +12,7 @@ import { DAYZ_SERVERS } from "@/lib/dayz/servers";
 import { listAsylumServiceIds } from "@/lib/dayz/server-status.functions";
 import { getOnlinePlayers } from "@/lib/online-players.functions";
 import { accountLinksComplete, readAccountLinks } from "@/lib/account-links";
+import { formatRestartLeft, nextRestartAt } from "@/lib/next-restart";
 import { ItemImage } from "./item-shop-ui";
 
 const SID = "101x";
@@ -36,6 +37,12 @@ export function ItemShopContent() {
   const [gamertag, setGamertag] = useState("");
   const [busy, setBusy] = useState(false);
   const [linkedDone, setLinkedDone] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     if (!gamertag && displayName && displayName !== "demo-user") setGamertag(displayName);
@@ -54,6 +61,7 @@ export function ItemShopContent() {
   });
 
   const credits = balanceQ.data?.balance ?? 0;
+  const restartLeft = formatRestartLeft(nextRestartAt(now) - now);
   const server = DAYZ_SERVERS.find((s) => s.id === SID) ?? DAYZ_SERVERS[0];
   const serviceId = servicesQ.data?.find((s) => s.id === SID)?.serviceId ?? server.fallbackServiceId;
   const categories = useMemo(() => ["All", ...ITEM_CATEGORIES], []);
@@ -141,8 +149,6 @@ export function ItemShopContent() {
       });
       charged = true;
       qc.invalidateQueries({ queryKey: ["economy-balance", playerId] });
-      qc.invalidateQueries({ queryKey: ["economy-board"] });
-      qc.invalidateQueries({ queryKey: ["economy-tx"] });
       const result = await spawnShopItem({
         data: {
           serviceId,
@@ -156,17 +162,11 @@ export function ItemShopContent() {
           itemId: selected.id,
         },
       });
-      if (result.mode === "live") {
-        toast.success(`${selected.name} spawned live`, {
-          description: `${result.adapter} · Y ${Math.round(pos.x)} / Z ${Math.round(pos.z)}`,
-        });
-      } else {
-        toast.success(`${selected.name} queued`, {
-          description: result.restarted
-            ? `${result.eventName} — restarting`
-            : `${result.eventName} already loaded`,
-        });
-      }
+      toast.success(
+        result.mode === "live"
+          ? `${selected.name} spawned live`
+          : `${selected.name} queued for next restart (${restartLeft})`,
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Buy & spawn failed";
       if (charged) {
@@ -200,14 +200,20 @@ export function ItemShopContent() {
             <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Server shop</div>
             <h1 className="mt-1 font-display text-3xl md:text-4xl">Item Shop</h1>
             <p className="mt-2 max-w-2xl text-muted-foreground">
-              Full CE catalog ({ITEM_CATALOG.length.toLocaleString()} items). Buy & spawn on 101x.
+              Full CE catalog ({ITEM_CATALOG.length.toLocaleString()} items). Images via DayZ wiki. Queued drops land after restart.
             </p>
           </div>
         </div>
-        <div className="rounded-lg border border-glass-border bg-black/30 px-3 py-2 text-right">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Credits</div>
-          <div className="font-mono text-sm text-primary">
-            {balanceQ.isLoading ? "…" : credits.toLocaleString()}
+        <div className="flex gap-2">
+          <div className="rounded-lg border border-[#d4a84b]/40 bg-[#d4a84b]/10 px-3 py-2 text-right">
+            <div className="text-[10px] uppercase tracking-wider text-[#d4a84b]">Next restart</div>
+            <div className="font-mono text-sm text-[#f5e6c0]">{restartLeft}</div>
+          </div>
+          <div className="rounded-lg border border-glass-border bg-black/30 px-3 py-2 text-right">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Credits</div>
+            <div className="font-mono text-sm text-primary">
+              {balanceQ.isLoading ? "…" : credits.toLocaleString()}
+            </div>
           </div>
         </div>
       </header>
@@ -267,7 +273,7 @@ export function ItemShopContent() {
               }`}
             >
               <div className="mb-2 flex h-16 items-center justify-center rounded-md border border-glass-border bg-black/40">
-                <ItemImage src={item.image} alt={item.name} category={item.category} className="h-14 w-14" />
+                <ItemImage src={item.image} srcs={item.images} alt={item.name} category={item.category} className="h-14 w-14" />
               </div>
               <div className="flex justify-between gap-2">
                 <span className="line-clamp-2 text-sm font-medium">{item.name}</span>
@@ -282,12 +288,13 @@ export function ItemShopContent() {
           {selected ? (
             <GlassPanel className="space-y-4 border-primary/40 bg-black/95 p-5">
               <div className="flex h-28 items-center justify-center rounded-lg border border-glass-border bg-black/50">
-                <ItemImage src={selected.image} alt={selected.name} category={selected.category} className="h-24 w-24" />
+                <ItemImage src={selected.image} srcs={selected.images} alt={selected.name} category={selected.category} className="h-24 w-24" />
               </div>
               <div>
                 <h2 className="font-display text-2xl">{selected.name}</h2>
                 <p className="font-mono text-[11px] text-muted-foreground">{selected.classname}</p>
                 <div className="mt-2 font-mono text-sm text-primary">{selected.price.toLocaleString()} credits</div>
+                <div className="mt-1 text-[11px] text-[#d4a84b]">Lands after restart · {restartLeft}</div>
               </div>
               <div className="space-y-2 border-t border-glass-border pt-4">
                 {modes.map((m) => (
@@ -334,7 +341,7 @@ export function ItemShopContent() {
                 disabled={busy || credits < selected.price}
                 className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
-                {busy ? "…" : credits < selected.price ? "Need credits" : `Buy & spawn · ${selected.price.toLocaleString()}`}
+                {busy ? "…" : credits < selected.price ? "Need credits" : `Buy & queue · ${selected.price.toLocaleString()}`}
               </button>
             </GlassPanel>
           ) : (
