@@ -49,7 +49,7 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
     setLocalPsn(window.localStorage.getItem("asylumhub:psn-name") || "");
   }, [activePanel]);
   const zoneQ = useQuery({
-    queryKey: ["detect-zone-v5", playerId, localPsn],
+    queryKey: ["detect-zone-v6", playerId, localPsn],
     queryFn: () => detectPlayerZone({ data: { playerId, psnName: localPsn || undefined } }),
     enabled: activePanel === "radar" && Boolean(playerId),
   });
@@ -114,10 +114,10 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
             </>
           ) : !zoneQ.isLoading ? (
             <div className="rounded-xl border border-dashed border-glass-border p-5 text-sm text-muted-foreground">
-              No DayZ++ place line matched this PSN yet. Hard refresh, then open Track your zone again.
+              No ADM build pin for this PSN yet. The note under the counters says which logs were read.
             </div>
           ) : (
-            <div className="text-sm text-zinc-500">Reading DayZ++ place logs…</div>
+            <div className="text-sm text-zinc-500">Reading server ADM/RPT…</div>
           )}
           <select value={radarRange} onChange={(e) => setRadarRange(e.target.value)} className="h-11 w-full rounded-lg border border-glass-border bg-black/40 px-3 text-sm">
             <option>250m</option><option>500m</option><option>750m</option><option>1000m</option>

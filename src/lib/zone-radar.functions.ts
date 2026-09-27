@@ -101,21 +101,18 @@ async function downloadFile(serviceId: string, file: string) {
 }
 
 function pullPos(line: string): { x: number; z: number } | null {
-  const dayzpp = line.match(/Player Location\s+([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
-  if (dayzpp) {
-    const x = Number(dayzpp[1]);
-    const z = Number(dayzpp[2]);
-    if (x > 20 && z > 20 && x < 16000 && z < 16000) return { x, z };
-  }
-  const patterns = [
-    /pos\s*=\s*<\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*>/i,
-    /pos\s*=\s*\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/i,
+  const triples = [
+    ...line.matchAll(/pos\s*=\s*<\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*>/gi),
+    ...line.matchAll(/Player Location\s+([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/gi),
+    ...line.matchAll(/(?:at|position)\s*[<(]\s*(-?[\d.]+)\s*[, ]\s*(-?[\d.]+)\s*[, ]\s*(-?[\d.]+)\s*[>)]/gi),
   ];
-  for (const re of patterns) {
-    const m = line.match(re);
-    if (!m) continue;
-    const x = Number(m[1]);
-    const z = Number(m[3]);
+  for (const m of triples) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    const c = Number(m[3]);
+    if (![a, b, c].every(Number.isFinite)) continue;
+    const z = b > 400 && c < 800 ? b : c;
+    const x = a;
     if (x > 20 && z > 20 && x < 16000 && z < 16000) return { x, z };
   }
   return null;
@@ -125,60 +122,57 @@ function parseHits(text: string, names: string[], map: "livonia" | "chernarus"):
   const wants = [...new Set(names.map(fold).filter((n) => n.length >= 3))];
   if (!wants.length) return [];
   const hits: Hit[] = [];
+  const last = new Map<string, { x: number; z: number }>();
   for (const line of text.split(/\r?\n/)) {
-    if (!wants.some((w) => fold(line).includes(w))) continue;
-    const placed = line.match(/([A-Za-z0-9_.-]{2,32})\s+placed\s+(.+?)(?:\.|$)/i);
+    const folded = fold(line);
+    const who = wants.find((w) => folded.includes(w));
+    if (!who) continue;
     const pos = pullPos(line);
-    if (!pos) continue;
-    const item = placed?.[2]?.trim();
-    const flag = /flag/i.test(item || line);
-    const serverMap = /102x|chernarus/i.test(line) ? "chernarus" : /101x|livonia|asylum/i.test(line) ? "livonia" : map;
-    hits.push({ ...pos, kind: flag ? "flag" : "build", map: serverMap, item });
+    if (pos) last.set(who, pos);
+    const build = /placed|built|construct|flag|fence|watchtower|gate|plotpole|kit|tent|barrel/i.test(line);
+    const used = pos ?? (build ? last.get(who) ?? null : null);
+    if (!used) continue;
+    if (!build && !pos) continue;
+    const item = line.match(/\b(?:placed|built|constructed)\s+([A-Za-z0-9_ ]{2,40})/i)?.[1]?.trim();
+    const flag = /flag|plotpole|territory/i.test(`${item || ""} ${line}`);
+    hits.push({ ...used, kind: flag ? "flag" : build ? "build" : "pos", map, item });
   }
   return hits;
 }
 
-async function discordMemberNames(playerId: string) {
-  const headers = botHeaders();
-  const guildId = process.env.DISCORD_GUILD_ID;
-  if (!headers || !guildId || !playerId) return [] as string[];
-  const member = (await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${playerId}`, { headers }).then((r) => r.json()).catch(() => null)) as { nick?: string; user?: { username?: string; global_name?: string } } | null;
-  return [member?.nick, member?.user?.global_name, member?.user?.username].filter((n): n is string => Boolean(n?.trim()));
-}
+type ScanNote = { hits: Hit[]; files: number; note: string };
 
-async function discordPlaceHits(names: string[]) {
-  const headers = botHeaders();
-  if (!headers) return { hits: [] as Hit[], channels: 0, note: "Discord bot token missing" };
-  const guildId = process.env.DISCORD_GUILD_ID;
-  if (!guildId) return { hits: [] as Hit[], channels: 0, note: "Discord guild missing" };
-  const channels = (await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, { headers }).then((r) => r.json()).catch(() => [])) as Array<{ id: string; name?: string; type?: number }>;
-  if (!Array.isArray(channels)) return { hits: [] as Hit[], channels: 0, note: "Could not list Discord channels" };
-  const pinned = [process.env.DAYZPP_LOG_CHANNEL_ID, process.env.DISCORD_ONLINE_CHANNEL_ID, process.env.DISCORD_KILLFEED_CHANNEL_ID].filter(Boolean) as string[];
-  const text = channels.filter((c) => c.type === 0);
-  const ranked = [...text].sort((a, b) => {
-    const score = (c: { id: string; name?: string }) => (pinned.includes(c.id) ? 0 : /place|build|log|admin|event|feed/i.test(c.name || "") ? 1 : 2);
-    return score(a) - score(b);
-  });
-  const hits: Hit[] = [];
-  let scanned = 0;
-  for (const channel of ranked.slice(0, 12)) {
-    let before: string | undefined;
-    for (let page = 0; page < 2; page++) {
-      const qs = new URLSearchParams({ limit: "100" });
-      if (before) qs.set("before", before);
-      const messages = (await fetch(`https://discord.com/api/v10/channels/${channel.id}/messages?${qs}`, { headers }).then((r) => r.json()).catch(() => [])) as Array<{ id?: string; content?: string; embeds?: Array<{ description?: string; title?: string; fields?: Array<{ name?: string; value?: string }> }> }>;
-      if (!Array.isArray(messages) || !messages.length) break;
-      scanned += 1;
-      before = messages[messages.length - 1]?.id;
-      for (const msg of messages) {
-        const blob = [msg.content || "", ...(msg.embeds || []).flatMap((e) => [e.title || "", e.description || "", ...(e.fields || []).map((f) => `${f.name || ""} ${f.value || ""}`)])].join(" ");
-        if (!/placed|Player Location/i.test(blob)) continue;
-        hits.push(...parseHits(blob, names, /102x/i.test(blob) ? "chernarus" : "livonia"));
-      }
-      if (hits.length >= 8) return { hits, channels: scanned, note: `DayZ++ place lines in ${scanned} channel pages` };
+async function ftpHits(serverId: "101x" | "102x", names: string[]): Promise<ScanNote> {
+  const prefix = serverId === "101x" ? "FTP_101X" : "FTP_102X";
+  const host = process.env[`${prefix}_HOST`] ?? process.env.FTP_HOST;
+  const user = process.env[`${prefix}_USER`] ?? process.env.FTP_USER;
+  const password = process.env[`${prefix}_PASS`] ?? process.env.FTP_PASS;
+  const directory = process.env[`${prefix}_LOGS_PATH`] ?? process.env.FTP_LOGS_PATH ?? "/dayzps/config";
+  if (!host || !user || !password) return { hits: [], files: 0, note: `${serverId} FTP credentials missing` };
+  const client = new Client();
+  client.ftp.timeout = 25_000;
+  try {
+    await client.access({ host, user, password, port: Number(process.env[`${prefix}_PORT`] ?? process.env.FTP_PORT ?? 21) });
+    const files = (await client.list(directory))
+      .filter((file) => /\.(adm|rpt)$/i.test(file.name))
+      .sort((a, b) => (b.modifiedAt || 0) - (a.modifiedAt || 0))
+      .slice(0, 4);
+    const hits: Hit[] = [];
+    const map = serverId === "102x" ? "chernarus" : "livonia";
+    for (const file of files) {
+      const chunks: Buffer[] = [];
+      await client.downloadTo(
+        { write(chunk: Buffer, _e: string, cb: () => void) { chunks.push(Buffer.from(chunk)); cb(); } } as never,
+        `${directory.replace(/\/$/, "")}/${file.name}`,
+      );
+      hits.push(...parseHits(Buffer.concat(chunks).toString("utf8"), names, map));
     }
+    return { hits, files: files.length, note: `${serverId} read ${files.length} ADM/RPT from ${directory}` };
+  } catch (error) {
+    return { hits: [], files: 0, note: `${serverId} FTP failed: ${error instanceof Error ? error.message : "unavailable"}` };
+  } finally {
+    client.close();
   }
-  return { hits, channels: scanned, note: scanned ? `Scanned ${scanned} Discord pages, no place line for this tag` : "No Discord channel pages read" };
 }
 
 async function configHits(serverId: "101x" | "102x", names: string[]) {
@@ -193,43 +187,6 @@ async function configHits(serverId: "101x" | "102x", names: string[]) {
     if (text) hits.push(...parseHits(text, names, map));
   }
   return { hits, files: files.length };
-}
-
-async function ftpHits(serverId: "101x" | "102x", names: string[]) {
-  const prefix = serverId === "101x" ? "FTP_101X" : "FTP_102X";
-  const host = process.env[`${prefix}_HOST`] ?? process.env.FTP_HOST;
-  const user = process.env[`${prefix}_USER`] ?? process.env.FTP_USER;
-  const password = process.env[`${prefix}_PASS`] ?? process.env.FTP_PASS;
-  const directory = process.env[`${prefix}_LOGS_PATH`] ?? process.env.FTP_LOGS_PATH ?? "/dayzps/config";
-  if (!host || !user || !password) return [] as Hit[];
-  const client = new Client();
-  client.ftp.timeout = 25_000;
-  try {
-    await client.access({ host, user, password, port: Number(process.env[`${prefix}_PORT`] ?? process.env.FTP_PORT ?? 21) });
-    const files = (await client.list(directory))
-      .filter((file) => /\.(adm|rpt|log|txt)$/i.test(file.name))
-      .sort((a, b) => (b.modifiedAt || 0) - (a.modifiedAt || 0))
-      .slice(0, 12);
-    const hits: Hit[] = [];
-    const map = serverId === "102x" ? "chernarus" : "livonia";
-    for (const file of files) {
-      const chunks: Buffer[] = [];
-      try {
-        await client.downloadTo(
-          { write(chunk: Buffer, _e: string, cb: () => void) { chunks.push(Buffer.from(chunk)); cb(); } } as never,
-          `${directory.replace(/\/$/, "")}/${file.name}`,
-        );
-      } catch {
-        continue;
-      }
-      hits.push(...parseHits(Buffer.concat(chunks).toString("utf8"), names, map));
-    }
-    return hits;
-  } catch {
-    return [];
-  } finally {
-    client.close();
-  }
 }
 
 function densest(hits: Hit[]) {
@@ -272,23 +229,22 @@ export const detectPlayerZone = createServerFn({ method: "GET" })
     const playerId = data.playerId || context.userId || "";
     const names = [...new Set([data.psnName, ...(await linkedNames(playerId)), ...(await discordMemberNames(playerId))].filter((n): n is string => Boolean(n?.trim())))];
     const psn = names[0] || "";
-    const [c101, c102, f101, f102, discord] = await Promise.all([
+    const [c101, c102, f101, f102] = await Promise.all([
       configHits("101x", names),
       configHits("102x", names),
       ftpHits("101x", names),
       ftpHits("102x", names),
-      discordPlaceHits(names),
     ]);
-    const logHits = [...discord.hits, ...c101.hits, ...c102.hits, ...f101, ...f102];
+    const logHits = [...f101.hits, ...f102.hits, ...c101.hits, ...c102.hits];
     const flags = logHits.filter((h) => h.kind === "flag");
     const builds = logHits.filter((h) => h.kind === "build");
     const lastFlag = flags.at(-1) ?? null;
     const aroundFlag = lastFlag ? logHits.filter((h) => Math.hypot(h.x - lastFlag.x, h.z - lastFlag.z) <= 120).length : 0;
     const cluster = densest(builds.length ? builds : logHits);
     const pick = lastFlag
-      ? { x: lastFlag.x, z: lastFlag.z, map: lastFlag.map, count: Math.max(aroundFlag, 1), why: `Last flag from DayZ++ place log for ${psn}` }
+      ? { x: lastFlag.x, z: lastFlag.z, map: lastFlag.map, count: Math.max(aroundFlag, 1), why: `Last flag pole in server ADM for ${psn}` }
       : cluster
-        ? { x: cluster.x, z: cluster.z, map: cluster.map, count: cluster.count, why: `${cluster.count} DayZ++ place line${cluster.count === 1 ? "" : "s"} for ${psn}` }
+        ? { x: cluster.x, z: cluster.z, map: cluster.map, count: cluster.count, why: `${cluster.count} ADM build line${cluster.count === 1 ? "" : "s"} for ${psn}` }
         : null;
     const logPrompt = pick
       ? ({
@@ -313,8 +269,8 @@ export const detectPlayerZone = createServerFn({ method: "GET" })
       playerId,
       psnName: psn || null,
       linkedNames: names,
-      filesScanned: c101.files + c102.files + discord.channels,
-      note: discord.note,
+      filesScanned: c101.files + c102.files + f101.files + f102.files,
+      note: [f101.note, f102.note].filter(Boolean).join(" · "),
       flagsFound: flags.length,
       buildsFound: builds.length,
       positionsFound: logHits.length,
