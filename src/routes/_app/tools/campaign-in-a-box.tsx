@@ -27,7 +27,7 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
         <button type="button" onClick={() => navigate({ to: "/tools", search: { focus: "pro-build" } })} className="rounded-2xl border border-primary/40 bg-primary/10 p-6 text-left"><h2 className="font-display text-2xl">Pro Build</h2></button>
         <button type="button" onClick={() => navigate({ to: "/tools", search: { focus: "sleeping-bags" } })} className="rounded-2xl border border-glass-border bg-glass/25 p-6 text-left"><h2 className="font-display text-2xl">Sleeping Bags</h2></button>
         <button type="button" onClick={() => navigate({ to: "/tools", search: { focus: "custom-base" } })} className="rounded-2xl border border-glass-border bg-glass/25 p-6 text-left"><h2 className="font-display text-2xl">Request custom base</h2></button>
-        <button type="button" onClick={() => navigate({ to: "/tools/base-map-clicker" })} className="rounded-2xl border border-cyan-400/30 bg-cyan-400/5 p-6 text-left">
+        <button type="button" onClick={() => { window.location.href = "/tools/base-map-clicker?zone=1"; }} className="rounded-2xl border border-cyan-400/30 bg-cyan-400/5 p-6 text-left">
           <div className="text-xs uppercase tracking-[0.18em] text-cyan-200/70">Base Radar</div>
           <h2 className="mt-2 font-display text-2xl">Track your zone</h2>
         </button>
