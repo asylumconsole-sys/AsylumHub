@@ -21,6 +21,12 @@ export function BrandHexLogo({ size = 42, className }: BrandHexLogoProps) {
         alt={`${BRAND.name} emblem`}
         className="relative h-full w-full object-contain drop-shadow-[0_0_12px_rgba(212,168,75,0.35)]"
         draggable={false}
+        onError={(e) => {
+          const el = e.currentTarget;
+          if (el.dataset.fallback === "1") return;
+          el.dataset.fallback = "1";
+          el.src = "/favicon.png";
+        }}
       />
     </span>
   );
