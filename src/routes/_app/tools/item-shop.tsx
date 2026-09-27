@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ItemShopContent } from "./item-shop-content";
+import { ItemShop } from "./ItemShop";
 
 export const Route = createFileRoute("/_app/tools/item-shop")({
-  component: ItemShopContent,
+  component: ItemShop,
 });
 
-export { ItemShopContent };
+export { ItemShop as ItemShopContent };
