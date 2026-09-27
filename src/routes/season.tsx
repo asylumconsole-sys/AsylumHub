@@ -141,7 +141,7 @@ function SeasonPage() {
       <style>{CSS}</style>
       {note && <p className="season-note" role="status">{note}</p>}
       <header className="season-hero">
-        <img src="/bp-template.jpg" alt="Dunes of Reckoning season banner" />
+        <img src="/battlepass/banner.jpg" alt="Dunes of Reckoning season banner" />
         <div className="season-shade" />
         <div className="season-copy">
           <p className="kicker">Season 1</p>
@@ -188,11 +188,13 @@ function SeasonPage() {
           </div>
         </article>
         <article className="season-hero short">
-          <img src="/drylands.png" alt="Drylands beyond the season path" />
+          <img src="/battlepass/climb.jpg" alt="Survivor climbing the season path" />
           <div className="season-shade" />
           <div className="season-copy"><p className="kicker">Climb</p><h2>{xp.toLocaleString("en-US")} XP on the file</h2></div>
         </article>
       </section>
+
+      <img src="/battlepass/showcase.jpg" alt="Season reward showcase" className="showcase" />
 
       <section className="offers">
         <h2>Pass options</h2>
@@ -267,6 +269,7 @@ const CSS = `
 .rail em,.rail small{font-style:normal;color:#e0b15a;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase}
 .rail small{color:#b7a792}
 .split{display:grid;gap:14px}
+.showcase{display:block;width:100%;height:220px;object-fit:cover;border-radius:16px;border:1px solid #3d3128;margin-top:16px}
 .offers{margin-top:18px}
 .cards{display:grid;gap:12px;margin-top:12px}
 .cards article{border:1px solid #3d3128;background:#1c1612;border-radius:16px;padding:16px}
