@@ -7,7 +7,6 @@ import { IconCampaign, IconChevronLeft } from "@/components/ui-custom/CustomIcon
 import { PageHexBadge } from "@/components/app/PageHexBadge";
 import { BRAND } from "@/lib/brand";
 import { useAuth } from "@/contexts/AuthContext";
-import { BaseMapClickerPage } from "@/routes/_app/tools/base-map-clicker";
 import { claimZoneRadar, detectPlayerZone } from "@/lib/zone-radar.functions";
 
 export const Route = createFileRoute("/_app/tools/campaign-in-a-box")({
@@ -47,10 +46,6 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
     onSuccess: (_res, coords) => toast.success(`Zone radar locked at ${coords.x}, ${coords.z}`),
     onError: (err) => toast.error(err instanceof Error ? err.message : "Claim failed"),
   });
-  const pick = (x: number, z: number) => {
-    setManualX(String(x));
-    setManualZ(String(z));
-  };
 
   return (
     <div className="space-y-8">
@@ -81,7 +76,7 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
           <button type="button" onClick={() => setActivePanel(null)} className="text-xs text-muted-foreground">← Back to Base Ops</button>
           <h2 className="font-display text-2xl">Track your zone</h2>
           <div className="text-xs uppercase tracking-[0.16em] text-[#d4a84b]">Linked PSN · {psn || (zoneQ.isLoading ? "loading…" : "none")}</div>
-          <BaseMapClickerPage embedded zoneMeters={Number(radarRange.replace(/\D/g, "")) || 500} onPick={(x, z, nextMap) => { setManualMap(nextMap); pick(x, z); }} />
+          <iframe title="Live DayZ map" src="/tools/base-map-clicker" className="h-[78vh] w-full rounded-2xl border border-white/10 bg-black" />
           <div className="grid grid-cols-2 gap-2">
             <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">X
               <input value={manualX} onChange={(e) => setManualX(e.target.value)} inputMode="numeric" placeholder="6920" className="mt-1 h-11 w-full rounded-lg border border-glass-border bg-black/40 px-3 font-mono text-sm" />
@@ -90,16 +85,13 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
               <input value={manualZ} onChange={(e) => setManualZ(e.target.value)} inputMode="numeric" placeholder="11467" className="mt-1 h-11 w-full rounded-lg border border-glass-border bg-black/40 px-3 font-mono text-sm" />
             </label>
           </div>
-          <p className="text-xs text-zinc-500">Same live map as the map page. Click it and the blue square is your zone.</p>
+          <p className="text-xs text-zinc-500">This is the live map page. Click it, then type the X/Z from the marker to lock the zone.</p>
           {chosen ? (
             <div className="rounded-xl border border-[#d4a84b]/40 bg-[#d4a84b]/10 p-4">
-              <div className="font-display text-2xl text-[#e8c56a]">{chosen.name}</div>
               <div className="font-mono text-sm text-[#f5e6c0]">X {chosen.x} · Z {chosen.z} · {chosen.map}</div>
-              <button type="button" onClick={() => chosen && claimMut.mutate({ x: chosen.x, z: chosen.z, map: chosen.map, code: (chosen as { code?: string }).code })} className="mt-4 rounded-full bg-[#d4a84b] px-5 py-2 text-sm font-semibold text-black">Lock this pin · {radarRange}</button>
+              <button type="button" onClick={() => claimMut.mutate({ x: chosen.x, z: chosen.z, map: chosen.map, code: (chosen as { code?: string }).code })} className="mt-4 rounded-full bg-[#d4a84b] px-5 py-2 text-sm font-semibold text-black">Lock this pin · {radarRange}</button>
             </div>
-          ) : (
-            <div className="text-sm text-zinc-500">Click the map to drop the zone center.</div>
-          )}
+          ) : null}
           <select value={radarRange} onChange={(e) => setRadarRange(e.target.value)} className="h-11 w-full rounded-lg border border-glass-border bg-black/40 px-3 text-sm">
             <option>250m</option><option>500m</option><option>750m</option><option>1000m</option>
           </select>
