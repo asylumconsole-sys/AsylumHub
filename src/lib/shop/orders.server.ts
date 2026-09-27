@@ -3,6 +3,7 @@ import { db, ShopError } from "./mongo.server";
 import { catalog, findItem } from "./catalog.server";
 import { myLastPosition, safeSpots } from "./delivery.server";
 import { restartSchedule } from "./status.server";
+import { VEHICLE_LIMITS, VEHICLE_SPOTS, releaseVehicle, reserveVehicle } from "./vehicles.server";
 import type { ShopUser } from "./auth.server";
 
 export const LIMITS = {
@@ -13,6 +14,7 @@ export const LIMITS = {
   maxPositionAgeMin: 360,
 };
 export const DELIVERY_LABEL = "Arrives at next server restart (every 2h)";
+export const VEHICLE_NOTE = "Your car spawns with all parts at the chosen vehicle spot when the server restarts (every 2h).";
 const OPEN = ["pending_payment", "paid", "queued", "uploaded"];
 type Line = { id: string; qty: number };
 type Cart = { discordId: string; lines: Line[]; updatedAt: Date; source?: string };
@@ -29,7 +31,9 @@ async function priced(lines: Line[]) {
   for (const l of lines) {
     const it = await findItem(l.id);
     if (!it) continue;
-    out.push({ id: it.id, classname: it.classname, name: it.name, category: it.category, image: it.image, unitPrice: it.price, qty: l.qty, lineTotal: it.price * l.qty });
+    const kind = it.kind === "vehicle" ? "vehicle" : "item";
+    const qty = kind === "vehicle" ? 1 : l.qty;
+    out.push({ id: it.id, classname: it.classname, name: it.name, category: it.category, image: it.image, unitPrice: it.price, qty, lineTotal: it.price * qty, kind });
   }
   return out;
 }
@@ -40,7 +44,19 @@ export async function cartView(user: ShopUser) {
   const total = lines.reduce((s, l) => s + l.lineTotal, 0);
   const itemCount = lines.reduce((s, l) => s + l.qty, 0);
   const w = await wallet(user.id);
-  return { ok: true, lines, total, itemCount, currency: "CR", wallet: w, canAfford: w.credits >= total, limits: LIMITS, deliveryLabel: DELIVERY_LABEL, updatedAt: c.updatedAt, source: c.source ?? null };
+  const veh = lines.filter((l) => l.kind === "vehicle");
+  const items = lines.filter((l) => l.kind !== "vehicle");
+  const vehicleTotal = veh.reduce((s, l) => s + l.lineTotal, 0);
+  const itemsTotal = total - vehicleTotal;
+  return {
+    ok: true, lines, total, itemCount, currency: "CR", wallet: w, canAfford: w.credits >= total, limits: { ...LIMITS, vehiclesPerOrder: VEHICLE_LIMITS.perOrder, vehiclesPerRestart: VEHICLE_LIMITS.perRestart },
+    deliveryLabel: DELIVERY_LABEL, updatedAt: c.updatedAt, source: c.source ?? null,
+    // vehicles check out on their own (1 per order, vehicle spots only); items check out separately
+    groups: {
+      vehicle: veh.length ? { total: vehicleTotal, count: veh.length, canAfford: w.credits >= vehicleTotal } : null,
+      items: items.length ? { total: itemsTotal, count: items.reduce((s, l) => s + l.qty, 0), canAfford: w.credits >= itemsTotal } : null,
+    },
+  };
 }
 
 function clampQty(q: unknown) {
@@ -53,9 +69,11 @@ export async function cartMutate(user: ShopUser, op: "add" | "set" | "remove" | 
   const col = (await db()).collection<Cart>("shop_carts");
   const cur = (await col.findOne({ discordId: user.id }))?.lines ?? [];
   let lines = [...cur];
+  const kinds = new Map<string, string>();
   const key = async (id?: string) => {
     const it = id ? await findItem(id) : null;
     if (!it) throw new ShopError(404, "unknown_item", `Unknown item: ${id}`);
+    kinds.set(it.id, it.kind === "vehicle" ? "vehicle" : "item");
     return it.id;
   };
   if (op === "clear") lines = [];
@@ -64,6 +82,7 @@ export async function cartMutate(user: ShopUser, op: "add" | "set" | "remove" | 
     for (const l of body.lines || []) {
       const it = await findItem(l.id);
       if (!it) continue;
+      kinds.set(it.id, it.kind === "vehicle" ? "vehicle" : "item");
       const q = clampQty(l.qty ?? 1);
       const i = next.findIndex((x) => x.id === it.id);
       if (i >= 0) next[i] = { id: it.id, qty: Math.min(LIMITS.maxQtyPerLine, next[i].qty + q) };
@@ -86,6 +105,14 @@ export async function cartMutate(user: ShopUser, op: "add" | "set" | "remove" | 
     }
   }
   if (lines.length > 30) throw new ShopError(400, "cart_full", "Cart is full (30 different items max)");
+  // vehicles: qty is always 1 and only one vehicle can sit in the cart (1 vehicle per order)
+  for (const l of lines) if (!kinds.has(l.id)) { const it = await findItem(l.id); kinds.set(l.id, it?.kind === "vehicle" ? "vehicle" : "item"); }
+  lines = lines.map((l) => (kinds.get(l.id) === "vehicle" ? { ...l, qty: 1 } : l));
+  const vehs = lines.filter((l) => kinds.get(l.id) === "vehicle");
+  if (vehs.length > VEHICLE_LIMITS.perOrder) {
+    const keep = vehs[vehs.length - 1].id;
+    lines = lines.filter((l) => kinds.get(l.id) !== "vehicle" || l.id === keep);
+  }
   await col.updateOne({ discordId: user.id }, { $set: { lines, updatedAt: new Date(), ...(body.source ? { source: String(body.source).slice(0, 40) } : {}) } }, { upsert: true });
   return cartView(user);
 }
@@ -117,7 +144,35 @@ export async function getOrder(user: ShopUser, orderId: string) {
   return { ok: true, order: publicOrder(await reconcile(o)), restart: await restartSchedule() };
 }
 
-export async function checkout(user: ShopUser, body: { delivery?: { mode?: string; spotId?: string }; idempotencyKey?: string; lines?: unknown }, idemHeader?: string | null) {
+type CheckoutBody = { delivery?: { mode?: string; spotId?: string }; idempotencyKey?: string; lines?: unknown; scope?: string };
+/**
+ * One checkout at a time per account (unique _id lock), so parallel requests with different idempotency keys can never
+ * charge the same cart twice. A replay with the same key returns the original order.
+ */
+export async function checkout(user: ShopUser, body: CheckoutBody, idemHeader?: string | null) {
+  const d = await db();
+  const idemKey = String(idemHeader || body.idempotencyKey || "").slice(0, 80) || null;
+  if (idemKey) {
+    const prev = await d.collection("shop_orders").findOne({ idemKey: `${user.id}:${idemKey}` });
+    if (prev) return { ok: true, duplicate: true, order: publicOrder(await reconcile(prev)), wallet: await wallet(user.id) };
+  }
+  const locks = d.collection("shop_checkout_locks");
+  const at = new Date();
+  try {
+    await locks.insertOne({ _id: user.id as never, at });
+  } catch (e: any) {
+    if (e?.code !== 11000) throw e;
+    const stale = await locks.findOneAndUpdate({ _id: user.id as never, at: { $lt: new Date(Date.now() - 60_000) } }, { $set: { at } });
+    if (!stale) throw new ShopError(409, "checkout_in_progress", "A checkout is already running for your account. Check My orders in a moment.");
+  }
+  try {
+    return await checkoutLocked(user, body, idemHeader);
+  } finally {
+    await locks.deleteOne({ _id: user.id as never, at }).catch(() => null);
+  }
+}
+
+async function checkoutLocked(user: ShopUser, body: CheckoutBody, idemHeader?: string | null) {
   const d = await db();
   const orders = d.collection("shop_orders");
   const idemKey = String(idemHeader || body.idempotencyKey || "").slice(0, 80) || null;
@@ -127,17 +182,28 @@ export async function checkout(user: ShopUser, body: { delivery?: { mode?: strin
   }
   // Prices always come from the server catalog; any client-sent prices/lines are ignored.
   const cart = await d.collection<Cart>("shop_carts").findOne({ discordId: user.id });
-  const lines = await priced(cart?.lines ?? []);
-  if (!lines.length) throw new ShopError(400, "cart_empty", "Your cart is empty");
+  const all = await priced(cart?.lines ?? []);
+  if (!all.length) throw new ShopError(400, "cart_empty", "Your cart is empty");
+  const hasVeh = all.some((l) => l.kind === "vehicle"), hasItems = all.some((l) => l.kind !== "vehicle");
+  const scope = body.scope === "vehicle" || body.scope === "items" ? body.scope : hasVeh && !hasItems ? "vehicle" : !hasVeh ? "items" : null;
+  if (!scope) throw new ShopError(400, "choose_scope", "Your cart has a vehicle and items. Vehicles check out on their own: pick which to pay for first.");
+  const isVehicle = scope === "vehicle";
+  const lines = all.filter((l) => (l.kind === "vehicle") === isVehicle);
+  if (!lines.length) throw new ShopError(400, "cart_empty", isVehicle ? "No vehicle in your cart" : "No items in your cart");
+  if (isVehicle && (lines.length !== 1 || lines[0].qty !== 1)) throw new ShopError(400, "one_vehicle", "One vehicle per order");
   const itemCount = lines.reduce((s, l) => s + l.qty, 0);
   if (itemCount > LIMITS.maxItemsPerOrder) throw new ShopError(400, "too_many_items", `Max ${LIMITS.maxItemsPerOrder} items per order`);
   if (lines.length > LIMITS.maxLinesPerOrder) throw new ShopError(400, "too_many_lines", `Max ${LIMITS.maxLinesPerOrder} different items per order`);
   const total = lines.reduce((s, l) => s + l.lineTotal, 0);
 
-  // Delivery spot
-  const mode = body.delivery?.mode === "last_position" ? "last_position" : "safe_spot";
-  let spot: { mode: string; label: string; x: number; y: number; z: number; spotId?: string; psn?: string; seenAt?: string | null };
-  if (mode === "last_position") {
+  // Delivery spot. Vehicles: preset vehicle spots only (never a player's position).
+  const mode = isVehicle ? "vehicle_spot" : body.delivery?.mode === "last_position" ? "last_position" : "safe_spot";
+  let spot: { mode: string; label: string; x: number; y: number; z: number; a?: number; spotId?: string; psn?: string; seenAt?: string | null };
+  if (isVehicle) {
+    const s = VEHICLE_SPOTS.find((x) => x.id === body.delivery?.spotId) ?? null;
+    if (!s) throw new ShopError(400, "bad_spot", "Pick a vehicle spot");
+    spot = { mode, label: s.label, x: s.x, y: 0, z: s.z, a: s.a, spotId: s.id };
+  } else if (mode === "last_position") {
     const me = await myLastPosition(user.id);
     if (!me.position) throw new ShopError(409, "no_position", me.reason || "No recent position");
     if (me.position.ageMinutes != null && me.position.ageMinutes > LIMITS.maxPositionAgeMin) throw new ShopError(409, "position_stale", "Your last known position is too old; pick a safe spot");
@@ -151,16 +217,16 @@ export async function checkout(user: ShopUser, body: { delivery?: { mode?: strin
   // Per-restart capacity
   const sched = await restartSchedule();
   const target = sched.nextDeliveryRestartAt;
-  const agg = await orders.aggregate([{ $match: { state: { $in: ["paid", "queued"] }, targetRestartAt: target } }, { $group: { _id: null, n: { $sum: "$itemCount" } } }]).toArray();
+  const agg = isVehicle ? [] : await orders.aggregate([{ $match: { state: { $in: ["paid", "queued"] }, targetRestartAt: target, kind: { $ne: "vehicle" } } }, { $group: { _id: null, n: { $sum: "$itemCount" } } }]).toArray();
   const used = Number(agg[0]?.n ?? 0);
-  if (used + itemCount > LIMITS.maxItemsPerRestart) {
+  if (!isVehicle && used + itemCount > LIMITS.maxItemsPerRestart) {
     throw new ShopError(409, "restart_full", `The next restart is full (${used}/${LIMITS.maxItemsPerRestart} items). Try again after it.`, { restart: sched });
   }
 
   const orderId = `ord_${Date.now().toString(36)}_${randomUUID().slice(0, 8)}`;
   const now = new Date();
   const order = {
-    orderId, discordId: user.id, username: user.name, source: cart?.source ?? "website",
+    orderId, discordId: user.id, username: user.name, source: cart?.source ?? "website", kind: isVehicle ? "vehicle" : "items",
     lines: lines.map(({ image, ...l }) => l), itemCount, total, currency: "CR",
     delivery: spot, server: "101x", targetRestartAt: target,
     state: "pending_payment", history: [{ at: now, state: "pending_payment" }],
@@ -176,6 +242,14 @@ export async function checkout(user: ShopUser, body: { delivery?: { mode?: strin
     }
     throw e;
   }
+  if (isVehicle) {
+    try {
+      await reserveVehicle(orderId, target, spot.spotId!, sched.cadenceHours, !!(user.test && !user.live));
+    } catch (e) {
+      await orders.updateOne({ orderId }, { $set: { state: "rejected", updatedAt: new Date() }, $unset: { idemKey: "" }, $push: { history: { at: new Date(), state: "rejected", note: e instanceof ShopError ? e.code : "reserve failed" } } as never });
+      throw e;
+    }
+  }
 
   // Atomic conditional debit: only succeeds if balance >= total and this order was never charged (no double spend).
   const players = d.collection("players");
@@ -185,6 +259,7 @@ export async function checkout(user: ShopUser, body: { delivery?: { mode?: strin
     { returnDocument: "after" },
   );
   if (!after) {
+    if (isVehicle) await releaseVehicle(orderId).catch(() => null);
     await orders.updateOne({ orderId }, { $set: { state: "rejected", updatedAt: new Date() }, $unset: { idemKey: "" }, $push: { history: { at: new Date(), state: "rejected", note: "insufficient credits" } } as never });
     const w = await wallet(user.id);
     throw new ShopError(402, "insufficient_credits", `Not enough credits: need ${total.toLocaleString()} CR, you have ${w.credits.toLocaleString()} CR`, { wallet: w, total });
@@ -198,10 +273,13 @@ export async function checkout(user: ShopUser, body: { delivery?: { mode?: strin
   const receipt = {
     receiptNo: orderId.toUpperCase(), paidAt: new Date(), total, currency: "CR", balanceBefore: balanceAfter + total, balanceAfter,
     lines: order.lines.map((l) => ({ name: l.name, classname: l.classname, qty: l.qty, unitPrice: l.unitPrice, lineTotal: l.lineTotal })),
-    delivery: `${spot.label} — ${DELIVERY_LABEL}`,
+    delivery: isVehicle ? `Vehicle spot: ${spot.label} (x ${spot.x.toFixed(0)}, z ${spot.z.toFixed(0)}) — ${DELIVERY_LABEL}` : `${spot.label} — ${DELIVERY_LABEL}`,
+    ...(isVehicle ? { note: VEHICLE_NOTE } : {}),
   };
   await orders.updateOne({ orderId }, { $set: { state: "paid", paidAt: new Date(), receipt, updatedAt: new Date() }, $push: { history: { at: new Date(), state: "paid", note: `charged ${total} CR` } } as never });
-  await d.collection<Cart>("shop_carts").updateOne({ discordId: user.id }, { $set: { lines: [], updatedAt: new Date() } });
+  // remove only what was paid for (a vehicle checkout leaves the items in the cart and vice versa)
+  const paidIds = new Set(lines.map((l) => l.id));
+  await d.collection<Cart>("shop_carts").updateOne({ discordId: user.id }, { $set: { lines: (cart?.lines ?? []).filter((l) => !paidIds.has(l.id)), updatedAt: new Date() } });
   const saved = await orders.findOne({ orderId });
   return { ok: true, order: publicOrder(saved!), receipt, wallet: { discordId: user.id, credits: balanceAfter, exists: true, currency: "CR" }, restart: sched };
 }
@@ -221,6 +299,7 @@ export async function refundOrder(orderId: string, reason: string) {
   if (after) {
     await d.collection("transactions").insertOne({ playerId: after._id, discordId: o.discordId, kind: "credit", amount: o.total, creditsBefore: Number(after.credits) - o.total, creditsAfter: Number(after.credits), reference: `refund:${orderId}`, details: { reason }, createdAt: new Date(), updatedAt: new Date() }).catch(() => null);
   }
+  if (o.kind === "vehicle") await releaseVehicle(orderId).catch(() => null);
   await d.collection("shop_orders").updateOne({ orderId, "refund.at": { $exists: false } }, { $set: { refund, state: "failed", failReason: reason, updatedAt: new Date() }, $push: { history: { at: new Date(), state: "failed", note: `refunded ${o.total} CR: ${reason}` } } as never });
   return d.collection("shop_orders").findOne({ orderId });
 }
@@ -233,7 +312,8 @@ export async function bridgePending(limit = 20) {
     ok: true,
     orders: rows.map((o) => ({
       orderId: o.orderId, state: o.state, createdAt: o.createdAt, targetRestartAt: o.targetRestartAt, server: o.server,
-      delivery: { x: o.delivery.x, y: o.delivery.y, z: o.delivery.z }, lines: o.lines.map((l: any) => ({ classname: l.classname, qty: l.qty })),
+      kind: o.kind === "vehicle" ? "vehicle" : "items",
+      delivery: { x: o.delivery.x, y: o.delivery.y, z: o.delivery.z, a: o.delivery.a ?? 0 }, lines: o.lines.map((l: any) => ({ classname: l.classname, qty: l.qty })),
       itemCount: o.itemCount, intents: o.bridge?.intents ?? [], dryRun: !!o.dryRun, test: !!o.test,
     })),
     limits: LIMITS,
