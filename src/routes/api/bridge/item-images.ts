@@ -5,7 +5,7 @@ import { requireBridge } from "@/lib/shop/auth.server";
 import { IMAGE_DIR } from "@/lib/shop/catalog.server";
 import { handle, ShopError } from "@/lib/shop/mongo.server";
 
-// Box pushes item icons + shop-data.json (classname -> blob manifest) onto the /data volume. GET lists what is stored.
+// Box pushes item icons (PNG only) + shop-data.json (classname -> blob manifest) onto the /data volume. GET lists what is stored.
 export const Route = createFileRoute("/api/bridge/item-images")({
   server: {
     handlers: {
@@ -19,10 +19,11 @@ export const Route = createFileRoute("/api/bridge/item-images")({
         handle(async () => {
           requireBridge(request);
           const name = new URL(request.url).searchParams.get("name") || "";
-          if (!/^([a-f0-9]{8,40}\.webp|shop-data\.json)$/.test(name)) throw new ShopError(400, "bad_name", "bad file name");
+          if (!/^([a-f0-9]{8,40}\.png|shop-data\.json)$/.test(name)) throw new ShopError(400, "bad_name", "bad file name");
           const buf = Buffer.from(await request.arrayBuffer());
           if (!buf.length || buf.length > 2_000_000) throw new ShopError(400, "bad_size", "bad size");
           if (name.endsWith(".json")) JSON.parse(buf.toString("utf8"));
+          else if (buf.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") throw new ShopError(400, "not_png", "PNG only");
           await mkdir(IMAGE_DIR, { recursive: true });
           await writeFile(path.join(IMAGE_DIR, name), buf);
           return { ok: true, name, bytes: buf.length };

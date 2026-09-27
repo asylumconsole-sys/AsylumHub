@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { IMAGE_DIR, catalog, findItem, shopData } from "./catalog.server";
 
-const LETTER: Record<string, string> = { Weapons: "W", Medical: "+", Tools: "T", Building: "B", "Food & Drink": "F", "Ammo & Mags": "A", Clothing: "C", Containers: "K", Explosives: "E" };
+const LETTER: Record<string, string> = { Vehicles: "V", Weapons: "W", Medical: "+", Tools: "T", Building: "B", "Food & Drink": "F", "Ammo & Mags": "A", Clothing: "C", Containers: "K", Explosives: "E" };
 
 function placeholder(label: string, category: string) {
   const l = (LETTER[category] || label.charAt(0) || "?").toUpperCase().replace(/[<&>"]/g, "");
@@ -15,9 +15,10 @@ export async function itemImageResponse(classname: string) {
   if (!/^[A-Za-z0-9_\-]{1,80}$/.test(cls)) return new Response("bad classname", { status: 400 });
   const d = await shopData();
   const blob = d.images[cls] || Object.entries(d.images).find(([k]) => k.toLowerCase() === cls.toLowerCase())?.[1];
-  if (blob && /^[a-f0-9]{8,40}\.webp$/.test(blob)) {
+  // PNG only (transparent icons, stored on the site volume; never hotlinked).
+  if (blob && /^[a-f0-9]{8,40}\.png$/.test(blob)) {
     const buf = await readFile(path.join(IMAGE_DIR, blob)).catch(() => null);
-    if (buf) return new Response(new Uint8Array(buf), { headers: { "content-type": "image/webp", "cache-control": "public, max-age=604800, immutable" } });
+    if (buf) return new Response(new Uint8Array(buf), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
   }
   const it = await findItem(cls);
   return new Response(placeholder(it?.name || cls, it?.category || ""), {
