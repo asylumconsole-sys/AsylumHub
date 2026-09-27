@@ -7,7 +7,7 @@ import { IconCampaign, IconChevronLeft } from "@/components/ui-custom/CustomIcon
 import { PageHexBadge } from "@/components/app/PageHexBadge";
 import { BRAND } from "@/lib/brand";
 import { useAuth } from "@/contexts/AuthContext";
-import { ZoneSquareMap } from "@/components/dayz/ZoneSquareMap";
+import { BaseMapClickerPage } from "@/routes/_app/tools/base-map-clicker";
 import { claimZoneRadar, detectPlayerZone } from "@/lib/zone-radar.functions";
 
 export const Route = createFileRoute("/_app/tools/campaign-in-a-box")({
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_app/tools/campaign-in-a-box")({
 
 export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const navigate = useNavigate();
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const playerId = user?.id || "";
   const [activePanel, setActivePanel] = useState<"base" | "radar" | null>(null);
   const [radarRange, setRadarRange] = useState("500m");
@@ -25,15 +25,8 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
   const [manualMap, setManualMap] = useState<"livonia" | "chernarus">("livonia");
   const [manualX, setManualX] = useState("");
   const [manualZ, setManualZ] = useState("");
-  const [factionMembers, setFactionMembers] = useState<string[]>([]);
   useEffect(() => {
     setLocalPsn(window.localStorage.getItem("asylumhub:psn-name") || "");
-    try {
-      const profile = JSON.parse(window.localStorage.getItem("asylumhub:faction-profile") || "null") as { members?: string[] } | null;
-      setFactionMembers(profile?.members ?? []);
-    } catch {
-      setFactionMembers([]);
-    }
   }, [activePanel]);
   const zoneQ = useQuery({
     queryKey: ["detect-zone-v6", playerId, localPsn],
@@ -88,20 +81,7 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
           <button type="button" onClick={() => setActivePanel(null)} className="text-xs text-muted-foreground">← Back to Base Ops</button>
           <h2 className="font-display text-2xl">Track your zone</h2>
           <div className="text-xs uppercase tracking-[0.16em] text-[#d4a84b]">Linked PSN · {psn || (zoneQ.isLoading ? "loading…" : "none")}</div>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setManualMap("livonia")} className={`rounded-full px-4 py-2 text-xs uppercase tracking-[0.16em] ${manualMap === "livonia" ? "bg-[#d4a84b] text-black" : "border border-white/15"}`}>Livonia</button>
-            <button type="button" onClick={() => setManualMap("chernarus")} className={`rounded-full px-4 py-2 text-xs uppercase tracking-[0.16em] ${manualMap === "chernarus" ? "bg-[#d4a84b] text-black" : "border border-white/15"}`}>Chernarus</button>
-          </div>
-          <ZoneSquareMap
-            mapId={manual?.map || pin?.map || manualMap}
-            x={chosen?.x}
-            z={chosen?.z}
-            range={radarRange}
-            onPick={pick}
-            accessToken={session?.access_token}
-            factionMembers={factionMembers}
-            selfNames={[psn, localPsn].filter(Boolean)}
-          />
+          <BaseMapClickerPage embedded zoneMeters={Number(radarRange.replace(/\D/g, "")) || 500} onPick={(x, z, nextMap) => { setManualMap(nextMap); pick(x, z); }} />
           <div className="grid grid-cols-2 gap-2">
             <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">X
               <input value={manualX} onChange={(e) => setManualX(e.target.value)} inputMode="numeric" placeholder="6920" className="mt-1 h-11 w-full rounded-lg border border-glass-border bg-black/40 px-3 font-mono text-sm" />
@@ -110,12 +90,11 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
               <input value={manualZ} onChange={(e) => setManualZ(e.target.value)} inputMode="numeric" placeholder="11467" className="mt-1 h-11 w-full rounded-lg border border-glass-border bg-black/40 px-3 font-mono text-sm" />
             </label>
           </div>
-          <p className="text-xs text-zinc-500">Click the live map to set the pin. The view then locks to the blue square. Click the blue center to copy coords.</p>
+          <p className="text-xs text-zinc-500">Same live map as the map page. Click it and the blue square is your zone.</p>
           {chosen ? (
             <div className="rounded-xl border border-[#d4a84b]/40 bg-[#d4a84b]/10 p-4">
               <div className="font-display text-2xl text-[#e8c56a]">{chosen.name}</div>
               <div className="font-mono text-sm text-[#f5e6c0]">X {chosen.x} · Z {chosen.z} · {chosen.map}</div>
-              <div className="mt-2 text-sm text-zinc-400">{chosen.reason}</div>
               <button type="button" onClick={() => chosen && claimMut.mutate({ x: chosen.x, z: chosen.z, map: chosen.map, code: (chosen as { code?: string }).code })} className="mt-4 rounded-full bg-[#d4a84b] px-5 py-2 text-sm font-semibold text-black">Lock this pin · {radarRange}</button>
             </div>
           ) : (
