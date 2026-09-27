@@ -105,7 +105,7 @@ async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
       .filter((file) => /\.(RPT|ADM)$/i.test(file.name))
       .sort((left, right) => right.modifiedAt - left.modifiedAt)
       .slice(0, 2);
-    const state = new Map<string, { name: string; lastSeen: string }>();
+    const state = new Map<string, { name: string; lastSeen: string; x?: number; z?: number }>();
     for (const file of files) {
       const chunks: Buffer[] = [];
       await client.downloadTo(
@@ -124,13 +124,26 @@ async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
         const timestamp =
           line.match(/(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})/)?.[1] ??
           new Date(file.modifiedAt || Date.now()).toISOString();
+        const pos = line.match(/pos\s*=\s*<\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*>/i);
         for (const name of names) {
           const key = name.toLocaleLowerCase();
           if (isDisconnect(line)) {
             state.delete(key);
             continue;
           }
-          if (isConnect(line)) state.set(key, { name, lastSeen: timestamp });
+          const prev = state.get(key);
+          const next = { name, lastSeen: timestamp, x: prev?.x, z: prev?.z };
+          if (pos) {
+            const a = Number(pos[1]);
+            const b = Number(pos[2]);
+            const c = Number(pos[3]);
+            const z = b > 400 && c < 800 ? b : c;
+            if (a > 20 && z > 20 && a < 16000 && z < 16000) {
+              next.x = Math.round(a);
+              next.z = Math.round(z);
+            }
+          }
+          if (isConnect(line) || pos || prev) state.set(key, next);
         }
       }
     }
@@ -139,6 +152,8 @@ async function readServerLogs(server: ServerId): Promise<OnlinePlayer[]> {
       name: player.name,
       server,
       lastSeen: player.lastSeen,
+      x: player.x,
+      z: player.z,
     }));
     const liveCount = await nitradoCurrent(server);
     if (liveCount != null && players.length > liveCount) {
