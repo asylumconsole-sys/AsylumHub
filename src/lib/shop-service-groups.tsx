@@ -10,6 +10,12 @@ import {
   IconSpark,
   IconUtm,
 } from "@/components/ui-custom/CustomIcon";
+import { AIR_SUPPORT } from "@/lib/shop-art/air.support";
+import { BASE_OPS } from "@/lib/shop-art/base.ops";
+import { COMBAT_INTEL } from "@/lib/shop-art/combat.intel";
+import { NPC_SHOP } from "@/lib/shop-art/npc.shop";
+import { VEHICLE_SHOP } from "@/lib/shop-art/vehicle.shop";
+import { ZOMBIE_HORDES } from "@/lib/shop-art/zombie.hordes";
 
 function tile(label: string, a: string, b: string) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 180"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="360" height="180" fill="url(#g)"/><rect x="150" y="0" width="210" height="36" fill="#e11d2e"/><text x="168" y="24" fill="#fff" font-size="16" font-family="Arial Black, sans-serif">${label}</text></svg>`;
@@ -52,7 +58,7 @@ export const SERVICE_GROUPS: ShopGroup[] = [
     name: "Combat & Intel",
     description: "Track movement, bounties, killfeed, and server intelligence.",
     hue: 205,
-    image: tile("INTEL", "#1b3a22", "#6b8f3a"),
+    image: COMBAT_INTEL,
     icon: <IconUtm size={20} />,
     items: [
       { label: "Intel & Defense", focus: "utm", icon: <IconUtm size={16} /> },
@@ -64,7 +70,7 @@ export const SERVICE_GROUPS: ShopGroup[] = [
     name: "Air Support",
     description: "Call in strikes and coordinate precision operations.",
     hue: 200,
-    image: tile("FIRE SUPPORT", "#c9b52a", "#7a3b12"),
+    image: AIR_SUPPORT,
     icon: <IconFunnel size={20} />,
     items: [
       { label: "Fire Support", focus: "funnel-targets", icon: <IconFunnel size={16} /> },
@@ -75,7 +81,7 @@ export const SERVICE_GROUPS: ShopGroup[] = [
     name: "Base Ops",
     description: "Protect bases, manage territory, and broadcast raid events.",
     hue: 35,
-    image: "/baseops.jpg",
+    image: BASE_OPS,
     icon: <IconCampaign size={20} />,
     items: [
       { label: "Custom Bases", focus: "campaign", icon: <IconCampaign size={16} /> },
@@ -86,7 +92,7 @@ export const SERVICE_GROUPS: ShopGroup[] = [
     name: "NPC Shop",
     description: "Buy spawn charges and deploy roster operators.",
     hue: 285,
-    image: tile("NPC SPAWNS", "#2a2a2a", "#6a6a6a"),
+    image: NPC_SHOP,
     icon: <IconImport size={20} />,
     items: [{ label: "NPC Spawns", focus: "campaign-import", icon: <IconImport size={16} /> }],
   },
@@ -102,7 +108,7 @@ export const SERVICE_GROUPS: ShopGroup[] = [
     name: "Vehicle Shop",
     description: "Deploy transport, utility rigs, and armored recon vehicles.",
     hue: 122,
-    image: tile("VEHICLES", "#c4a032", "#3d4a1a"),
+    image: VEHICLE_SHOP,
     icon: <IconCampaign size={20} />,
     items: [{ label: "Vehicles", focus: "vehicle-shop", icon: <IconCampaign size={16} /> }],
   },
@@ -110,7 +116,7 @@ export const SERVICE_GROUPS: ShopGroup[] = [
     name: "Zombie Hordes",
     description: "Survive outbreaks, claim horde rewards, and support the fight.",
     hue: 52,
-    image: "/zombie.jpg",
+    image: ZOMBIE_HORDES,
     icon: <IconChart size={20} />,
     items: [{ label: "Zombie Hordes", focus: "zombie-hordes", icon: <IconSpark size={16} /> }],
   },
