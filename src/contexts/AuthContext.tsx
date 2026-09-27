@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { prefetchOrgId } from "@/hooks/use-org";
+import { activityQuery, ensureActivitySession, isDiscordActivity } from "@/lib/discord-activity";
 
 export type AppUser = {
       id: string;
@@ -161,6 +162,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                                 lastUserIdRef.current = null;
                     }
           };
+
+                // Inside the Discord Activity iframe: land on the shop and sign in with the Embedded App SDK
+                // (Discord blocks top-level OAuth navigation inside the iframe).
+                if (isDiscordActivity()) {
+                          const p = window.location.pathname;
+                          if (p === "/" || p === "/login") {
+                                    const q = new URLSearchParams(window.location.search);
+                                    const extra = new URLSearchParams(activityQuery());
+                                    for (const [k, v] of extra) if (!q.get(k)) q.set(k, v);
+                                    window.location.replace(`/tools/item-shop?${q.toString()}`);
+                                    return;
+                          }
+                          ensureActivitySession()
+                                    .then((s) => apply((s as AppSession | null) ?? readStoredSession()))
+                                    .catch((e) => {
+                                              console.warn("[activity] sign-in failed", e);
+                                              apply(readStoredSession());
+                                    });
+                          return;
+                }
 
                 const isLoginRoute = typeof window !== "undefined" && window.location.pathname === "/login";
           const stored = readStoredSession();

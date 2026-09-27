@@ -7,7 +7,12 @@ export const Route = createFileRoute("/api/live")({
     handlers: {
       GET: async ({ request }) => {
         const say = new URL(request.url).searchParams.get("say");
-        if (say) return Response.json(await shoutServerChat(say));
+        if (say) {
+          // Posting into Discord needs the bot secret (was open to anyone via a plain GET link).
+          const secret = process.env.HUB_BOT_SECRET;
+          if (!secret || (request.headers.get("x-hub-secret") || "") !== secret) return Response.json({ ok: false, error: "auth" }, { status: 401 });
+          return Response.json(await shoutServerChat(say));
+        }
         return Response.json({ ok: true, ops: await getLiveOps() });
       },
       POST: async ({ request }) => {

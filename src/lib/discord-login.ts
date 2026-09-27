@@ -103,3 +103,15 @@ export function createDiscordSessionFromUser(user: DiscordSessionUser, accessTok
     },
   };
 }
+
+/** Start Discord sign-in: SDK flow inside the Discord Activity, normal OAuth redirect in a browser. */
+export async function startDiscordLogin(redirect = "/dashboard") {
+  const { isDiscordActivity, activitySignIn, activityQuery } = await import("@/lib/discord-activity");
+  if (isDiscordActivity()) {
+    await activitySignIn();
+    const q = activityQuery();
+    window.location.replace(`${redirect.startsWith("/") ? redirect : "/tools/item-shop"}${q ? `${redirect.includes("?") ? "&" : "?"}${q}` : ""}`);
+    return;
+  }
+  window.location.href = await buildDiscordAuthUrl(redirect);
+}

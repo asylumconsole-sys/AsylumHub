@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { buildDiscordAuthUrl } from "@/lib/discord-login";
+import { startDiscordLogin } from "@/lib/discord-login";
 import { AuthGate } from "@/components/app/AuthGate";
 import { toast } from "sonner";
 
@@ -42,7 +42,7 @@ function LoginPage() {
   const discord = async () => {
     setBusy(true);
     try {
-      window.location.href = await buildDiscordAuthUrl(safeRedirect);
+      await startDiscordLogin(safeRedirect);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
       setBusy(false);

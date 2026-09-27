@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { findAvailableLiveExecAdapter } from "@/lib/live-exec/registry";
 import { queueItemSpawn } from "@/lib/dayz-item-spawn.functions";
-import { restartNitradoServer } from "@/lib/nitrado-files.functions";
 import { emitHubEvent, type HubServerId } from "@/lib/hub-events";
 import { type DayZServerId } from "@/lib/dayz/servers";
 
@@ -33,7 +32,7 @@ function normalizeDayZServerId(serviceId: string): DayZServerId {
 
 /**
  * Deliver a shop item: try live exec first, else queue a CE ItemShop_* event
- * and restart the Nitrado service when CE config changed.
+ * that applies at the next scheduled restart (this code never restarts the server).
  */
 export const spawnShopItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -103,14 +102,12 @@ export const spawnShopItem = createServerFn({ method: "POST" })
         a: data.a,
       },
     });
-    if (queued.needsRestartToApply) {
-      await restartNitradoServer({ data: { serviceId: data.serviceId } });
-    }
+    // Never restart the game server from the shop: queued changes ride the next scheduled DayZ++ restart.
     const response: ItemSpawnResult = {
       mode: "restart_required",
       reason: LIVE_SPAWN_UNAVAILABLE_REASON,
       eventName: queued.eventName,
-      restarted: queued.needsRestartToApply,
+      restarted: false,
     };
     emitSpawnEvent({
       itemId: data.itemId,

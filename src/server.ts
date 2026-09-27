@@ -66,15 +66,35 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   return brandedErrorResponse();
 }
 
+// dayzpro.online is also the PRO AI Discord Activity: allow framing by Discord (and its discordsays.com proxy) only.
+const FRAME_ANCESTORS =
+  "frame-ancestors 'self' https://discord.com https://*.discord.com https://discordapp.com https://*.discordapp.com https://*.discordsays.com";
+
+function withFrameHeaders(response: Response): Response {
+  try {
+    response.headers.delete("x-frame-options");
+    const csp = response.headers.get("content-security-policy");
+    if (!csp) response.headers.set("content-security-policy", FRAME_ANCESTORS);
+    else if (!/frame-ancestors/i.test(csp)) response.headers.set("content-security-policy", `${csp}; ${FRAME_ANCESTORS}`);
+    return response;
+  } catch {
+    // immutable headers (e.g. a fetched Response): copy
+    const h = new Headers(response.headers);
+    h.delete("x-frame-options");
+    if (!h.get("content-security-policy")) h.set("content-security-policy", FRAME_ANCESTORS);
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withFrameHeaders(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
-      return brandedErrorResponse();
+      return withFrameHeaders(brandedErrorResponse());
     }
   },
 };

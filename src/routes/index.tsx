@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/lib/brand";
-import { buildDiscordAuthUrl } from "@/lib/discord-login";
+import { startDiscordLogin } from "@/lib/discord-login";
 import { AuthGate } from "@/components/app/AuthGate";
 import { toast } from "sonner";
 
@@ -28,7 +28,7 @@ function LandingPage() {
   const discord = async () => {
     setBusy(true);
     try {
-      window.location.href = await buildDiscordAuthUrl("/dashboard");
+      await startDiscordLogin("/dashboard");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
       setBusy(false);

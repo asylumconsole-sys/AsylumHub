@@ -41,13 +41,9 @@ export type ShopCatalogItem = {
 
 const SEP = "\u001f";
 
-function wiki(file: string) {
-  return `/api/wiki-image?file=${encodeURIComponent(file)}`;
-}
-
-function imageList(classname: string, name: string) {
-  const files = new Set<string>([`${name}.png`, `${classname}.png`, `${name.replace(/_/g, " ")}.png`]);
-  return [...files].map(wiki);
+function imageList(classname: string, _name: string) {
+  // Locally hosted icon (see /api/item-image); falls back to a clean placeholder.
+  return [`/api/item-image/${encodeURIComponent(classname)}`];
 }
 
 function parseCompact(block: string): ShopCatalogItem[] {
