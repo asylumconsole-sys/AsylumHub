@@ -16,18 +16,19 @@ export function ZonePaySheet() {
 
   useEffect(() => {
     const read = () => {
-      const match = document.body.textContent?.match(/X\s+(\d+)\s*·\s*Z\s+(\d+)/);
+      const text = document.body.textContent ?? "";
+      if (!text.includes("Placed")) return;
+      const match = text.match(/X\s+(\d+)\s*·\s*Z\s+(\d+)/);
       if (!match) return;
       const next = { x: Number(match[1]), z: Number(match[2]) };
       setSpot((current) => (current?.x === next.x && current?.z === next.z ? current : next));
     };
-    read();
     const timer = window.setInterval(read, 400);
     return () => window.clearInterval(timer);
   }, []);
 
   const pay = async (meters: number, price: number) => {
-    if (!spot) return toast.error("Click the map first");
+    if (!spot) return;
     setBusy(true);
     try {
       await payPlayer({ data: { toPlayerId: "zone-radar", amount: price, note: `Zone ${meters}m at ${spot.x},${spot.z}` } });
@@ -41,7 +42,7 @@ export function ZonePaySheet() {
   };
 
   const useVoucher = async () => {
-    if (!spot) return toast.error("Click the map first");
+    if (!spot) return;
     if (!voucher.trim()) return toast.error("Enter a voucher code");
     setBusy(true);
     try {
@@ -56,9 +57,11 @@ export function ZonePaySheet() {
     }
   };
 
+  if (!spot) return null;
+
   return (
     <div className="fixed bottom-4 left-1/2 z-[90] w-[min(440px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-[#d4a84b]/50 bg-black/92 p-4 text-white shadow-2xl">
-      <div className="font-mono text-sm text-[#e8c56a]">{spot ? `X ${spot.x} · Z ${spot.z}` : "Click the map"}</div>
+      <div className="font-mono text-sm text-[#e8c56a]">X {spot.x} · Z {spot.z}</div>
       <div className="mt-1 text-xs uppercase tracking-[0.16em] text-zinc-400">Choose the zone, then pay</div>
       <div className="mt-3 grid gap-2">
         <button type="button" disabled={busy} onClick={() => pay(150, 7000)} className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2 text-sm hover:border-[#d4a84b]/50"><span>150m</span><span className="font-mono text-[#e8c56a]">7,000 cr / month</span></button>
