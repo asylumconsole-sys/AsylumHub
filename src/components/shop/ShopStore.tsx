@@ -5,9 +5,15 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Item = { id: string; classname: string; name: string; price: number; category: string; image: string; hasImage: boolean; featured: boolean };
-type Line = { id: string; classname: string; name: string; image: string; unitPrice: number; qty: number; lineTotal: number };
-type Cart = { lines: Line[]; total: number; itemCount: number; wallet: { credits: number; exists: boolean }; canAfford: boolean; limits: { maxItemsPerOrder: number; maxItemsPerRestart: number }; deliveryLabel: string };
-type Order = { orderId: string; state: string; total: number; itemCount: number; createdAt: string; targetRestartAt: string; lines: Array<{ name: string; classname: string; qty: number; lineTotal: number }>; delivery: { label: string; x: number; z: number }; receipt?: { receiptNo: string; balanceAfter: number }; refund?: { amount: number; reason: string }; failReason?: string; history: Array<{ at: string; state: string; note?: string }> };
+type Line = { id: string; classname: string; name: string; image: string; unitPrice: number; qty: number; lineTotal: number; kind?: "item" | "vehicle" };
+type Group = { total: number; count: number; canAfford: boolean } | null;
+type Cart = { lines: Line[]; total: number; itemCount: number; wallet: { credits: number; exists: boolean }; canAfford: boolean; limits: { maxItemsPerOrder: number; maxItemsPerRestart: number }; deliveryLabel: string; groups?: { vehicle: Group; items: Group } };
+type Scope = "vehicle" | "items";
+type VVariant = { classname: string; color: string; hex: string; image: string };
+type VModel = { id: string; name: string; role: string; price: number; seats: number; parts: string[]; variants: VVariant[] };
+type VSpot = { id: string; label: string; x: number; z: number; a: number; available: boolean };
+type Vehicles = { models: VModel[]; spots: VSpot[]; note: string; limits: { perOrder: number; perRestart: number }; capacity: { used: number; max: number } | null; restart: { nextDeliveryRestartAt: string } };
+type Order = { orderId: string; kind?: "vehicle" | "items"; state: string; total: number; itemCount: number; createdAt: string; targetRestartAt: string; lines: Array<{ name: string; classname: string; qty: number; lineTotal: number }>; delivery: { label: string; x: number; z: number }; receipt?: { receiptNo: string; balanceAfter: number }; refund?: { amount: number; reason: string }; failReason?: string; history: Array<{ at: string; state: string; note?: string }> };
 type Spot = { id: string; label: string; x: number; z: number };
 type Delivery = { lastPosition: { psn: string | null; position: { x: number; z: number; ageMinutes: number | null } | null; reason: string | null }; safeSpots: Spot[] };
 type Status = { players: { online: number | null; max: number | null }; restart: { nextRestartAt: string; nextDeliveryRestartAt: string; bridgeOnline: boolean; label: string } };
@@ -39,7 +45,7 @@ function useCountdown(iso?: string) {
 }
 const hhmm = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
 
-export function ShopStore({ initialTab = "shop" }: { initialTab?: "shop" | "orders" }) {
+export function ShopStore({ initialTab = "shop", mode = "items" }: { initialTab?: "shop" | "orders"; mode?: "items" | "vehicles" }) {
   const { session } = useAuth();
   const token = session?.access_token && !/^(demo|discord)-access-token$/.test(session.access_token) ? session.access_token : null;
   const qc = useQueryClient();
@@ -57,9 +63,10 @@ export function ShopStore({ initialTab = "shop" }: { initialTab?: "shop" | "orde
   const [cat, setCat] = useState("Featured");
   const [page, setPage] = useState(0);
   const [cartOpen, setCartOpen] = useState(false);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState<Scope | null>(null);
 
-  const itemsQ = useQuery({ queryKey: ["shop-items"], queryFn: () => api<{ items: Item[]; categories: string[] }>("/api/shop/items"), staleTime: 300_000 });
+  const itemsQ = useQuery({ queryKey: ["shop-items"], queryFn: () => api<{ items: Item[]; categories: string[] }>("/api/shop/items"), staleTime: 300_000, enabled: mode === "items" });
+  const vehQ = useQuery({ queryKey: ["shop-vehicles", token], queryFn: () => api<Vehicles>("/api/shop/vehicles"), refetchInterval: 60_000 });
   const statusQ = useQuery({ queryKey: ["server-status"], queryFn: () => api<Status>("/api/server/status"), refetchInterval: 60_000 });
   const cartQ = useQuery({ queryKey: ["shop-cart", token], queryFn: () => api<Cart>("/api/cart"), enabled: !!token });
   const ordersQ = useQuery({ queryKey: ["shop-orders", token], queryFn: () => api<{ orders: Order[] }>("/api/orders"), enabled: !!token, refetchInterval: 30_000 });
@@ -118,7 +125,7 @@ export function ShopStore({ initialTab = "shop" }: { initialTab?: "shop" | "orde
   const countdown = useCountdown(statusQ.data?.restart.nextRestartAt);
 
   return (
-    <section className="shop-directory-wrap" aria-label="DAYZ PRO item shop">
+    <section className="shop-directory-wrap" aria-label={mode === "vehicles" ? "DAYZ PRO vehicle shop" : "DAYZ PRO item shop"}>
       <div className="shop-directory-shell space-y-4">
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-black/50 px-4 py-3 text-xs">
           <span className="font-semibold uppercase tracking-wider text-primary">101x Livonia</span>
@@ -128,7 +135,7 @@ export function ShopStore({ initialTab = "shop" }: { initialTab?: "shop" | "orde
           {token && <span className="rounded-full border border-primary/30 px-2 py-0.5">Wallet <span className="font-mono text-primary">{cart ? fmt(cart.wallet.credits) : "…"}</span></span>}
           <div className="ml-auto flex gap-2">
             {(["shop", "orders"] as const).map((t) => (
-              <button key={t} type="button" onClick={() => setTab(t)} className={`rounded-full px-3 py-1.5 uppercase tracking-wider ${tab === t ? "bg-primary text-primary-foreground" : "border border-primary/30"}`}>{t === "shop" ? "Shop" : "My orders"}</button>
+              <button key={t} type="button" onClick={() => setTab(t)} className={`rounded-full px-3 py-1.5 uppercase tracking-wider ${tab === t ? "bg-primary text-primary-foreground" : "border border-primary/30"}`}>{t === "shop" ? (mode === "vehicles" ? "Vehicles" : "Shop") : "My orders"}</button>
             ))}
             <button type="button" onClick={() => setCartOpen(true)} className="rounded-full border border-primary/40 px-3 py-1.5 uppercase tracking-wider" data-testid="open-cart">
               Cart {cart?.itemCount ? `(${cart.itemCount})` : ""}
@@ -137,7 +144,9 @@ export function ShopStore({ initialTab = "shop" }: { initialTab?: "shop" | "orde
         </div>
         {!token && <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">Sign in with Discord to add items to your cart and pay with your Discord wallet.</div>}
 
-        {tab === "shop" ? (
+        {tab === "shop" && mode === "vehicles" ? (
+          <VehicleGrid data={vehQ.data} loading={vehQ.isLoading} onAdd={(v, m) => mutate("POST", { id: v.classname, qty: 1 }).then(() => token && (toast.success(`${m.name} · ${v.color} added`), setCartOpen(true)))} />
+        ) : tab === "shop" ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
               <input value={q} onChange={(e) => (setQ(e.target.value), setPage(0))} placeholder="Search items or classnames" className="min-w-[220px] flex-1 rounded-full border border-primary/20 bg-black px-4 py-2 text-sm outline-none" />
@@ -195,20 +204,35 @@ export function ShopStore({ initialTab = "shop" }: { initialTab?: "shop" | "orde
                   <div className="truncate text-sm">{l.name}</div>
                   <div className="text-xs text-muted-foreground">{fmt(l.unitPrice)} each</div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={() => mutate("PATCH", { id: l.id, qty: l.qty - 1 })} className="h-7 w-7 rounded-full border">−</button>
-                  <span className="w-6 text-center text-sm">{l.qty}</span>
-                  <button type="button" onClick={() => mutate("PATCH", { id: l.id, qty: l.qty + 1 })} className="h-7 w-7 rounded-full border">+</button>
-                </div>
+                {l.kind === "vehicle" ? (
+                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary">Vehicle · 1</span>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => mutate("PATCH", { id: l.id, qty: l.qty - 1 })} className="h-7 w-7 rounded-full border">−</button>
+                    <span className="w-6 text-center text-sm">{l.qty}</span>
+                    <button type="button" onClick={() => mutate("PATCH", { id: l.id, qty: l.qty + 1 })} className="h-7 w-7 rounded-full border">+</button>
+                  </div>
+                )}
                 <button type="button" onClick={() => mutate("DELETE", { id: l.id })} className="text-xs text-red-400">Remove</button>
               </div>
             ))}
             {cart && cart.lines.length > 0 && (
               <div className="mt-auto space-y-2 border-t border-white/10 pt-3 text-sm">
-                <div className="flex justify-between"><span>{cart.itemCount} items</span><span className="font-mono text-lg text-primary">{fmt(cart.total)}</span></div>
-                <div className="text-xs text-amber-300">{LABEL}. Max {cart.limits.maxItemsPerOrder} items per order.</div>
-                {!cart.canAfford && <div className="text-xs text-red-400">Not enough credits in your Discord wallet.</div>}
-                <button type="button" disabled={!cart.canAfford || cart.itemCount > cart.limits.maxItemsPerOrder} onClick={() => setCheckoutOpen(true)} className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold uppercase tracking-wider text-primary-foreground disabled:opacity-40" data-testid="checkout-btn">Checkout</button>
+                <div className="text-xs text-amber-300">{LABEL}.</div>
+                {cart.groups?.vehicle && (
+                  <div className="space-y-1 rounded-xl border border-primary/25 p-2">
+                    <div className="flex justify-between"><span>Vehicle (own order, 1 per order)</span><span className="font-mono text-primary">{fmt(cart.groups.vehicle.total)}</span></div>
+                    {!cart.groups.vehicle.canAfford && <div className="text-xs text-red-400">Not enough credits for the vehicle.</div>}
+                    <button type="button" disabled={!cart.groups.vehicle.canAfford} onClick={() => setCheckoutOpen("vehicle")} className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold uppercase tracking-wider text-primary-foreground disabled:opacity-40" data-testid="checkout-vehicle-btn">Check out vehicle</button>
+                  </div>
+                )}
+                {cart.groups?.items && (
+                  <div className="space-y-1 rounded-xl border border-white/10 p-2">
+                    <div className="flex justify-between"><span>{cart.groups.items.count} items (max {cart.limits.maxItemsPerOrder} per order)</span><span className="font-mono text-primary">{fmt(cart.groups.items.total)}</span></div>
+                    {!cart.groups.items.canAfford && <div className="text-xs text-red-400">Not enough credits in your Discord wallet.</div>}
+                    <button type="button" disabled={!cart.groups.items.canAfford || cart.groups.items.count > cart.limits.maxItemsPerOrder} onClick={() => setCheckoutOpen("items")} className={`w-full rounded-full py-2.5 text-sm font-semibold uppercase tracking-wider disabled:opacity-40 ${cart.groups.vehicle ? "border border-primary/50 text-primary" : "bg-primary text-primary-foreground"}`} data-testid="checkout-btn">{cart.groups.vehicle ? "Check out items" : "Checkout"}</button>
+                  </div>
+                )}
               </div>
             )}
           </aside>
@@ -216,12 +240,13 @@ export function ShopStore({ initialTab = "shop" }: { initialTab?: "shop" | "orde
         document.body,
       )}
       {checkoutOpen && cart && typeof document !== "undefined" && createPortal(
-        <Checkout cart={cart} api={api} onClose={() => setCheckoutOpen(false)} onDone={() => {
-          setCheckoutOpen(false);
+        <Checkout cart={cart} scope={checkoutOpen} vehicles={vehQ.data} api={api} onClose={() => setCheckoutOpen(null)} onDone={() => {
+          setCheckoutOpen(null);
           setCartOpen(false);
           setTab("orders");
           qc.invalidateQueries({ queryKey: ["shop-cart"] });
           qc.invalidateQueries({ queryKey: ["shop-orders"] });
+          qc.invalidateQueries({ queryKey: ["shop-vehicles"] });
         }} />,
         document.body,
       )}
@@ -229,8 +254,13 @@ export function ShopStore({ initialTab = "shop" }: { initialTab?: "shop" | "orde
   );
 }
 
-function Checkout({ cart, api, onClose, onDone }: { cart: Cart; api: <T>(p: string, i?: RequestInit) => Promise<T>; onClose: () => void; onDone: () => void }) {
-  const dq = useQuery({ queryKey: ["delivery-options"], queryFn: () => api<Delivery>("/api/shop/delivery-options") });
+function Checkout({ cart, scope, vehicles, api, onClose, onDone }: { cart: Cart; scope: Scope; vehicles?: Vehicles; api: <T>(p: string, i?: RequestInit) => Promise<T>; onClose: () => void; onDone: () => void }) {
+  const isVeh = scope === "vehicle";
+  const qcx = useQueryClient();
+  const dq = useQuery({ queryKey: ["delivery-options"], queryFn: () => api<Delivery>("/api/shop/delivery-options"), enabled: !isVeh });
+  const [vspot, setVspot] = useState(() => vehicles?.spots.find((s) => s.available)?.id ?? "");
+  const lines = cart.lines.filter((l) => (l.kind === "vehicle") === isVeh);
+  const total = lines.reduce((s, l) => s + l.lineTotal, 0);
   const [mode, setMode] = useState<"last_position" | "safe_spot">("safe_spot");
   const [spot, setSpot] = useState("");
   const [busy, setBusy] = useState(false);
@@ -247,16 +277,20 @@ function Checkout({ cart, api, onClose, onDone }: { cart: Cart; api: <T>(p: stri
       const r = await api<{ receipt: { receiptNo: string; total: number; balanceAfter: number; delivery: string } }>("/api/checkout", {
         method: "POST",
         headers: { "idempotency-key": idem.current },
-        body: JSON.stringify({ delivery: { mode, spotId: spot } }),
+        body: JSON.stringify(isVeh ? { scope, delivery: { mode: "vehicle_spot", spotId: vspot } } : { scope, delivery: { mode, spotId: spot } }),
       });
       setReceipt(r.receipt);
-      toast.success("Paid. Your order rides the next restart.");
+      toast.success(isVeh ? "Paid. Your car spawns at the next restart." : "Paid. Your order rides the next restart.");
     } catch (e) {
       toast.error((e as Error).message);
+      if (isVeh) qcx.invalidateQueries({ queryKey: ["shop-vehicles"] });
     } finally {
       setBusy(false);
     }
   };
+  useEffect(() => {
+    if (isVeh && vehicles && !vehicles.spots.find((s) => s.id === vspot)?.available) setVspot(vehicles.spots.find((s) => s.available)?.id ?? "");
+  }, [vehicles]);
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4" data-testid="checkout-modal">
       <div className="w-full max-w-lg space-y-4 rounded-2xl border border-primary/30 bg-zinc-950 p-6">
@@ -268,13 +302,25 @@ function Checkout({ cart, api, onClose, onDone }: { cart: Cart; api: <T>(p: stri
               <div>Charged <span className="font-mono text-primary">{fmt(receipt.total)}</span> · wallet now {fmt(receipt.balanceAfter)}</div>
               <div className="text-muted-foreground">{receipt.delivery}</div>
             </div>
-            <div className="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-200">Not instant: items are placed on the ground at your spot when the server restarts (every 2h). If the upload fails you are refunded automatically.</div>
+            <div className="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-200">{isVeh ? "Not instant: your car spawns with all parts at the vehicle spot when the server restarts (every 2h). Fuel is set by the game, so bring a canister. If the upload fails you are refunded automatically." : "Not instant: items are placed on the ground at your spot when the server restarts (every 2h). If the upload fails you are refunded automatically."}</div>
             <button type="button" onClick={onDone} className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold uppercase text-primary-foreground">Track my order</button>
           </>
         ) : (
           <>
-            <h2 className="font-display text-2xl text-primary">Checkout</h2>
-            <div className="text-sm">{cart.itemCount} items · <span className="font-mono text-primary">{fmt(cart.total)}</span> from your Discord wallet ({fmt(cart.wallet.credits)})</div>
+            <h2 className="font-display text-2xl text-primary">{isVeh ? "Vehicle checkout" : "Checkout"}</h2>
+            <div className="text-sm">{isVeh ? lines[0]?.name : `${lines.reduce((s, l) => s + l.qty, 0)} items`} · <span className="font-mono text-primary">{fmt(total)}</span> from your Discord wallet ({fmt(cart.wallet.credits)})</div>
+            {isVeh ? (
+              <div className="space-y-2 text-sm" data-testid="vehicle-spots">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">Vehicle spot (road spawn points away from bases; never your own position)</div>
+                {(vehicles?.spots ?? []).map((s) => (
+                  <label key={s.id} className={`flex items-start gap-2 rounded-xl border p-2.5 ${s.available ? "border-primary/30" : "border-white/10 opacity-50"}`}>
+                    <input type="radio" disabled={!s.available} checked={vspot === s.id} onChange={() => setVspot(s.id)} />
+                    <span>{s.label}<span className="block text-xs text-muted-foreground">x {s.x.toFixed(0)} · z {s.z.toFixed(0)}{s.available ? "" : " · taken for this restart"}</span></span>
+                  </label>
+                ))}
+                {vehicles?.capacity && <div className="text-xs text-muted-foreground">Vehicles booked for the next restart: {vehicles.capacity.used}/{vehicles.capacity.max}</div>}
+              </div>
+            ) : (
             <div className="space-y-2 text-sm">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Delivery spot</div>
               <label className={`flex items-start gap-2 rounded-xl border p-3 ${pos ? "border-primary/30" : "border-white/10 opacity-60"}`}>
@@ -296,10 +342,11 @@ function Checkout({ cart, api, onClose, onDone }: { cart: Cart; api: <T>(p: stri
                 </span>
               </label>
             </div>
+            )}
             <div className="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-200">{LABEL}. Console has no live spawning, so nothing appears before the restart.</div>
             <div className="flex gap-2">
               <button type="button" onClick={onClose} className="flex-1 rounded-full border py-2.5 text-sm">Back</button>
-              <button type="button" disabled={busy || (mode === "safe_spot" && !spot)} onClick={pay} className="flex-1 rounded-full bg-primary py-2.5 text-sm font-semibold uppercase text-primary-foreground disabled:opacity-40" data-testid="pay-btn">{busy ? "Paying…" : `Pay ${fmt(cart.total)}`}</button>
+              <button type="button" disabled={busy || (isVeh ? !vspot : mode === "safe_spot" && !spot)} onClick={pay} className="flex-1 rounded-full bg-primary py-2.5 text-sm font-semibold uppercase text-primary-foreground disabled:opacity-40" data-testid="pay-btn">{busy ? "Paying…" : `Pay ${fmt(total)}`}</button>
             </div>
           </>
         )}
@@ -310,19 +357,23 @@ function Checkout({ cart, api, onClose, onDone }: { cart: Cart; api: <T>(p: stri
 
 function OrderCard({ o }: { o: Order }) {
   const cd = useCountdown(o.targetRestartAt);
-  const [label, cls] = STATE[o.state] ?? [o.state, "bg-zinc-700"];
+  const veh = o.kind === "vehicle";
+  const [label, cls] = veh && o.state === "verified_live" ? ["Spawned · locking to spot", "bg-emerald-700"] : veh && o.state === "delivered" ? ["Delivered · car at spot", "bg-emerald-900"] : STATE[o.state] ?? [o.state, "bg-zinc-700"];
   const waiting = ["paid", "queued", "uploaded"].includes(o.state);
   return (
     <div className="space-y-2 rounded-2xl border border-white/10 bg-black/50 p-4 text-sm" data-testid="order-card">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-xs text-muted-foreground">{o.orderId}</span>
+        {veh && <span className="rounded-full border border-primary/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary">Vehicle</span>}
         <span className={`rounded-full px-2 py-0.5 text-[11px] uppercase tracking-wider text-white ${cls}`}>{label}</span>
         <span className="ml-auto font-mono text-primary">{fmt(o.total)}</span>
       </div>
       <div className="text-xs">{o.lines.map((l) => `${l.name} ×${l.qty}`).join(" · ")}</div>
       <div className="text-xs text-muted-foreground">Deliver to: {o.delivery.label} (x {o.delivery.x.toFixed(0)}, z {o.delivery.z.toFixed(0)})</div>
       {waiting && <div className="text-xs text-amber-300">{LABEL} — target {hhmm(o.targetRestartAt)}, in {cd}</div>}
-      {o.state === "verified_live" && <div className="text-xs text-emerald-300">Config was live at the restart. Pick your items up before the following restart.</div>}
+      {!veh && o.state === "verified_live" && <div className="text-xs text-emerald-300">Config was live at the restart. Pick your items up before the following restart.</div>}
+      {veh && waiting && <div className="text-xs text-muted-foreground">Spawns with all parts at the vehicle spot. Fuel is set by the game; bring a canister.</div>}
+      {veh && ["verified_live", "delivered"].includes(o.state) && <div className="text-xs text-emerald-300">Your car spawned at the restart. Go get it: it stays until someone takes or wrecks it.</div>}
       {o.refund && <div className="text-xs text-red-300">Refunded {fmt(o.refund.amount)}: {o.refund.reason}</div>}
       <details className="text-xs text-muted-foreground">
         <summary>History</summary>
@@ -337,4 +388,51 @@ function Orders({ orders, loading, signedIn }: { orders: Order[]; loading: boole
   if (loading) return <div className="text-sm text-muted-foreground">Loading orders…</div>;
   if (!orders.length) return <div className="text-sm text-muted-foreground">No orders yet.</div>;
   return <div className="grid gap-3 md:grid-cols-2">{orders.map((o) => <OrderCard key={o.orderId} o={o} />)}</div>;
+}
+
+function VehicleGrid({ data, loading, onAdd }: { data?: Vehicles; loading: boolean; onAdd: (v: VVariant, m: VModel) => void }) {
+  if (loading) return <div className="text-sm text-muted-foreground">Loading vehicles…</div>;
+  if (!data) return <div className="text-sm text-red-400">Vehicle shop unavailable.</div>;
+  const free = data.spots.filter((s) => s.available).length;
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-primary/20 bg-black/50 px-4 py-2 text-xs text-muted-foreground">
+        {data.note} One vehicle per order, max {data.limits.perRestart} per restart{data.capacity ? ` (${data.capacity.used} booked for the next one)` : ""}. {free}/{data.spots.length} vehicle spots free.
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="vehicle-grid">
+        {data.models.map((m) => <VehicleCard key={m.id} m={m} onAdd={onAdd} />)}
+      </div>
+    </div>
+  );
+}
+
+function VehicleCard({ m, onAdd }: { m: VModel; onAdd: (v: VVariant, m: VModel) => void }) {
+  const [vi, setVi] = useState(0);
+  const v = m.variants[vi] ?? m.variants[0];
+  return (
+    <article className="flex flex-col overflow-hidden rounded-2xl border border-primary/15 bg-black/60" data-testid="vehicle-card">
+      <div className="relative flex h-44 items-center justify-center bg-gradient-to-b from-zinc-900 to-black p-3">
+        <img src={v.image} alt={`${m.name} ${v.color}`} className="max-h-full max-w-full object-contain" />
+        <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary">{m.role}</span>
+      </div>
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="text-lg font-semibold">{m.name}</h3>
+          <span className="font-mono text-primary">{fmt(m.price)}</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          {m.variants.map((x, i) => (
+            <button key={x.classname} type="button" title={x.color} onClick={() => setVi(i)} className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${i === vi ? "border-primary text-primary" : "border-white/15 text-muted-foreground"}`}>
+              <span className="h-3 w-3 rounded-full border border-white/30" style={{ background: x.hex }} />{x.color}
+            </button>
+          ))}
+        </div>
+        <ul className="grid grid-cols-2 gap-x-3 text-[11px] text-muted-foreground">
+          {m.parts.map((p) => <li key={p}>✓ {p}</li>)}
+          <li>✓ {m.seats} seats</li>
+        </ul>
+        <button type="button" onClick={() => onAdd(v, m)} className="mt-auto rounded-full bg-primary px-3 py-2 text-xs font-semibold uppercase tracking-wider text-primary-foreground" data-testid="vehicle-add">Add {v.color} {m.name} to cart</button>
+      </div>
+    </article>
+  );
 }
