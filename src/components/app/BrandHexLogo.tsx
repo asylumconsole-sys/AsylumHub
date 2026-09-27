@@ -1,4 +1,5 @@
 import { BRAND } from "@/lib/brand";
+import { SKULL } from "@/lib/skull";
 
 interface BrandHexLogoProps {
   size?: number;
@@ -17,7 +18,7 @@ export function BrandHexLogo({ size = 42, className }: BrandHexLogoProps) {
         style={{ background: "radial-gradient(circle, rgba(212,168,75,0.45), transparent 70%)" }}
       />
       <img
-        src="/server-logo.png"
+        src={SKULL}
         alt={`${BRAND.name} emblem`}
         className="relative h-full w-full object-contain drop-shadow-[0_0_12px_rgba(212,168,75,0.35)]"
         draggable={false}
