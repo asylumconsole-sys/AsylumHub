@@ -16,6 +16,7 @@ import { DonateDock } from "@/components/app/DonateDock";
 import { GuidedTour } from "@/components/tour/GuidedTour";
 import { RouteProgressBar } from "@/components/app/RouteProgressBar";
 import { BrandHexLogo } from "@/components/app/BrandHexLogo";
+import { ZonePaySheet } from "@/components/app/ZonePaySheet";
 import { BRAND } from "@/lib/brand";
 import { AutosaveStatus } from "@/components/app/AutosaveStatus";
 import { purgeExpiredDrafts } from "@/hooks/use-draft";
@@ -121,6 +122,7 @@ function AppShell() {
           )}
         </main>
       </div>
+      {isMap && <ZonePaySheet />}
       {!isMap && <BottomNav />}
       <RouteProgressBar />
       {!isMap && <GuidedTour />}
