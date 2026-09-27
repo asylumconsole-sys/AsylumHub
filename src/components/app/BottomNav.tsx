@@ -5,7 +5,7 @@ import { DonateDock } from "@/components/app/DonateDock";
 const items = [
   { to: "/dashboard", label: "Home", Icon: IconHome },
   { to: "/tools", label: "Shop", Icon: IconCampaign },
-  { to: "/tools/zone-pick", label: "Map", Icon: IconWorkspace },
+  { to: "/tools/base-map-clicker", label: "Map", Icon: IconWorkspace },
   { to: "/account", label: "Account", Icon: IconSettings },
 ] as const;
 
