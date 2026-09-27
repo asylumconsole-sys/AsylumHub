@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { GlassPanel } from "@/components/ui-custom/GlassPanel";
@@ -44,13 +44,17 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
   const playerId = user?.id || "";
   const [activePanel, setActivePanel] = useState<"base" | "radar" | null>(null);
   const [radarRange, setRadarRange] = useState("500m");
+  const [localPsn, setLocalPsn] = useState("");
+  useEffect(() => {
+    setLocalPsn(window.localStorage.getItem("asylumhub:psn-name") || "");
+  }, [activePanel]);
   const zoneQ = useQuery({
-    queryKey: ["detect-zone-v4", playerId],
-    queryFn: () => detectPlayerZone({ data: { playerId } }),
+    queryKey: ["detect-zone-v5", playerId, localPsn],
+    queryFn: () => detectPlayerZone({ data: { playerId, psnName: localPsn || undefined } }),
     enabled: activePanel === "radar" && Boolean(playerId),
   });
   const pin = zoneQ.data?.prompt;
-  const psn = zoneQ.data?.psnName;
+  const psn = zoneQ.data?.psnName || localPsn;
   const claimMut = useMutation({
     mutationFn: () => claimZoneRadar({ data: { playerId, baseCode: pin?.code || "", range: radarRange, confirmed: true, x: pin?.x, z: pin?.z, map: pin?.map } }),
     onSuccess: () => toast.success(`Zone radar locked on ${pin?.name}`),
@@ -87,9 +91,12 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
           <h2 className="font-display text-2xl">Track your zone</h2>
           <div className="text-xs uppercase tracking-[0.16em] text-[#d4a84b]">Linked PSN · {psn || (zoneQ.isLoading ? "loading…" : "none")}</div>
           {zoneQ.data ? (
-            <div className="font-mono text-xs text-zinc-500">
-              files {zoneQ.data.filesScanned ?? 0} · flags {zoneQ.data.flagsFound} · builds {zoneQ.data.buildsFound} · pins {zoneQ.data.positionsFound}
-            </div>
+            <>
+              <div className="font-mono text-xs text-zinc-500">
+                files {zoneQ.data.filesScanned ?? 0} · flags {zoneQ.data.flagsFound} · builds {zoneQ.data.buildsFound} · pins {zoneQ.data.positionsFound}
+              </div>
+              {zoneQ.data.note ? <div className="text-xs text-zinc-500">{zoneQ.data.note}</div> : null}
+            </>
           ) : null}
           {pin ? (
             <>
@@ -107,10 +114,10 @@ export function CampaignInABoxContent({ hideHeader = false }: { hideHeader?: boo
             </>
           ) : !zoneQ.isLoading ? (
             <div className="rounded-xl border border-dashed border-glass-border p-5 text-sm text-muted-foreground">
-              {"Nitrado walk finished. If files is 0 the API could not list logs. If files are present but pins is 0, those files have your tag without X/Z on the same line. Paste one raw ADM line and the matcher will be locked to that format."}
+              No DayZ++ place line matched this PSN yet. Hard refresh, then open Track your zone again.
             </div>
           ) : (
-            <div className="text-sm text-zinc-500">Walking Nitrado ftproot…</div>
+            <div className="text-sm text-zinc-500">Reading DayZ++ place logs…</div>
           )}
           <select value={radarRange} onChange={(e) => setRadarRange(e.target.value)} className="h-11 w-full rounded-lg border border-glass-border bg-black/40 px-3 text-sm">
             <option>250m</option><option>500m</option><option>750m</option><option>1000m</option>
