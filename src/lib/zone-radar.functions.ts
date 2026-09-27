@@ -22,16 +22,24 @@ export type ZoneCandidate = {
 
 type RadarStore = { zones: Record<string, { playerId: string; baseCode: string; range: string; claimedAt: string }> };
 const EMPTY: RadarStore = { zones: {} };
-type LinkStore = { byDiscordId: Record<string, { username?: string; links?: { username: string; serverId: string }[] }> };
+type LinkStore = { byDiscordId: Record<string, { username?: string; discordId?: string; links?: { username: string; serverId: string }[] }> };
 type Hit = { x: number; z: number; kind: "flag" | "build" | "pos"; map: "livonia" | "chernarus"; item?: string };
 
-const CONFIG_DIR = {
-  "101x": "/games/ni12096544_1/ftproot/dayzps/config",
-  "102x": "/games/ni12096544_2/ftproot/dayzps/config",
+const ROOTS = {
+  "101x": [
+    "/games/ni12096544_1/ftproot/dayzps/config",
+    "/games/ni12096544_1/ftproot/dayzps_missions",
+    "/games/ni12096544_1/noftp/dayzps/config",
+  ],
+  "102x": [
+    "/games/ni12096544_2/ftproot/dayzps/config",
+    "/games/ni12096544_2/ftproot/dayzps_missions",
+    "/games/ni12096544_2/noftp/dayzps/config",
+  ],
 } as const;
 
 function fold(value: string) {
-  return value.toLowerCase().replace(/[\s_-]+/g, "");
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function nitradoHeaders() {
@@ -39,18 +47,36 @@ function nitradoHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : null;
 }
 
-async function listConfig(serviceId: string, dir: string) {
+async function listDir(serviceId: string, dir: string) {
   const headers = nitradoHeaders();
-  if (!headers) return [] as string[];
+  if (!headers) return [] as Array<{ path: string; name: string; type: string }>;
   const res = await fetch(
-    `https://api.nitrado.net/services/${serviceId}/gameservers/file_server/list?dir=${encodeURIComponent(`${dir.replace(/\/$/, "")}/`)}`,
+    `https://api.nitrado.net/services/${serviceId}/gameservers/file_server/list?dir=${encodeURIComponent(dir.replace(/\/$/, ""))}`,
     { headers },
   );
   if (!res.ok) return [];
   const json = (await res.json()) as { data?: { entries?: Array<{ path?: string; name?: string; type?: string }> } };
-  return (json.data?.entries ?? [])
-    .map((e) => e.path || `${dir}/${e.name || ""}`)
-    .filter((p) => /\.(adm|rpt)$/i.test(p));
+  return (json.data?.entries ?? []).map((e) => {
+    const name = e.name || e.path?.split("/").pop() || "";
+    const path = e.path && e.path.startsWith("/") ? e.path : `${dir.replace(/\/$/, "")}/${name}`;
+    return { path, name, type: (e.type || "file").toLowerCase() };
+  });
+}
+
+async function listLogs(serviceId: string, roots: readonly string[]) {
+  const out: string[] = [];
+  for (const root of roots) {
+    const top = await listDir(serviceId, root);
+    for (const entry of top) {
+      if (entry.type.includes("dir")) {
+        const nested = await listDir(serviceId, entry.path);
+        for (const child of nested) {
+          if (/\.(adm|rpt|log|txt)$/i.test(child.name)) out.push(child.path);
+        }
+      } else if (/\.(adm|rpt|log|txt)$/i.test(entry.name)) out.push(entry.path);
+    }
+  }
+  return [...new Set(out)].sort().slice(-16);
 }
 
 async function downloadFile(serviceId: string, file: string) {
@@ -59,43 +85,56 @@ async function downloadFile(serviceId: string, file: string) {
   const json = (await fetch(
     `https://api.nitrado.net/services/${serviceId}/gameservers/file_server/download?file=${encodeURIComponent(file)}`,
     { headers },
-  ).then((r) => r.json())) as { data?: { url?: string; token?: { url?: string } } };
-  const url = json.data?.url ?? json.data?.token?.url;
+  ).then((r) => r.json()).catch(() => ({}))) as { data?: { url?: string; token?: { url?: string; token?: string } } };
+  const url = json.data?.token?.url ?? json.data?.url;
+  const token = json.data?.token?.token;
   if (!url) return "";
-  const res = await fetch(url);
-  return res.ok ? res.text() : "";
+  const res = await fetch(url, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
+  if (!res.ok) return "";
+  const text = await res.text();
+  return text.includes("<!DOCTYPE") ? "" : text.slice(0, 2_500_000);
 }
 
 function pullPos(line: string): { x: number; z: number } | null {
   const patterns = [
-    /pos=<\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*>/i,
-    /pos=\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/i,
-    /\((-?[\d.]+)\s*[/,]\s*(-?[\d.]+)\s*[/,]\s*(-?[\d.]+)\)/,
-    /\bX[:=]\s*(-?[\d.]+)[^\d-]{1,20}Z[:=]\s*(-?[\d.]+)/i,
+    /pos\s*=\s*<\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*>/i,
+    /pos\s*=\s*\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/i,
+    /(?:at|position|pos)\s*[<(]\s*(-?[\d.]+)\s*[, ]\s*(-?[\d.]+)\s*[, ]\s*(-?[\d.]+)\s*[>)]/i,
+    /\b(-?\d{2,5}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,4}(?:\.\d+)?)\s*[, ]\s*(-?\d{2,5}(?:\.\d+)?)\b/,
   ];
   for (const re of patterns) {
     const m = line.match(re);
     if (!m) continue;
     const x = Number(m[1]);
-    const z = Number(m[3] ?? m[2]);
-    if (Number.isFinite(x) && Number.isFinite(z) && Math.abs(x) + Math.abs(z) > 20) return { x, z };
+    const z = Number(m[3]);
+    if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
+    if (x < 0 || z < 0 || x > 16000 || z > 16000) continue;
+    if (x + z < 40) continue;
+    return { x, z };
   }
   return null;
 }
 
 function parseHits(text: string, names: string[], map: "livonia" | "chernarus"): Hit[] {
-  const wants = names.map(fold).filter((n) => n.length >= 2);
+  const wants = [...new Set(names.map(fold).filter((n) => n.length >= 3))];
   if (!wants.length) return [];
   const hits: Hit[] = [];
-  for (const line of text.split(/\r?\n/)) {
+  const lines = text.split(/\r?\n/);
+  let carry = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const folded = fold(line);
-    if (!wants.some((w) => folded.includes(w))) continue;
-    const pos = pullPos(line);
+    const named = wants.some((w) => folded.includes(w));
+    if (named) carry = 4;
+    else if (carry > 0) carry -= 1;
+    else continue;
+    const pos = pullPos(line) ?? (carry > 0 ? pullPos(lines[i + 1] || "") : null);
     if (!pos) continue;
-    const flag = /flag|territoryflag|flagpole|flag_base/i.test(line);
-    const build = /built|placed|construct|fence|watchtower|wall|gate|kit|shelter|tent|barrel|storage|base/i.test(line);
-    const item = line.match(/\b(?:Built|Placed|Constructed)\s+([A-Za-z0-9_]+)/i)?.[1];
-    hits.push({ ...pos, kind: flag ? "flag" : build ? "build" : "pos", map, item });
+    const blob = `${line} ${lines[i + 1] || ""}`;
+    const flag = /flag|territoryflag|flagpole|flag_base|territory/i.test(blob);
+    const build = /built|placed|construct|fence|watchtower|wall|gate|kit|shelter|tent|barrel|storage|base|plotpole|wooden|metal/i.test(blob);
+    const item = blob.match(/\b(?:Built|Placed|Constructed|built|placed)\s+([A-Za-z0-9_]+)/)?.[1];
+    hits.push({ ...pos, kind: flag ? "flag" : build || named ? "build" : "pos", map, item });
   }
   return hits;
 }
@@ -104,8 +143,7 @@ async function configHits(serverId: "101x" | "102x", names: string[]) {
   const catalog = DAYZ_SERVERS.find((s) => s.id === serverId);
   if (!catalog) return { hits: [] as Hit[], files: 0 };
   const serviceId = resolveServiceId(catalog);
-  const dir = CONFIG_DIR[serverId];
-  const files = await listConfig(serviceId, dir);
+  const files = await listLogs(serviceId, ROOTS[serverId]);
   const map = serverId === "102x" ? "chernarus" : "livonia";
   const hits: Hit[] = [];
   for (const file of files) {
@@ -127,8 +165,9 @@ async function ftpHits(serverId: "101x" | "102x", names: string[]) {
   try {
     await client.access({ host, user, password, port: Number(process.env[`${prefix}_PORT`] ?? process.env.FTP_PORT ?? 21) });
     const files = (await client.list(directory))
-      .filter((file) => /\.(adm|rpt)$/i.test(file.name))
-      .sort((a, b) => b.modifiedAt - a.modifiedAt);
+      .filter((file) => /\.(adm|rpt|log|txt)$/i.test(file.name))
+      .sort((a, b) => (b.modifiedAt || 0) - (a.modifiedAt || 0))
+      .slice(0, 12);
     const hits: Hit[] = [];
     const map = serverId === "102x" ? "chernarus" : "livonia";
     for (const file of files) {
@@ -153,9 +192,9 @@ async function ftpHits(serverId: "101x" | "102x", names: string[]) {
 
 function densest(hits: Hit[]) {
   if (!hits.length) return null;
-  let best = { x: hits[0].x, z: hits[0].z, map: hits[0].map, count: 0 };
+  let best = { x: hits[0].x, z: hits[0].z, map: hits[0].map, count: 1 };
   for (const a of hits) {
-    const count = hits.filter((b) => Math.hypot(b.x - a.x, b.z - a.z) <= 90).length;
+    const count = hits.filter((b) => Math.hypot(b.x - a.x, b.z - a.z) <= 120).length;
     if (count > best.count) best = { x: a.x, z: a.z, map: a.map, count };
   }
   return best;
@@ -180,7 +219,7 @@ function fromCustom(base: CustomBase, userId: string): ZoneCandidate | null {
 
 async function linkedNames(playerId: string) {
   const store = await readJsonFile<LinkStore>("bot-account-links.json", { byDiscordId: {} });
-  const row = store.byDiscordId[playerId] ?? Object.values(store.byDiscordId).find((item) => (item as { discordId?: string }).discordId === playerId);
+  const row = store.byDiscordId[playerId] ?? Object.values(store.byDiscordId).find((item) => item.discordId === playerId);
   return [...new Set([...(row?.links ?? []).map((l) => l.username), row?.username].filter((n): n is string => Boolean(n?.trim())))];
 }
 
@@ -201,14 +240,13 @@ export const detectPlayerZone = createServerFn({ method: "GET" })
     const flags = logHits.filter((h) => h.kind === "flag");
     const builds = logHits.filter((h) => h.kind === "build");
     const lastFlag = flags.at(-1) ?? null;
-    const aroundFlag = lastFlag ? logHits.filter((h) => Math.hypot(h.x - lastFlag.x, h.z - lastFlag.z) <= 90).length : 0;
+    const aroundFlag = lastFlag ? logHits.filter((h) => Math.hypot(h.x - lastFlag.x, h.z - lastFlag.z) <= 120).length : 0;
     const cluster = densest(builds.length ? builds : logHits);
-    const pick =
-      lastFlag && aroundFlag >= 2
-        ? { x: lastFlag.x, z: lastFlag.z, map: lastFlag.map, count: aroundFlag, why: `Last flag pole + ${aroundFlag} nearby builds` }
-        : cluster && cluster.count >= 3
-          ? { x: cluster.x, z: cluster.z, map: cluster.map, count: cluster.count, why: `${cluster.count} builds clustered for ${psn}` }
-          : null;
+    const pick = lastFlag
+      ? { x: lastFlag.x, z: lastFlag.z, map: lastFlag.map, count: Math.max(aroundFlag, 1), why: `Last flag pole in ADM/RPT for ${psn}` }
+      : cluster
+        ? { x: cluster.x, z: cluster.z, map: cluster.map, count: cluster.count, why: `${cluster.count} build line${cluster.count === 1 ? "" : "s"} for ${psn}` }
+        : null;
     const logPrompt = pick
       ? ({
           code: `log-${Math.round(pick.x)}-${Math.round(pick.z)}`,
@@ -218,7 +256,7 @@ export const detectPlayerZone = createServerFn({ method: "GET" })
           x: Math.round(pick.x),
           z: Math.round(pick.z),
           map: pick.map,
-          buildScore: Math.min(100, 30 + pick.count * 4),
+          buildScore: Math.min(100, 40 + pick.count * 6),
           confidence: "high" as const,
           reason: pick.why,
           isOwner: true,
