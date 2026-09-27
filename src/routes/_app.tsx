@@ -98,7 +98,7 @@ function AppShell() {
           {!isMap && <header className="sticky top-0 z-30 flex items-center justify-between border-b border-glass-border bg-black/50 px-4 py-3 backdrop-blur-xl md:hidden"><Link to="/dashboard" className="flex items-center gap-2"><BrandHexLogo size={26} /><span className="font-display">{BRAND.name}</span></Link></header>}
           <div className={`pointer-events-none fixed z-[80] flex items-center gap-2 ${isMap ? "right-4 top-4" : "right-4 top-3 md:right-5 md:top-4"}`}>
             {!isMap && <div className="pointer-events-auto hidden md:block"><AutosaveStatus /></div>}
-            {isMap ? <Link to="/dashboard" className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/80 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a]">Close</Link> : <Link to="/tools/base-map-clicker" className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/70 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a]"><GoldMap size={14} /> Map</Link>}
+            {isMap ? <Link to="/dashboard" className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/80 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a]">Close</Link> : <a href="/tools/base-map-clicker" className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/70 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a]"><GoldMap size={14} /> Map</a>}
             {!isMap && <div className="pointer-events-auto"><NotificationBell /></div>}
             {!isMap && <div className="pointer-events-auto"><UserMenu /></div>}
           </div>
