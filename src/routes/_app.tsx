@@ -79,8 +79,12 @@ function AppShell() {
                 {!collapsed && <div className="px-3 pb-1 text-[10px] uppercase tracking-[0.22em] text-zinc-500">{group.label}</div>}
                 <div className="space-y-0.5">
                   {group.items.map((n) => {
+                    const itemClass = `relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-lg py-2 text-sm`;
+                    if (n.to === "/battlepass") {
+                      return <a key={n.label} href="/season" target="_blank" rel="noopener noreferrer" title={collapsed ? n.label : "Opens in a new tab"} className={`${itemClass} text-muted-foreground hover:bg-glass/50 hover:text-foreground`}><n.Icon size={18} />{!collapsed && <span>{n.label}</span>}</a>;
+                    }
                     const active = pathActive(loc.pathname, n.to);
-                    return <Link key={n.label} to={n.to} preload="intent" title={collapsed ? n.label : undefined} className={`relative flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} rounded-lg py-2 text-sm ${active ? "bg-[#d4a84b]/15 text-[#e8c56a]" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}><n.Icon size={18} />{!collapsed && <span>{n.label}</span>}</Link>;
+                    return <Link key={n.label} to={n.to} preload="intent" title={collapsed ? n.label : undefined} className={`${itemClass} ${active ? "bg-[#d4a84b]/15 text-[#e8c56a]" : "text-muted-foreground hover:bg-glass/50 hover:text-foreground"}`}><n.Icon size={18} />{!collapsed && <span>{n.label}</span>}</Link>;
                   })}
                 </div>
               </div>
@@ -95,7 +99,7 @@ function AppShell() {
         )}
         {COMMANDER_ENABLED ? <CommanderAI /> : <CommandPalette />}
         <main className={`min-w-0 flex-1 overflow-x-hidden ${isMap ? "p-0" : "pb-[calc(env(safe-area-inset-bottom)+5rem)] md:pb-0"}`}>
-          {!isMap && <header className="sticky top-0 z-30 flex items-center justify-between border-b border-glass-border bg-black/50 px-4 py-3 backdrop-blur-xl md:hidden"><Link to="/dashboard" className="flex items-center gap-2"><BrandHexLogo size={26} /><span className="font-display">{BRAND.name}</span></Link></header>}
+          {!isMap && <header className="sticky top-0 z-30 flex items-center justify-between border-b border-glass-border bg-black/50 px-4 py-3 backdrop-blur-xl md:hidden"><Link to="/dashboard" className="flex items-center gap-2"><BrandHexLogo size={26} /><span className="font-display">{BRAND.name}</span></Link><a href="/season" target="_blank" rel="noopener noreferrer" className="text-xs uppercase tracking-[0.16em] text-[#e8c56a]">Battlepass</a></header>}
           <div className={`pointer-events-none fixed z-[80] flex items-center gap-2 ${isMap ? "right-4 top-4" : "right-4 top-3 md:right-5 md:top-4"}`}>
             {!isMap && <div className="pointer-events-auto hidden md:block"><AutosaveStatus /></div>}
             {isMap ? <Link to="/dashboard" className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/80 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a]">Close</Link> : <a href="/tools/base-map-clicker" className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#d4a84b]/40 bg-black/70 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-[#e8c56a]"><GoldMap size={14} /> Map</a>}
@@ -104,15 +108,7 @@ function AppShell() {
           </div>
           {isMap ? (
             <div className="map-fs fixed inset-0 z-50 bg-black">
-              <style>{zoneMaker ? `
-                .map-fs, .map-fs > div { height:100vh !important; min-height:100vh !important; max-width:none !important; margin:0 !important; padding:0 !important; gap:0 !important; background:#000 !important; }
-                .map-fs header, .map-fs [class*="border-l"], .map-fs [class*="lg:grid-cols"] > :last-child { display:none !important; }
-                .map-fs .mb-6 > div:first-child { display:none !important; }
-                .map-fs .leaflet-container { height:100vh !important; min-height:100vh !important; width:100vw !important; background:#000 !important; }
-                .map-fs [class*="min-h-"] { min-height:100vh !important; height:100vh !important; }
-              ` : `
-                .map-fs .leaflet-container { height:100vh !important; min-height:100vh !important; width:100% !important; background:#11150f !important; }
-              `}</style>
+              <style>{zoneMaker ? `\n                .map-fs, .map-fs > div { height:100vh !important; min-height:100vh !important; max-width:none !important; margin:0 !important; padding:0 !important; gap:0 !important; background:#000 !important; }\n                .map-fs header, .map-fs [class*=\"border-l\"], .map-fs [class*=\"lg:grid-cols\"] > :last-child { display:none !important; }\n                .map-fs .mb-6 > div:first-child { display:none !important; }\n                .map-fs .leaflet-container { height:100vh !important; min-height:100vh !important; width:100vw !important; background:#000 !important; }\n                .map-fs [class*=\"min-h-\"] { min-height:100vh !important; height:100vh !important; }\n              ` : `\n                .map-fs .leaflet-container { height:100vh !important; min-height:100vh !important; width:100% !important; background:#11150f !important; }\n              `}</style>
               <Outlet />
             </div>
           ) : (
@@ -146,7 +142,7 @@ function SidebarSearch() {
     <div className="relative">
       <div className="flex items-center gap-2 rounded-lg border border-glass-border bg-glass/40 px-2.5 py-1.5 text-sm text-muted-foreground">
         <IconSearch size={14} />
-        <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)} onKeyDown={(e) => { if (e.key === "Enter" && hits[0]) { e.preventDefault(); go(hits[0]); } }} placeholder="Search…" className="w-full bg-transparent outline-none" />
+        <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)} onKeyDown={(e) => { if (e.key === "Enter" && hits[0]) { e.preventDefault(); go(hits[0]); } }} placeholder="Search\u2026" className="w-full bg-transparent outline-none" />
       </div>
       <AnimatePresence>
         {open && ql && (
