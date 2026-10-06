@@ -3,6 +3,7 @@ import { discordGet } from "@/lib/staff-embed";
 export const LOTTERY_CHANNEL_ID = "1557145808384565278";
 const GOLD = 0xc4a35a;
 const BANNER = "https://raw.githubusercontent.com/asylumconsole-sys/AsylumHub/main/public/pro%20casino.jpg";
+const TICKET = "https://dayzpro.online/api/discord/lottery?view=buy";
 
 export function lotteryBoardPayload() {
   return {
@@ -23,7 +24,7 @@ export function lotteryBoardPayload() {
       image: { url: BANNER },
       footer: { text: "DayZ Pro  \u00b7  Dunes of Reckoning  \u00b7  scratch it or lose it" }
     }],
-    components: [{ type: 1, components: [{ type: 2, style: 3, label: "Buy Lottery Ticket", custom_id: "lot_buy", emoji: { name: "\ud83c\udf9f\ufe0f" } }] }]
+    components: [{ type: 1, components: [{ type: 2, style: 5, label: "Buy Lottery Ticket", url: TICKET }] }]
   };
 }
 
