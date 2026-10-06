@@ -18,8 +18,6 @@ import {
   publishShopBoard,
   shopBalance,
 } from "@/lib/discord-shop-embed";
-import { publishLotteryBoard } from "@/lib/discord-lottery";
-import { buyLotteryTicket, scratchLottery } from "@/lib/discord-lottery-play";
 import { getOnlinePlayers } from "@/lib/online-players.functions";
 import { publishStaffBoard } from "@/lib/staff-embed";
 import { publishWipeAnnounce } from "@/lib/wipe-announce";
@@ -89,7 +87,6 @@ export const Route = createFileRoute("/api/discord/interactions")({
         }
         if (action === "staff") return Response.json(await publishStaffBoard());
         if (action === "shop") return Response.json(await publishShopBoard());
-        if (action === "lottery") return Response.json(await publishLotteryBoard(url.searchParams.get("channel")));
         if (action === "online") {
           const raw = await getOnlinePlayers({ data: { accessToken: "discord-access-token" } }).catch(() => ({ players: [] as Array<{ name: string }> }));
           return Response.json(await repostOnlineEmbed(raw.players.map((p) => p.name)));
@@ -148,11 +145,6 @@ export const Route = createFileRoute("/api/discord/interactions")({
         const id = body.data?.custom_id ?? "";
         const who = actorId(body);
         const name = actorName(body);
-        if (id === "lot_buy") return json(4, (await buyLotteryTicket(who, name)) as Record<string, unknown>);
-        if (id.startsWith("lot_sc:")) {
-          const scratched = await scratchLottery(who, id);
-          return json(scratched.type, scratched.data as Record<string, unknown>);
-        }
         if (id === "shop_npc_pick") return json(4, npcPickPayload(body.data?.values?.[0] || "") as Record<string, unknown>);
         if (id === "shop_icat") return json(4, itemCategoryPayload(body.data?.values?.[0] || "") as Record<string, unknown>);
         if (id === "shop_item") return json(4, itemPickPayload(body.data?.values?.[0] || "") as Record<string, unknown>);
